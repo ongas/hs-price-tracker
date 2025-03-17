@@ -78,25 +78,5 @@ class CommerceDevice(Entity):
         self._entry_id = entry_id
 
     @abstractmethod
-    def add_to_cart(self, **kwargs):
-        pass
-
-    @abstractmethod
-    def delete_from_cart(self, **kwargs):
-        pass
-
-    @abstractmethod
-    def get_cart(self, **kwargs):
-        pass
-
-    @abstractmethod
-    def get_order(self, **kwargs):
-        pass
-
-    @abstractmethod
     def get_orders(self, **kwargs):
-        pass
-
-    @abstractmethod
-    def order(self, **kwargs):
         pass
