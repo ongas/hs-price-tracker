@@ -1,7 +1,11 @@
 from abc import abstractmethod
 from datetime import datetime
 
-from homeassistant.helpers.device_registry import DeviceInfo
+try:
+    from homeassistant.helpers.device_registry import DeviceInfo
+except ImportError:
+    class DeviceInfo(dict):
+        pass
 from homeassistant.helpers.entity import Entity
 
 from custom_components.price_tracker.components.id import IdGenerator

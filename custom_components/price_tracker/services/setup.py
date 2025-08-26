@@ -17,6 +17,7 @@ from custom_components.price_tracker.services.oliveyoung.setup import Oliveyoung
 from custom_components.price_tracker.services.rankingdak.setup import RankingdakSetup
 from custom_components.price_tracker.services.smartstore.setup import SmartstoreSetup
 from custom_components.price_tracker.services.ssg.setup import SsgSetup
+from custom_components.price_tracker.components.buywisely.setup import BuyWiselySetup
 
 _SERVICE_TYPE = "service_type"
 _SERVICE_SETUP = {
@@ -33,6 +34,7 @@ _SERVICE_SETUP = {
     LotteOnKoreaSetup.setup_code(): lambda cfg: LotteOnKoreaSetup(config_flow=cfg),
     HomeplusSetup.setup_code(): lambda cfg: HomeplusSetup(config_flow=cfg),
     DaisoKrSetup.setup_code(): lambda cfg: DaisoKrSetup(config_flow=cfg),
+    BuyWiselySetup.setup_code(): lambda cfg: BuyWiselySetup(config_flow=cfg),
 }
 _SERVICE_OPTION_SETUP = {
     CoupangSetup.setup_code(): lambda cfg, e: CoupangSetup(
@@ -64,6 +66,7 @@ _SERVICE_OPTION_SETUP = {
     DaisoKrSetup.setup_code(): lambda cfg, e: DaisoKrSetup(
         option_flow=cfg, config_entry=e
     ),
+    BuyWiselySetup.setup_code(): lambda cfg, e: BuyWiselySetup(option_flow=cfg, config_entry=e),
 }
 _KIND = {
     CoupangSetup.setup_code(): CoupangSetup.setup_name(),
@@ -79,6 +82,7 @@ _KIND = {
     LotteOnKoreaSetup.setup_code(): LotteOnKoreaSetup.setup_name(),
     HomeplusSetup.setup_code(): HomeplusSetup.setup_name(),
     DaisoKrSetup.setup_code(): DaisoKrSetup.setup_name(),
+    BuyWiselySetup.setup_code(): BuyWiselySetup.setup_name(),
 }
 
 
