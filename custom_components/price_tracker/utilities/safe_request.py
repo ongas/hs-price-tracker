@@ -4,7 +4,7 @@ import json
 import logging
 import random
 from enum import Enum
-from typing import Optional, Callable, Self, Awaitable
+from typing import Optional, Callable, Awaitable
 
 import fake_useragent
 from curl_cffi import requests, CurlHttpVersion, CurlSslVersion
@@ -38,23 +38,21 @@ class CustomAsyncSession(requests.AsyncSession):
 
 @dataclasses.dataclass
 class SafeRequestResponseData:
-    data: Optional[str] = default_factory("")
-    status_code: int = default_factory(400)
-    access_token: Optional[str] = default_factory(None)
-    cookies: dict = default_factory({})
+    data: Optional[str] = None
+    status_code: Optional[int] = None
+    access_token: Optional[str] = None
+    cookies: Optional[dict] = None
 
     def __init__(
         self,
         data: Optional[str] = None,
-        status_code: int = None,
-        cookies=None,
+        status_code: Optional[int] = None,
+        cookies: Optional[dict] = None,
         access_token: Optional[str] = None,
     ):
-        if cookies is None:
-            cookies = {}
         self.data = data
         self.status_code = status_code
-        self.cookies = cookies
+        self.cookies = cookies if cookies is not None else {}
         self.access_token = access_token
 
     @property
@@ -511,7 +509,7 @@ class SafeRequest:
         timeout: int = 25,
         raise_errors: bool = False,
         max_tries: int = 8,
-        post_try_callables: list[Callable[[Self], Awaitable[None]]] = None,
+    post_try_callables: list[Callable[["SafeRequest"], Awaitable[None]]] = None,
         retain_cookie=True,
     ) -> SafeRequestResponseData:
         errors = []

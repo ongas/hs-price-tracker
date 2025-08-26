@@ -183,3 +183,27 @@ def test_parse_product_no_image():
     """
     result = parse_product(html)
     assert result["image"] is None
+
+@pytest.mark.asyncio
+@patch('custom_components.price_tracker.services.buywisely.engine.SafeRequest')
+async def test_buywisely_engine_uses_crawl4ai(monkeypatch):
+    # Patch AsyncWebCrawler.arun to simulate crawl4ai extraction
+    with patch("crawl4ai.AsyncWebCrawler.arun", new_callable=AsyncMock) as mock_arun:
+        mock_arun.return_value = {
+            "products": [
+                {"product_status": {"lowest_price": "99.99"}, "media": {"images": ["http://example.com/crawl4ai.jpg"]}}
+            ]
+        }
+        engine = BuyWiselyEngine(extraction_method="advanced")
+        # Patch SafeRequest to avoid real network calls
+        with patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest") as mock_safe_request:
+            mock_instance = mock_safe_request.return_value
+            mock_response_data = AsyncMock()
+            mock_response_data.text = "<html><h2>Should be ignored</h2></html>"
+            mock_response_data.has = True
+            mock_instance.request = AsyncMock(return_value=mock_response_data)
+            url = "http://example.com/product"
+            # Actually call get_product_details and await it
+            result = await engine.get_product_details(url)
+            # Ensure crawl4ai extraction was called
+            assert mock_arun.called, "crawl4ai AsyncWebCrawler.arun was not called for advanced extraction method"
