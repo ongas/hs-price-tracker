@@ -1,5 +1,7 @@
+
 import voluptuous as vol
 from homeassistant import config_entries
+from typing import Optional, Any
 
 from custom_components.price_tracker.components.error import UnsupportedError
 from custom_components.price_tracker.components.lang import Lang
@@ -89,14 +91,15 @@ _KIND = {
 def price_tracker_setup_init(hass):
     return vol.Schema(
         {
-            vol.Required(_SERVICE_TYPE, default=None): vol.In(_KIND),
+            vol.Required(_SERVICE_TYPE, default=vol.UNDEFINED): vol.In(_KIND),
             **Lang(hass).selector(),
         }
     )
 
 
 def price_tracker_setup_service(
-    service_type: str = None, config_flow: config_entries.ConfigFlow = None
+    service_type: Optional[str] = None,
+    config_flow: Optional[config_entries.ConfigFlow] = None
 ) -> PriceTrackerSetup | None:
     if service_type is None or config_flow is None:
         """Do nothing"""
@@ -109,9 +112,9 @@ def price_tracker_setup_service(
 
 
 def price_tracker_setup_option_service(
-    service_type: str = None,
-    option_flow: config_entries.OptionsFlow = None,
-    config_entry: any = None,
+    service_type: Optional[str] = None,
+    option_flow: Optional[config_entries.OptionsFlow] = None,
+    config_entry: Any = None,
 ) -> PriceTrackerSetup | None:
     if service_type is None or option_flow is None:
         """Do nothing"""
@@ -123,7 +126,7 @@ def price_tracker_setup_option_service(
     return _SERVICE_OPTION_SETUP[service_type](option_flow, config_entry)
 
 
-def price_tracker_setup_service_user_input(user_input: dict = None) -> str | None:
+def price_tracker_setup_service_user_input(user_input: Optional[dict] = None) -> Optional[str]:
     if user_input is None:
         """Do nothing"""
         return None

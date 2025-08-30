@@ -54,7 +54,7 @@ class ItemData:
         self.id = id
         if unit is None:
             self.unit = ItemUnitData(
-                unit=1, price=price.price, unit_type=ItemUnitType.PIECE
+                unit=1, price=price.price if price else 0, unit_type=ItemUnitType.PIECE
             )
         else:
             self.unit = unit

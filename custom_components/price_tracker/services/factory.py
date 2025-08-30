@@ -1,3 +1,4 @@
+from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
 from custom_components.price_tracker.services.coupang.engine import CoupangEngine
 from custom_components.price_tracker.services.daiso_kr.engine import DaisoKrEngine
 from custom_components.price_tracker.services.gsthefresh.device import GsTheFreshDevice
@@ -27,6 +28,7 @@ _SERVICE_ITEM_URL_PARSER = {
     LotteOnEngine.engine_code(): lambda cfg: LotteOnEngine.parse_id(cfg),
     HomeplusEngine.engine_code(): lambda cfg: HomeplusEngine.parse_id(cfg),
     DaisoKrEngine.engine_code(): lambda cfg: DaisoKrEngine.parse_id(cfg),
+    BuyWiselyEngine.engine_code(): lambda cfg: BuyWiselyEngine.parse_id(cfg),
 }
 
 _SERVICE_ITEM_TARGET_PARSER = {
@@ -43,6 +45,7 @@ _SERVICE_ITEM_TARGET_PARSER = {
     LotteOnEngine.engine_code(): lambda cfg: LotteOnEngine.target_id(cfg),
     HomeplusEngine.engine_code(): lambda cfg: HomeplusEngine.target_id(cfg),
     DaisoKrEngine.engine_code(): lambda cfg: DaisoKrEngine.target_id(cfg),
+    BuyWiselyEngine.engine_code(): lambda cfg: BuyWiselyEngine.target_id(cfg),
 }
 
 _SERVICE_ITEM_ENGINE = {
@@ -59,6 +62,7 @@ _SERVICE_ITEM_ENGINE = {
     LotteOnEngine.engine_code(): lambda **cfg: LotteOnEngine(**cfg),
     HomeplusEngine.engine_code(): lambda **cfg: HomeplusEngine(**cfg),
     DaisoKrEngine.engine_code(): lambda **cfg: DaisoKrEngine(**cfg),
+    BuyWiselyEngine.engine_code(): lambda **cfg: BuyWiselyEngine(**cfg),
 }
 
 _SERVICE_DEVICE_PARSER = {

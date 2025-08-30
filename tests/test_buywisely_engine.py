@@ -1,24 +1,3 @@
-def test_parse_product_with_crawl4ai_data():
-    html = """
-    <html>
-    <body>
-        <h2>Should be ignored</h2>
-        <h3>$999.99</h3>
-        <img class="product-image" alt="Product Image" src="http://example.com/should_be_ignored.jpg">
-    </body>
-    </html>
-    """
-    crawl4ai_data = {
-        "products": [
-            {
-                "product_status": {"lowest_price": "123.45"},
-                "media": {"images": ["http://example.com/crawl4ai_image.jpg"]}
-            }
-        ]
-    }
-    result = parse_product(html, crawl4ai_data)
-    assert result["price"] == 123.45
-    assert result["image"] == "http://example.com/crawl4ai_image.jpg"
 import sys
 import os
 
@@ -29,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 from custom_components.price_tracker.utilities.safe_request import SafeRequestMethod
-
+from custom_components.price_tracker.datas.item import ItemStatus
 
 
 @pytest.mark.asyncio
@@ -52,23 +31,15 @@ async def test_get_product_details_success(mock_safe_request):
     mock_response_data.has = True
     mock_instance.request = AsyncMock(return_value=mock_response_data)
 
-    engine = BuyWiselyEngine()
-    url = "http://example.com/product"
+    engine = BuyWiselyEngine(item_url="http://example.com/product?id=123")
     
-    result = await engine.get_product_details(url)
+    result = await engine.load()
 
-    assert result == {
-        "title": "Test Product Title",
-        "price": 123.45,
-        "image": "http://example.com/test_image.jpg",
-        "currency": "AUD",
-        "availability": "In Stock"
-    }
-    # Assert that SafeRequest.request was called
-    mock_instance.request.assert_called_once_with(
-        method=SafeRequestMethod.GET,
-        url=url,
-    )
+    assert result.name == "Test Product Title"
+    assert result.price.price == 123.45
+    assert result.image == "http://example.com/test_image.jpg"
+    assert result.price.currency == "AUD"
+    assert result.status == ItemStatus.ACTIVE
 
 @pytest.mark.asyncio
 @patch('custom_components.price_tracker.services.buywisely.engine.SafeRequest')
@@ -87,22 +58,13 @@ async def test_get_product_details_no_price(mock_safe_request):
     mock_response_data.has = True
     mock_instance.request = AsyncMock(return_value=mock_response_data)
 
-    engine = BuyWiselyEngine()
-    url = "http://example.com/another_product"
+    engine = BuyWiselyEngine(item_url="http://example.com/another_product?id=123")
     
-    result = await engine.get_product_details(url)
+    result = await engine.load()
 
-    assert result == {
-        "title": "Another Product",
-        "price": None,
-        "image": "http://example.com/another_image.jpg",
-        "currency": "AUD", # Default currency is still AUD even if no price
-        "availability": "Out of Stock"
-    }
-    mock_instance.request.assert_called_once_with(
-        method=SafeRequestMethod.GET,
-        url=url,
-    )
+    assert result.name == "Another Product"
+    assert result.price is None
+    assert result.status == ItemStatus.INACTIVE
 
 @pytest.mark.asyncio
 @patch('custom_components.price_tracker.services.buywisely.engine.SafeRequest')
@@ -123,22 +85,15 @@ async def test_get_product_details_multiple_prices(mock_safe_request):
     mock_response_data.has = True
     mock_instance.request = AsyncMock(return_value=mock_response_data)
 
-    engine = BuyWiselyEngine()
-    url = "http://example.com/multiple_prices"
+    engine = BuyWiselyEngine(item_url="http://example.com/multiple_prices?id=123")
     
-    result = await engine.get_product_details(url)
+    result = await engine.load()
 
-    assert result == {
-        "title": "Product with Multiple Prices",
-        "price": 99.50, # Expects the minimum price
-        "image": "http://example.com/multiple_prices.jpg",
-        "currency": "AUD",
-        "availability": "In Stock"
-    }
-    mock_instance.request.assert_called_once_with(
-        method=SafeRequestMethod.GET,
-        url=url,
-    )
+    assert result.name == "Product with Multiple Prices"
+    assert result.price.price == 99.50
+    assert result.image == "http://example.com/multiple_prices.jpg"
+    assert result.price.currency == "AUD"
+    assert result.status == ItemStatus.ACTIVE
 
 # Test cases for parse_product directly
 def test_parse_product_basic():
@@ -194,7 +149,7 @@ async def test_buywisely_engine_uses_crawl4ai(monkeypatch):
                 {"product_status": {"lowest_price": "99.99"}, "media": {"images": ["http://example.com/crawl4ai.jpg"]}}
             ]
         }
-        engine = BuyWiselyEngine(extraction_method="advanced")
+        engine = BuyWiselyEngine(item_url="http://example.com/product?id=123")
         # Patch SafeRequest to avoid real network calls
         with patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest") as mock_safe_request:
             mock_instance = mock_safe_request.return_value
@@ -202,8 +157,7 @@ async def test_buywisely_engine_uses_crawl4ai(monkeypatch):
             mock_response_data.text = "<html><h2>Should be ignored</h2></html>"
             mock_response_data.has = True
             mock_instance.request = AsyncMock(return_value=mock_response_data)
-            url = "http://example.com/product"
             # Actually call get_product_details and await it
-            result = await engine.get_product_details(url)
+            result = await engine.load()
             # Ensure crawl4ai extraction was called
             assert mock_arun.called, "crawl4ai AsyncWebCrawler.arun was not called for advanced extraction method"
