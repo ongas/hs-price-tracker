@@ -4,7 +4,7 @@ import json
 import logging
 import random
 from enum import Enum
-from typing import Optional, Callable, Awaitable
+from typing import Optional, Callable, Awaitable, List, Dict, Any
 
 import fake_useragent
 from curl_cffi import requests, CurlHttpVersion, CurlSslVersion
@@ -162,15 +162,15 @@ class SafeRequestEngineCurlCffi(SafeRequestEngine):
 class SafeRequest:
     def __init__(
         self,
-        chains: list[SafeRequestEngine] = None,
-        proxies: list[str] = None,
-        cookies: dict = None,
-        headers: dict = None,
+        chains: Optional[List[SafeRequestEngine]] = None,
+        proxies: Optional[List[str]] = None,
+        cookies: Optional[Dict] = None,
+        headers: Optional[Dict] = None,
         selenium: Optional[str] = None,
-        selenium_proxy: Optional[list[str]] = None,
+        selenium_proxy: Optional[List[str]] = None,
         impersonate: str = "chrome124",
         version: Optional[CurlHttpVersion] = CurlHttpVersion.V2TLS,
-        user_agents: list[str] = None,
+        user_agents: Optional[List[str]] = None,
     ):
         if headers is not None:
             self._headers = headers
@@ -505,11 +505,11 @@ class SafeRequest:
         self,
         url: str,
         method: SafeRequestMethod = SafeRequestMethod.GET,
-        data: any = None,
+    data: Any = None,
         timeout: int = 25,
         raise_errors: bool = False,
         max_tries: int = 8,
-    post_try_callables: list[Callable[["SafeRequest"], Awaitable[None]]] = None,
+    post_try_callables: Optional[List[Callable[["SafeRequest"], Awaitable[None]]]] = None,
         retain_cookie=True,
     ) -> SafeRequestResponseData:
         errors = []

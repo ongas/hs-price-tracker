@@ -1,8 +1,5 @@
 # artifacts
 __pycache__
-.pyc
-__pycache__/
-*.pyc
 .pytest*
 *.egg-info
 */build/*
