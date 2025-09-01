@@ -103,64 +103,92 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         logger.info(f"[DIAG][config_flow] async_step_product_details called with user_input={user_input}")
 
-        # Step 1: Show basic form if no input or not advanced
-        if user_input is None:
-            logger.info("[DIAG][config_flow] async_step_product_details: user_input is None, showing form")
+        try:
+            # Step 1: Show basic form if no input or not advanced
+            if user_input is None:
+                logger.info("[DIAG][config_flow] async_step_product_details: user_input is None, showing form")
+                return self.async_show_form(
+                    step_id="product_details",
+                    data_schema=schema,
+                    errors=errors,
+                    description_placeholders={"advanced": "Expand for more options"},
+                )
+
+            # Step 2: If advanced requested, show advanced form
+            if user_input.get("show_advanced", False) and len(user_input) == 1:
+                logger.info("[DIAG][config_flow] async_step_product_details: show_advanced requested, showing advanced form")
+                return self.async_show_form(
+                    step_id="product_details",
+                    data_schema=vol.Schema({
+                        vol.Required("item_url"): str,
+                        vol.Optional("show_advanced", default=True): bool,
+                        **advanced_schema.schema,
+                    }),
+                    errors=errors,
+                )
+
+            # Step 3: Submission: must have item_url and (optionally) advanced fields
+            item_url = user_input.get("item_url", "")
+            import re
+            match = re.search(r"id=(?P<product_id>\d+)", item_url)
+            item_unique_id = match.group("product_id") if match else ""
+
+            config_data = {
+                "service_type": getattr(self, "selected_service_type", "buywisely"),
+                "lang": getattr(self, "selected_lang", "en"),
+                "item_url": item_url,
+                "item_unique_id": item_unique_id,
+            }
+
+            # Create a temporary dictionary with all default values from advanced_schema
+            temp_user_input = {}
+            for key, validator in advanced_schema.schema.items():
+                if hasattr(validator, 'default'):
+                    temp_user_input[key] = validator.default
+                else:
+                    # Handle required fields without default if necessary
+                    pass # This case should ideally not happen for optional fields
+
+            # Update with actual user input
+            temp_user_input.update(user_input)
+
+            # Filter out non-advanced fields before validation
+            advanced_keys = set(advanced_schema.schema.keys())
+            filtered_advanced_input = {k: v for k, v in temp_user_input.items() if k in advanced_keys}
+
+            # Now, pass this filtered dictionary to advanced_schema for validation and final default application
+            final_advanced_data = advanced_schema(filtered_advanced_input)
+
+            config_data.update(final_advanced_data)
+
+            logger.info(f"[DIAG][config_flow] async_step_product_details: config_data={config_data}")
+
+            logger.info(f"[DIAG][config_flow] async_step_product_details: config_data BEFORE step.setup={config_data}")
+            # Setup entry with all config data
+            step = price_tracker_setup_service(
+                service_type=config_data["service_type"],
+                config_flow=self,
+            )
+            if step:
+                logger.info(f"[DIAG][config_flow] async_step_product_details: calling setup for service_type={config_data['service_type']} with config_data={config_data}")
+                result = await step.setup(config_data)
+                logger.info(f"[DIAG][config_flow] async_step_product_details: setup result={result}")
+                return result
+            errors["base"] = "unsupported"
+            logger.info("[DIAG][config_flow] async_step_product_details: unsupported service, showing form again")
             return self.async_show_form(
                 step_id="product_details",
                 data_schema=schema,
                 errors=errors,
-                description_placeholders={"advanced": "Expand for more options"},
             )
-
-        # Step 2: If advanced requested, show advanced form
-        if user_input.get("show_advanced", False) and len(user_input) == 1:
-            logger.info("[DIAG][config_flow] async_step_product_details: show_advanced requested, showing advanced form")
+        except Exception as e:
+            logger.error(f"[DIAG][config_flow] async_step_product_details: Exception occurred: {e}", exc_info=True)
+            errors["base"] = "unknown"
             return self.async_show_form(
                 step_id="product_details",
-                data_schema=vol.Schema({
-                    vol.Required("item_url"): str,
-                    vol.Optional("show_advanced", default=True): bool,
-                    **advanced_schema.schema,
-                }),
+                data_schema=schema,
                 errors=errors,
             )
-
-        # Step 3: Submission: must have item_url and (optionally) advanced fields
-        item_url = user_input.get("item_url", "")
-        import re
-        match = re.search(r"id=(?P<product_id>\d+)", item_url)
-        item_unique_id = match.group("product_id") if match else ""
-
-        config_data = {
-            "service_type": getattr(self, "selected_service_type", "buywisely"),
-            "lang": getattr(self, "selected_lang", "en"),
-            "item_url": item_url,
-            "item_unique_id": item_unique_id,
-        }
-        for key in advanced_schema.schema.keys():
-            if key in user_input:
-                config_data[key] = user_input[key]
-
-        logger.info(f"[DIAG][config_flow] async_step_product_details: config_data={config_data}")
-
-        # Setup entry with all config data
-        step = price_tracker_setup_service(
-            service_type=config_data["service_type"],
-            config_flow=self,
-        )
-        if step:
-            logger.info(f"[DIAG][config_flow] async_step_product_details: calling setup for service_type={config_data['service_type']} with config_data={config_data}")
-            result = await step.setup(config_data)
-            logger.info(f"[DIAG][config_flow] async_step_product_details: setup result={result}")
-            return result
-        errors["base"] = "unsupported"
-        logger.info("[DIAG][config_flow] async_step_product_details: unsupported service, showing form again")
-        return self.async_show_form(
-            step_id="product_details",
-            data_schema=schema,
-            errors=errors,
-        )
 
     async def async_step_setup(self, user_input=None):
         if step := price_tracker_setup_service(
@@ -253,3 +281,4 @@ class PriceTrackerOptionsFlowHandler(config_entries.OptionsFlow):
                 )
 
         raise NotImplementedError("Not implemented (Set up). {}".format(user_input))
+

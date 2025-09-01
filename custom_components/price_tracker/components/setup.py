@@ -91,7 +91,19 @@ class PriceTrackerSetup:
         )  # Ignore the warning
 
         return self._config_flow.async_create_entry(
-            title=self.setup_name(), data={**self.setup_config_data(user_input)}
+            title=self.setup_name(),
+            data={
+                CONF_TYPE: user_input["service_type"],
+            },
+            options={
+                CONF_TARGET: [
+                    {
+                        key: value
+                        for key, value in user_input.items()
+                        if key not in [CONF_TYPE, "lang", "service_type"]
+                    }
+                ]
+            },
         )
 
     async def option_setup(self, user_input: dict = None):

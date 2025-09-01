@@ -39,7 +39,7 @@ class PriceTrackerSensor(RestoreEntity):
         updated_at=datetime.now(),
         period_hour=30,
     )
-    _refresh_period: int = 30  # minutes
+    _refresh_period: int = 30,
     _unit_type: ItemUnitType = ItemUnitType.PIECE
     _unit_value: int = 1
     _updated_at: datetime | None = None
@@ -88,9 +88,9 @@ class PriceTrackerSensor(RestoreEntity):
             self._unit_value = unit_value
             # Defensive: ensure refresh_period is always int
             try:
-                self._refresh_period = int(refresh_period) if refresh_period is not None else 30
+                self._refresh_period = int(refresh_period) if refresh_period is not None else 1
             except Exception:
-                self._refresh_period = 30
+                self._refresh_period = 1
             self._updated_at = datetime.now()
             self._management_category = management_category
             self._management_categories = management_categories_list
@@ -102,7 +102,7 @@ class PriceTrackerSensor(RestoreEntity):
         return self._engine.id_str()
 
     async def async_update(self):
-        # Check last updated at
+                # Check last updated at
         if (
             self._engine_status
             and self._updated_at is not None
@@ -137,6 +137,9 @@ class PriceTrackerSensor(RestoreEntity):
 
         try:
             data = await self._engine.load()
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"[DIAG][PriceTrackerSensor.async_update] Received ItemData: {data}, as_dict: {getattr(data, 'dict', 'no dict') if hasattr(data, 'dict') else str(data)}")
 
             if data is None:
                 if (
@@ -171,6 +174,8 @@ class PriceTrackerSensor(RestoreEntity):
                 if self._item_data.unit.is_basic
                 else self._item_data.unit
             )
+            logger.info(f"[DIAG][PriceTrackerSensor.async_update] Setting state: name={self._item_data.name}, price={self._item_data.price.price}, currency={self._item_data.price.currency}, image={self._item_data.image}")
+            logger.info(f"[DIAG][PriceTrackerSensor.async_update] Value to be set for _attr_state: {self._item_data.price.price} (type: {type(self._item_data.price.price)})")
             self._attr_extra_state_attributes = {
                 **self._item_data.dict,
                 **unit.dict,
@@ -184,11 +189,12 @@ class PriceTrackerSensor(RestoreEntity):
             }
             self._attr_name = self._item_data.name
             self._attr_state = self._item_data.price.price
+            
             self._attr_entity_picture = self._item_data.image
             self._attr_available = True
             self._attr_unit_of_measurement = self._item_data.price.currency
             self._update_engine_status(True)
-        except Exception as e:
+        except Exception:
             if (
                 self._updated_at is None
                 or self._updated_at + timedelta(hours=6) < datetime.now()
@@ -290,8 +296,8 @@ class PriceTrackerSensor(RestoreEntity):
             async_dispatcher_connect(
                 self.hass, DATA_UPDATED, self._schedule_immediate_update
             )
-        except Exception as e:
-            _LOGGER.warning("Error while adding the sensor: %s", e)
+        except Exception:
+            _LOGGER.warning("Error while adding the sensor")
 
     @callback
     def _schedule_immediate_update(self):
@@ -313,3 +319,4 @@ class PriceTrackerSensor(RestoreEntity):
             "engine_status": "FETCHED" if status else "ERROR",
         }
         self._engine_status = status
+
