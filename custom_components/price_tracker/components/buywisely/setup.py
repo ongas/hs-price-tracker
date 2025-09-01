@@ -15,11 +15,18 @@ class BuyWiselySetup(PriceTrackerSetup):
         return NAME
 
 
+    async def setup(self, user_input: dict = None):
+        """Setup the config entry."""
+        return await super().setup(user_input)
+
     def setup_config_data(self, user_input: Optional[dict] = None) -> dict:
+        import logging
+        logger = logging.getLogger(__name__)
         # Collect all relevant config fields for Buywisely
-        config = {}
         if user_input is None:
-            return config
+            logger.info("[DIAG][BuyWiselySetup] setup_config_data called with user_input=None, returning empty target list")
+            return {"target": []}
+        config = {}
         # Standard fields
         config["type"] = user_input.get("service_type", "buywisely")
         config["item_url"] = user_input.get("item_url", "")
@@ -36,4 +43,6 @@ class BuyWiselySetup(PriceTrackerSetup):
         config["proxy"] = user_input.get("proxy", "")
         config["selenium"] = user_input.get("selenium", "")
         config["selenium_proxy"] = user_input.get("selenium_proxy", "")
-        return config
+        result = {"type": config["type"], "target": [config]}
+        logger.info("[DIAG][BuyWiselySetup] setup_config_data called with user_input=%s, returning config=%s", user_input, result)
+        return result

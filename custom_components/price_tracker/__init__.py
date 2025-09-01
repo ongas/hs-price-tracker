@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -36,6 +37,10 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    _LOGGER.info("[DIAG][%s] async_setup_entry ENTRYPOINT -- this should always log!", datetime.now().isoformat())
+    _LOGGER.info("[DIAG][%s] async_setup_entry called for entry_id=%s, type=%s", datetime.now().isoformat(), entry.entry_id, entry.data.get("type"))
+    _LOGGER.info("[DIAG][%s] async_setup_entry config entry data: %s", datetime.now().isoformat(), entry.data)
+    _LOGGER.info("[DIAG][%s] async_setup_entry config entry options: %s", datetime.now().isoformat(), entry.options)
     _LOGGER.debug("Setting up entry and data {} > {}".format(entry, entry.data))
     _LOGGER.debug("Setting up entry and options {} > {}".format(entry, entry.options))
 
@@ -52,12 +57,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 entry.data["device"],
                 lambda x: {
                     **x,
-                    CONF_ITEM_DEVICE_ID: IdGenerator.generate_device_id(
-                        create_service_device_parser_and_parse(entry.data["type"], x)
-                    )
-                    if create_service_device_parser_and_parse(entry.data["type"], x)
-                    is not None
-                    else None,
+                    CONF_ITEM_DEVICE_ID: (
+                        IdGenerator.generate_device_id(
+                            device_target
+                        ) if (device_target := create_service_device_parser_and_parse(entry.data["type"], x)) is not None else x.get(CONF_ITEM_DEVICE_ID, "")
+                    ),
                 },
             ),
         }
@@ -89,11 +93,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         service_type=entry.data["type"],
                         entity_target=create_service_item_target_parser(
                             entry.data["type"]
-                        )(
-                            create_service_item_url_parser(entry.data["type"])(
-                                x["item_url"]
-                            )
-                        ),
+                        )(x),
                         device_id=IdGenerator.get_device_target_from_id(
                             Lu.get(x, CONF_ITEM_DEVICE_ID)
                         )
@@ -104,7 +104,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             ),
         }
     else:
-        options = {"target": []}
+        options = {"target": data.get("target", [])}
+
+
+    # Enhanced diagnostics: log final config and options before forwarding
+    _LOGGER.info("[DIAG][%s] FINAL config data for entry_id=%s: %s", datetime.now().isoformat(), entry.entry_id, data)
+    _LOGGER.info("[DIAG][%s] FINAL options for entry_id=%s: %s", datetime.now().isoformat(), entry.entry_id, options)
+    if hasattr(data, 'get') and data.get('type', None) == 'buywisely':
+        _LOGGER.info("[DIAG][%s] BuyWisely CONF_TARGET: %s", datetime.now().isoformat(), data.get('target', None))
+    elif isinstance(data, dict) and data.get('type', None) == 'buywisely':
+        _LOGGER.info("[DIAG][%s] BuyWisely CONF_TARGET: %s", datetime.now().isoformat(), data.get('target', None))
 
     hass.config_entries.async_update_entry(entry=entry, data=data, options=options)
 
@@ -116,17 +125,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entity_registry = er.async_get(hass)
     entities = er.async_entries_for_config_entry(entity_registry, entry.entry_id)
+    _LOGGER.info("[DIAG][%s] Found %d entities for entry_id=%s", datetime.now().isoformat(), len(entities), entry.entry_id)
     for e in entities:
+        _LOGGER.info("[DIAG][%s] Removing entity: %s", datetime.now().isoformat(), e.entity_id)
         entity_registry.async_remove(e.entity_id)
 
     device_registry = dr.async_get(hass)
     devices = dr.async_entries_for_config_entry(device_registry, entry.entry_id)
-
+    _LOGGER.info("[DIAG][%s] Found %d devices for entry_id=%s", datetime.now().isoformat(), len(devices), entry.entry_id)
     for d in devices:
+        _LOGGER.info("[DIAG][%s] Removing device: %s", datetime.now().isoformat(), d.id)
         device_registry.async_update_device(d.id, remove_config_entry_id=entry.entry_id)
 
+    _LOGGER.info("[DIAG][%s] Forwarding entry setups to platforms: %s", datetime.now().isoformat(), PLATFORMS)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    _LOGGER.info("[DIAG][%s] async_setup_entry completed for entry_id=%s", datetime.now().isoformat(), entry.entry_id)
     return True
 
 

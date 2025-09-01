@@ -108,17 +108,37 @@ class BuyWiselyEngine(PriceEngine):
         return self.product_id
 
     @staticmethod
-    def target_id(value: str):
-        return BuyWiselyEngine.parse_id(value)["product_id"]
+    def target_id(value: dict) -> str:
+        from custom_components.price_tracker.consts.confs import CONF_ITEM_URL
+        import logging
+        logger = logging.getLogger(__name__)
+        item_url = value.get(CONF_ITEM_URL) if value else None
+        product_id = value.get("product_id") if value else None
+        logger.info(f"[DIAG][BuyWiselyEngine] target_id: value dict before entity creation: {value}")
+        if not item_url:
+            logger.error(f"[DIAG][BuyWiselyEngine] target_id: item_url missing or None in value: {value}")
+            return "invalid_product_id"
+        if not product_id:
+            try:
+                product_id = BuyWiselyEngine.parse_id(item_url)["product_id"]
+            except Exception as e:
+                logger.error(f"[DIAG][BuyWiselyEngine] target_id: parse_id failed for item_url={item_url}, error={e}")
+                return "invalid_product_id"
+        logger.info(f"[DIAG][BuyWiselyEngine] target_id: final product_id for entity creation: {product_id}, item_url: {item_url}")
+        return product_id
 
     @staticmethod
     def parse_id(item_url: str):
-        u = re.search(r'id=(?P<product_id>\d+)', item_url)
+        import logging
+        logger = logging.getLogger(__name__)
+        # Extract product name after '/product/'
+        u = re.search(r'/product/([^/?#]+)', item_url)
         if u is None:
+            logger.error(f"[DIAG][BuyWiselyEngine] parse_id: Bad item_url {item_url}")
             raise InvalidItemUrlError("Bad item_url " + item_url)
-        data = {}
-        g = u.groupdict()
-        data["product_id"] = g["product_id"]
+        product_name = u.group(1)
+        logger.info(f"[DIAG][BuyWiselyEngine] parse_id: Extracted product_name '{product_name}' from URL '{item_url}'")
+        data = {"product_id": product_name}
         return data
 
     @staticmethod
@@ -130,4 +150,4 @@ class BuyWiselyEngine(PriceEngine):
         return CODE
 
     def url(self) -> str:
-        return _ITEM_LINK.format(self.product_id)
+        return self.item_url
