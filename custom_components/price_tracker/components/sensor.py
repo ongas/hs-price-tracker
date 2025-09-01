@@ -51,8 +51,8 @@ class PriceTrackerSensor(RestoreEntity):
         unit_type: ItemUnitType = ItemUnitType.PIECE,
         unit_value: int = 1,
         refresh_period: int = 30,
-        management_category: str = None,
-        management_categories: str = None,
+    management_category: str | None = None,
+    management_categories: str | None = None,
         debug: bool = False,
     ):
         """Initialize the sensor."""
@@ -75,20 +75,24 @@ class PriceTrackerSensor(RestoreEntity):
 
         # Custom
         if management_categories is not None:
-            management_categories = Lu.map(
+            management_categories_list = Lu.map(
                 management_categories.split(","), lambda x: str(x).strip()
             )
-        if management_categories is None:
-            management_categories = []
+        else:
+            management_categories_list = []
 
-        self._unit_type = unit_type
-        self._unit_value = unit_value
-        self._refresh_period = refresh_period if refresh_period is not None else 30
-        self._updated_at = datetime.now()
-        self._management_category = management_category
-        self._management_categories = management_categories
-        self._debug = debug
-        self._engine_status = True
+            self._unit_type = unit_type
+            self._unit_value = unit_value
+            # Defensive: ensure refresh_period is always int
+            try:
+                self._refresh_period = int(refresh_period) if refresh_period is not None else 30
+            except Exception:
+                self._refresh_period = 30
+            self._updated_at = datetime.now()
+            self._management_category = management_category
+            self._management_categories = management_categories_list
+            self._debug = debug
+            self._engine_status = True
 
     @property
     def engine_id_str(self):
@@ -101,17 +105,19 @@ class PriceTrackerSensor(RestoreEntity):
             and self._updated_at is not None
             and self._attr_available is True
         ):
-            if (
-                self._updated_at is not None
-                and (self._updated_at + timedelta(minutes=self._refresh_period))
-                > datetime.now()
-            ):
-                _LOGGER.debug(
-                    "Skip update cause refresh period. {} -({} / {}).".format(
-                        self._attr_unique_id, self._updated_at, self._refresh_period
+            if self._updated_at is not None:
+                # Defensive: ensure _refresh_period is int
+                try:
+                    refresh_minutes = int(self._refresh_period)
+                except Exception:
+                    refresh_minutes = 30
+                if (self._updated_at + timedelta(minutes=refresh_minutes)) > datetime.now():
+                    _LOGGER.debug(
+                        "Skip update cause refresh period. {} -({} / {}).".format(
+                            self._attr_unique_id, self._updated_at, refresh_minutes
+                        )
                     )
-                )
-                return True
+                    return True
 
         _LOGGER.debug(
             "Update sensor: %s (%s) - %s",
@@ -148,7 +154,7 @@ class PriceTrackerSensor(RestoreEntity):
                 after_price=data.price.price,
                 before_price=self._item_data.price.price
                 if self._item_data is not None
-                else None,
+                else 0.0,
             )
             self._item_data = data
 
@@ -208,9 +214,11 @@ class PriceTrackerSensor(RestoreEntity):
                 return
 
             if "updated_at" in state.attributes:
-                self._updated_at = datetime.fromisoformat(
-                    state.attributes["updated_at"]
-                )
+                updated_at_val = state.attributes["updated_at"]
+                if updated_at_val:
+                    self._updated_at = datetime.fromisoformat(updated_at_val)
+                else:
+                    self._updated_at = datetime.now()
                 self._attr_available = True
             else:
                 self._update_engine_status(False)
@@ -265,7 +273,7 @@ class PriceTrackerSensor(RestoreEntity):
                     ),
                     before_price=Lu.get(state.attributes, "price_change_before_price"),
                     after_price=Lu.get(state.attributes, "price_change_after_price"),
-                    updated_at=self._updated_at,
+                    updated_at=self._updated_at if self._updated_at is not None else datetime.now(),
                 )
                 self._attr_extra_state_attributes = {
                     **self._attr_extra_state_attributes,

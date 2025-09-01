@@ -23,6 +23,7 @@ from .consts.confs import (
 from .consts.defaults import DOMAIN
 from .datas.unit import ItemUnitType
 from .services.factory import create_service_device_generator, create_service_engine
+from .services.buywisely.engine import BuyWiselyEngine
 from .utilities.list import Lu
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,6 +34,8 @@ async def async_setup_entry(
     config_entry: config_entries.ConfigEntry,
     async_add_entities,
 ):
+    from datetime import datetime
+    _LOGGER.info("[DIAG][%s] sensor.py:async_setup_entry called for entry_id=%s", datetime.now().isoformat(), config_entry.entry_id)
     config = hass.data[DOMAIN][config_entry.entry_id]
     type = config[CONF_TYPE]
 
@@ -58,8 +61,10 @@ async def async_setup_entry(
                     }
                 )
                 devices = {**devices, **{target_device.device_id: target_device}}
+    _LOGGER.info("[DIAG][%s] Adding device entities: %s", datetime.now().isoformat(), list(devices.values()))
     async_add_entities(list(devices.values()), update_before_add=True)
 
+    _LOGGER.info("[DIAG][%s] Targets for entity creation: %s", datetime.now().isoformat(), Lu.get_or_default(config, CONF_TARGET, []))
     for target in Lu.get_or_default(config, CONF_TARGET, []):
         try:
             if CONF_ITEM_DEVICE_ID in target and target[CONF_ITEM_DEVICE_ID] in devices:
@@ -67,16 +72,24 @@ async def async_setup_entry(
             else:
                 device = None
 
-            _LOGGER.debug(
-                "Registering sensor for device: %s, configuration is %s, %s - %s",
-                device,
-                target,
-                proxy,
-                proxy_opensource,
-            )
+            _LOGGER.info("[DIAG][%s] Registering sensor for device: %s, target: %s", datetime.now().isoformat(), device, target)
+
+            item_url = target.get(CONF_ITEM_URL) if target else None
+            if not item_url:
+                _LOGGER.error("[DIAG][%s] Skipping sensor creation: item_url missing or None in target: %s", datetime.now().isoformat(), target)
+                continue
+
+            # Build value dict for target_id with both product_id and item_url
+            value_dict = {
+                "product_id": BuyWiselyEngine.parse_id(item_url)["product_id"] if item_url else None,
+                "item_url": item_url,
+            }
+            _LOGGER.info("[DIAG][%s] Value dict for target_id: %s", datetime.now().isoformat(), value_dict)
+            # Call target_id for diagnostics (not used for entity_id, but for logging)
+            _ = BuyWiselyEngine.target_id(value_dict)
 
             engine = create_service_engine(type)(
-                item_url=target[CONF_ITEM_URL],
+                item_url=item_url,
                 proxies=proxy,
                 device=device,
                 selenium=selenium,
@@ -113,11 +126,13 @@ async def async_setup_entry(
                 hass.data[DOMAIN][config_entry.entry_id][CONF_TARGET].remove(target)
                 continue
 
+            _LOGGER.info("[DIAG][%s] Created sensor: %s", datetime.now().isoformat(), sensor)
             sensors.append(sensor)
 
         except Exception as e:
             _LOGGER.exception("Device(sensor) configuration error {}".format(e), e)
 
+    _LOGGER.info("[DIAG][%s] Adding sensors: %s", datetime.now().isoformat(), sensors)
     async_add_entities(sensors, update_before_add=True)
 
 

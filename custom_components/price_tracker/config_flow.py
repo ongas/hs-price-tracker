@@ -23,7 +23,7 @@ _LOGGER = logging.getLogger(__name__)
 class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     data: Optional[Dict[str, Any]]
 
-    async def async_step_reconfigure(self, user_input: dict = None):
+    async def async_step_reconfigure(self, user_input: Optional[dict] = None):
         pass
 
     async def async_migrate_entry(
@@ -53,14 +53,32 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors=errors,
             )
 
-        # Step 2: Prompt for product details after service selection
-        self.selected_service_type = user_input.get("service_type")
-        self.selected_lang = user_input.get("lang")
+        selected_service_type = user_input.get("service_type")
+        selected_lang = user_input.get("lang")
 
-        # Show product details form
-        return await self.async_step_product_details()
+        # Only use new modular flow for BuyWisely
+        if selected_service_type == "buywisely":
+            self.selected_service_type = selected_service_type
+            self.selected_lang = selected_lang
+            return await self.async_step_product_details()
+        # For all other services, use original direct delegation
+        try:
+            if step := price_tracker_setup_service(
+                service_type=selected_service_type,
+                config_flow=self,
+            ):
+                return await step.setup(user_input)
+        except UnsupportedError:
+            errors["base"] = "unsupported"
+        return self.async_show_form(
+            step_id="user",
+            data_schema=price_tracker_setup_init(self.hass),
+            errors=errors,
+        )
 
     async def async_step_product_details(self, user_input=None):
+        import logging
+        logger = logging.getLogger(__name__)
         errors: dict = {}
         import voluptuous as vol
         # Basic required field
@@ -83,12 +101,11 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional("selenium_proxy", default=""): str,
         })
 
-        # Diagnostic: print user_input for debugging
-        import logging
-        logging.getLogger(__name__).info(f"[price_tracker][config_flow] user_input: {user_input}")
+        logger.info(f"[DIAG][config_flow] async_step_product_details called with user_input={user_input}")
 
         # Step 1: Show basic form if no input or not advanced
         if user_input is None:
+            logger.info("[DIAG][config_flow] async_step_product_details: user_input is None, showing form")
             return self.async_show_form(
                 step_id="product_details",
                 data_schema=schema,
@@ -98,7 +115,7 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Step 2: If advanced requested, show advanced form
         if user_input.get("show_advanced", False) and len(user_input) == 1:
-            # Only 'show_advanced' checked, re-render with advanced fields
+            logger.info("[DIAG][config_flow] async_step_product_details: show_advanced requested, showing advanced form")
             return self.async_show_form(
                 step_id="product_details",
                 data_schema=vol.Schema({
@@ -125,17 +142,20 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if key in user_input:
                 config_data[key] = user_input[key]
 
-        # Diagnostic: print config_data for debugging
-        logging.getLogger(__name__).info(f"[price_tracker][config_flow] config_data: {config_data}")
+        logger.info(f"[DIAG][config_flow] async_step_product_details: config_data={config_data}")
 
         # Setup entry with all config data
-        if step := price_tracker_setup_service(
+        step = price_tracker_setup_service(
             service_type=config_data["service_type"],
             config_flow=self,
-        ):
-            return await step.setup(config_data)
-
+        )
+        if step:
+            logger.info(f"[DIAG][config_flow] async_step_product_details: calling setup for service_type={config_data['service_type']} with config_data={config_data}")
+            result = await step.setup(config_data)
+            logger.info(f"[DIAG][config_flow] async_step_product_details: setup result={result}")
+            return result
         errors["base"] = "unsupported"
+        logger.info("[DIAG][config_flow] async_step_product_details: unsupported service, showing form again")
         return self.async_show_form(
             step_id="product_details",
             data_schema=schema,
@@ -147,6 +167,8 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             service_type=price_tracker_setup_service_user_input(user_input),
             config_flow=self,
         ):
+            if user_input is None:
+                user_input = {}
             return await step.setup(user_input)
 
         raise NotImplementedError("Not implemented (Set up). {}".format(user_input))
@@ -155,22 +177,27 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class PriceTrackerOptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry) -> None:
         self.config_entry = config_entry
-        self.setup: PriceTrackerSetup = price_tracker_setup_option_service(
+        setup_instance = price_tracker_setup_option_service(
             service_type=self.config_entry.data[CONF_TYPE],
             option_flow=self,
             config_entry=config_entry,
         )
+        if setup_instance is None:
+            raise UnsupportedError("Option service setup returned None.")
+        self.setup: PriceTrackerSetup = setup_instance
 
-    async def async_step_init(self, user_input: dict = None) -> dict:
+    async def async_step_init(self, user_input: Optional[dict] = None):
         """Delegate step"""
+        if user_input is None:
+            user_input = {}
         return await self.setup.option_setup(user_input)
 
-    async def async_step_setup(self, user_input: dict = None):
+    async def async_step_setup(self, user_input: Optional[dict] = None):
         """Set-up flows."""
 
         # Select option (1)
         if user_input is None:
-            return await self.setup.option_setup(user_input)
+            return await self.setup.option_setup({})
 
         # Proxy configuration
         if (
