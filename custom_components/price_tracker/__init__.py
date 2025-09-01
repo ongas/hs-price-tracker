@@ -15,6 +15,7 @@ from custom_components.price_tracker.components.id import IdGenerator
 from custom_components.price_tracker.consts.confs import (
     CONF_ITEM_DEVICE_ID,
     CONF_ITEM_UNIQUE_ID,
+    CONF_ITEM_URL,
 )
 from custom_components.price_tracker.consts.defaults import DOMAIN, PLATFORMS
 from custom_components.price_tracker.services.factory import (
@@ -93,7 +94,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         service_type=entry.data["type"],
                         entity_target=create_service_item_target_parser(
                             entry.data["type"]
-                        )(x),
+                        )({"item_url": x[CONF_ITEM_URL]}),
                         device_id=IdGenerator.get_device_target_from_id(
                             Lu.get(x, CONF_ITEM_DEVICE_ID)
                         )

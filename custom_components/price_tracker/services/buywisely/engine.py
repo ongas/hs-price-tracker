@@ -1,10 +1,6 @@
-import re
 from typing import Optional
 
 from custom_components.price_tracker.components.engine import PriceEngine
-from custom_components.price_tracker.components.error import (
-    InvalidItemUrlError,
-)
 from custom_components.price_tracker.datas.item import ItemData, ItemStatus
 from custom_components.price_tracker.datas.price import ItemPriceData
 from custom_components.price_tracker.services.buywisely.const import (
@@ -16,6 +12,8 @@ from custom_components.price_tracker.utilities.safe_request import (
     SafeRequest,
     SafeRequestMethod,
 )
+from custom_components.price_tracker.consts.confs import CONF_ITEM_URL
+
 
 
 # Try to import crawl4ai, fallback if unavailable
@@ -79,7 +77,7 @@ class BuyWiselyEngine(PriceEngine):
                 if hasattr(self._crawler, 'arun'):
                     crawl_result = await self._crawler.arun(url=self.item_url)
                 else:
-                    logging.getLogger(__name__).warning(f"[price_tracker][buywisely] crawl4ai does not have a valid arun method. Falling back to BeautifulSoup.")
+                    logging.getLogger(__name__).warning("[price_tracker][buywisely] crawl4ai does not have a valid arun method. Falling back to BeautifulSoup.")
                     crawl_result = None
                 crawl4ai_data = crawl_result if isinstance(crawl_result, dict) else {}
             except Exception as e:
@@ -113,36 +111,39 @@ class BuyWiselyEngine(PriceEngine):
 
     @staticmethod
     def target_id(value: dict) -> str:
-        from custom_components.price_tracker.consts.confs import CONF_ITEM_URL
         import logging
         logger = logging.getLogger(__name__)
-        item_url = value.get(CONF_ITEM_URL) if value else None
-        product_id = value.get("product_id") if value else None
+        item_url = value.get(CONF_ITEM_URL)
+        product_id = value.get("product_id")
+
         logger.info(f"[DIAG][BuyWiselyEngine] target_id: value dict before entity creation: {value}")
+
         if not item_url:
             logger.error(f"[DIAG][BuyWiselyEngine] target_id: item_url missing or None in value: {value}")
-            return "invalid_product_id"
+            # If item_url is missing, we cannot generate a meaningful product_id.
+            # Return a consistent invalid ID.
+            return "invalid_product_id_missing_url"
+
         if not product_id:
             try:
                 product_id = BuyWiselyEngine.parse_id(item_url)["product_id"]
             except Exception as e:
                 logger.error(f"[DIAG][BuyWiselyEngine] target_id: parse_id failed for item_url={item_url}, error={e}")
-                return "invalid_product_id"
+                return "invalid_product_id_parse_failed"
+
         logger.info(f"[DIAG][BuyWiselyEngine] target_id: final product_id for entity creation: {product_id}, item_url: {item_url}")
         return product_id
 
     @staticmethod
     def parse_id(item_url: str):
         import logging
+        import hashlib
         logger = logging.getLogger(__name__)
-        # Extract product name after '/product/'
-        u = re.search(r'/product/([^/?#]+)', item_url)
-        if u is None:
-            logger.error(f"[DIAG][BuyWiselyEngine] parse_id: Bad item_url {item_url}")
-            raise InvalidItemUrlError("Bad item_url " + item_url)
-        product_name = u.group(1)
-        logger.info(f"[DIAG][BuyWiselyEngine] parse_id: Extracted product_name '{product_name}' from URL '{item_url}'")
-        data = {"product_id": product_name}
+        # For BuyWisely, the item_url itself is the unique identifier.
+        # We'll use a hash of the URL as the product_id.
+        product_id = hashlib.md5(item_url.encode('utf-8')).hexdigest()
+        logger.info(f"[DIAG][BuyWiselyEngine] parse_id: Generated product_id '{product_id}' from URL '{item_url}'")
+        data = {"product_id": product_id}
         return data
 
     @staticmethod
