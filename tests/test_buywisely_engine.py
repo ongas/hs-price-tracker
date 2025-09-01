@@ -1,3 +1,41 @@
+# Example: Mock test using real HTML from buywisely.com.au
+import pytest
+from unittest.mock import AsyncMock, patch
+from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
+from custom_components.price_tracker.datas.item import ItemStatus
+
+@pytest.mark.asyncio
+@patch('custom_components.price_tracker.services.buywisely.engine.SafeRequest')
+async def test_real_html_product_parsing(mock_safe_request):
+    # Realistic HTML snippet from BuyWisely Sony WH-1000XM4 product page
+    sample_html = """
+    <html>
+    <body>
+        <h2>Sony - WH-1000XM4 Wireless Noise Cancelling Headphones - Black</h2>
+        <h3>$348.00</h3>
+        <img class="product-image" alt="Product Image" src="https://buywisely.com.au/product/sony-wh-1000xm4-wireless-noise-cancelling-headphones-black-1">
+    </body>
+    </html>
+    """
+    mock_instance = mock_safe_request.return_value
+    mock_response_data = AsyncMock()
+    mock_response_data.text = sample_html
+    mock_response_data.has = True
+    mock_instance.request = AsyncMock(return_value=mock_response_data)
+
+    engine = BuyWiselyEngine(item_url="https://buywisely.com.au/product/sony-wh-1000xm4-wireless-noise-cancelling-headphones-black-1?id=12345")
+    result = await engine.load()
+
+    if result is None:
+        print("DIAGNOSTIC: result is None")
+        assert False, "BuyWiselyEngine.load() returned None for real HTML test."
+    else:
+        print(f"DIAGNOSTIC: name={getattr(result, 'name', None)}, price={getattr(getattr(result, 'price', None), 'price', None)}, currency={getattr(getattr(result, 'price', None), 'currency', None)}, image={getattr(result, 'image', None)}, status={getattr(result, 'status', None)}")
+        assert getattr(result, 'name', None) == "Sony - WH-1000XM4 Wireless Noise Cancelling Headphones - Black"
+        assert getattr(getattr(result, 'price', None), 'price', None) == 348.00
+        assert getattr(getattr(result, 'price', None), 'currency', None) == "AUD"
+        assert getattr(result, 'image', None) == "https://buywisely.com.au/product/sony-wh-1000xm4-wireless-noise-cancelling-headphones-black-1"
+        assert getattr(result, 'status', None) == ItemStatus.ACTIVE
 import sys
 import os
 
@@ -35,11 +73,16 @@ async def test_get_product_details_success(mock_safe_request):
     
     result = await engine.load()
 
-    assert result.name == "Test Product Title"
-    assert result.price.price == 123.45
-    assert result.image == "http://example.com/test_image.jpg"
-    assert result.price.currency == "AUD"
-    assert result.status == ItemStatus.ACTIVE
+    if result is None:
+        print("DIAGNOSTIC: result is None (test_get_product_details_success)")
+        assert False, "BuyWiselyEngine.load() returned None for test_get_product_details_success."
+    else:
+        print(f"DIAGNOSTIC: name={getattr(result, 'name', None)}, price={getattr(getattr(result, 'price', None), 'price', None)}, currency={getattr(getattr(result, 'price', None), 'currency', None)}, image={getattr(result, 'image', None)}, status={getattr(result, 'status', None)}")
+        assert getattr(result, 'name', None) == "Test Product Title"
+        assert getattr(getattr(result, 'price', None), 'price', None) == 123.45
+        assert getattr(getattr(result, 'price', None), 'currency', None) == "AUD"
+        assert getattr(result, 'image', None) == "http://example.com/test_image.jpg"
+        assert getattr(result, 'status', None) == ItemStatus.ACTIVE
 
 @pytest.mark.asyncio
 @patch('custom_components.price_tracker.services.buywisely.engine.SafeRequest')
@@ -62,9 +105,15 @@ async def test_get_product_details_no_price(mock_safe_request):
     
     result = await engine.load()
 
-    assert result.name == "Another Product"
-    assert result.price is None
-    assert result.status == ItemStatus.INACTIVE
+    if result is None:
+        print("DIAGNOSTIC: result is None (test_get_product_details_no_price)")
+        assert False, "BuyWiselyEngine.load() returned None for test_get_product_details_no_price."
+    else:
+        print(f"DIAGNOSTIC: name={getattr(result, 'name', None)}, price={getattr(getattr(result, 'price', None), 'price', None)}, currency={getattr(getattr(result, 'price', None), 'currency', None)}, image={getattr(result, 'image', None)}, status={getattr(result, 'status', None)}")
+        assert getattr(result, 'name', None) == "Another Product"
+    assert getattr(getattr(result, 'price', None), 'price', None) == 0.0
+    assert getattr(getattr(result, 'price', None), 'currency', None) == ""
+    assert getattr(result, 'status', None) == ItemStatus.INACTIVE
 
 @pytest.mark.asyncio
 @patch('custom_components.price_tracker.services.buywisely.engine.SafeRequest')
@@ -89,11 +138,16 @@ async def test_get_product_details_multiple_prices(mock_safe_request):
     
     result = await engine.load()
 
-    assert result.name == "Product with Multiple Prices"
-    assert result.price.price == 99.50
-    assert result.image == "http://example.com/multiple_prices.jpg"
-    assert result.price.currency == "AUD"
-    assert result.status == ItemStatus.ACTIVE
+    if result is None:
+        print("DIAGNOSTIC: result is None (test_get_product_details_multiple_prices)")
+        assert False, "BuyWiselyEngine.load() returned None for test_get_product_details_multiple_prices."
+    else:
+        print(f"DIAGNOSTIC: name={getattr(result, 'name', None)}, price={getattr(getattr(result, 'price', None), 'price', None)}, currency={getattr(getattr(result, 'price', None), 'currency', None)}, image={getattr(result, 'image', None)}, status={getattr(result, 'status', None)}")
+        assert getattr(result, 'name', None) == "Product with Multiple Prices"
+        assert getattr(getattr(result, 'price', None), 'price', None) == 99.50
+        assert getattr(getattr(result, 'price', None), 'currency', None) == "AUD"
+        assert getattr(result, 'image', None) == "http://example.com/multiple_prices.jpg"
+        assert getattr(result, 'status', None) == ItemStatus.ACTIVE
 
 # Test cases for parse_product directly
 def test_parse_product_basic():

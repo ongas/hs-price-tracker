@@ -1,3 +1,5 @@
+# Ignore development notes
+DEVELOPMENT_NOTES.md
 # artifacts
 __pycache__
 .pytest*
@@ -12,6 +14,8 @@ venv
 coverage.xml
 .ruff_cache
 .idea
+# Home Assistant Dev Docker directory
+Docker/
 
 # Home Assistant configuration
 .test/config/*
