@@ -16,8 +16,19 @@ from custom_components.price_tracker.utilities.safe_request import (
     SafeRequest,
     SafeRequestMethod,
 )
-from crawl4ai import AsyncWebCrawler
-from crawl4ai.extraction_strategy import NoExtractionStrategy
+
+
+# Try to import crawl4ai, fallback if unavailable
+import logging
+try:
+    from crawl4ai import AsyncWebCrawler
+    from crawl4ai.extraction_strategy import NoExtractionStrategy
+    _HAS_CRAWL4AI = True
+except ImportError:
+    AsyncWebCrawler = None
+    NoExtractionStrategy = None
+    _HAS_CRAWL4AI = False
+    logging.getLogger(__name__).warning("[price_tracker][buywisely] crawl4ai not available, will fallback to BeautifulSoup.")
 
 _URL = "https://www.buywisely.com.au/item/show?id={}"
 _ITEM_LINK = "https://www.buywisely.com.au/item/show?id={}"
@@ -39,7 +50,7 @@ class BuyWiselyEngine(PriceEngine):
         self._device = device
         self._selenium = selenium
         self._selenium_proxy = selenium_proxy
-        self._crawler = AsyncWebCrawler(extraction_strategy=NoExtractionStrategy())
+        self._crawler = AsyncWebCrawler(extraction_strategy=NoExtractionStrategy()) if _HAS_CRAWL4AI and AsyncWebCrawler and NoExtractionStrategy else None
 
     async def load(self) -> ItemData | None:
         self._request = SafeRequest()
@@ -55,41 +66,50 @@ class BuyWiselyEngine(PriceEngine):
             return None
 
         html = response.text if response.text else ""
+
         crawl4ai_data = {}
         product_details = None
-        try:
-            async with self._crawler:
-                crawl_result = await self._crawler.arun(url=self.item_url)
+        if _HAS_CRAWL4AI and self._crawler:
+            try:
+                # Use only 'arun' if available, else fallback to BeautifulSoup
+                if hasattr(self._crawler, 'arun'):
+                    crawl_result = await self._crawler.arun(url=self.item_url)
+                else:
+                    logging.getLogger(__name__).warning(f"[price_tracker][buywisely] crawl4ai does not have a valid arun method. Falling back to BeautifulSoup.")
+                    crawl_result = None
                 crawl4ai_data = crawl_result if isinstance(crawl_result, dict) else {}
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(
-                f"[price_tracker][buywisely] Advanced crawl4ai extraction failed for URL: {self.item_url}. "
-                f"Error: {e}\n"
-                "This usually means Playwright browser binaries are missing or not installed. "
-                "Run 'playwright install' in your environment to resolve. Falling back to basic extraction."
-            )
+            except Exception as e:
+                logging.getLogger(__name__).warning(f"[price_tracker][buywisely] crawl4ai extraction failed for URL: {self.item_url}. Error: {e}. Falling back to BeautifulSoup.")
+                crawl4ai_data = {}
+        else:
+            logging.getLogger(__name__).info("[price_tracker][buywisely] crawl4ai not available, using BeautifulSoup only.")
+            crawl4ai_data = {}
         product_details = parse_product(html, crawl4ai_data, product_id=self.product_id)
-        
-        price_value = product_details.get('price')
-        price = ItemPriceData(price=price_value, currency=product_details.get('currency')) if price_value is not None else None
 
+        price_value = product_details.get('price')
+        currency_value = product_details.get('currency') or ''
+        price = ItemPriceData(price=price_value, currency=currency_value) if price_value is not None and currency_value else None
+
+        name_value = product_details.get('title') or ''
+        image_value = product_details.get('image') or ''
+        status_value = ItemStatus.ACTIVE if product_details.get('availability') == 'In Stock' else ItemStatus.INACTIVE
+
+        # ItemData expects price: ItemPriceData, but None is possible. Ensure compatibility.
         return ItemData(
             id=self.product_id,
-            name=product_details.get('title'),
-            status=ItemStatus.ACTIVE if product_details.get('availability') == 'In Stock' else ItemStatus.INACTIVE,
-            price=price,
+            name=name_value,
+            status=status_value,
+            price=price if price is not None else ItemPriceData(price=0.0, currency=""),
             url=self.item_url,
-            image=product_details.get('image'),
+            image=image_value,
         )
 
     def id_str(self) -> str:
         return self.product_id
 
     @staticmethod
-    def target_id(item_url: str):
-        return BuyWiselyEngine.parse_id(item_url)["product_id"]
+    def target_id(value: str):
+        return BuyWiselyEngine.parse_id(value)["product_id"]
 
     @staticmethod
     def parse_id(item_url: str):
