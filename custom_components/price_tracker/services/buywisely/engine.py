@@ -44,8 +44,12 @@ class BuyWiselyEngine(PriceEngine):
         selenium_proxy: Optional[list] = None,
     ):
         self.item_url = item_url
-        self.id = BuyWiselyEngine.parse_id(item_url)
-        self.product_id = self.id["product_id"]
+        product_id = BuyWiselyEngine.parse_id(item_url)["product_id"]
+        self.id = {"product_id": product_id, "item_url": item_url}
+        self.product_id = product_id
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[DIAG][BuyWiselyEngine.__init__] item_url: {item_url}, self.id: {self.id}, self.product_id: {self.product_id}")
         self._proxies = proxies
         self._device = device
         self._selenium = selenium

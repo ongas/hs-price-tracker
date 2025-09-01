@@ -75,17 +75,21 @@ async def async_setup_entry(
             _LOGGER.info("[DIAG][%s] Registering sensor for device: %s, target: %s", datetime.now().isoformat(), device, target)
 
             item_url = target.get(CONF_ITEM_URL) if target else None
-            if not item_url:
-                _LOGGER.error("[DIAG][%s] Skipping sensor creation: item_url missing or None in target: %s", datetime.now().isoformat(), target)
+            product_id = None
+            if item_url:
+                try:
+                    product_id = BuyWiselyEngine.parse_id(item_url)["product_id"]
+                except Exception as e:
+                    _LOGGER.error("[DIAG][%s] Skipping sensor creation: product_id extraction failed for item_url=%s, error=%s", datetime.now().isoformat(), item_url, e)
+            if not item_url or not product_id:
+                _LOGGER.error("[DIAG][%s] Skipping sensor creation: item_url or product_id missing/invalid in target: %s", datetime.now().isoformat(), target)
                 continue
 
-            # Build value dict for target_id with both product_id and item_url
             value_dict = {
-                "product_id": BuyWiselyEngine.parse_id(item_url)["product_id"] if item_url else None,
+                "product_id": product_id,
                 "item_url": item_url,
             }
             _LOGGER.info("[DIAG][%s] Value dict for target_id: %s", datetime.now().isoformat(), value_dict)
-            # Call target_id for diagnostics (not used for entity_id, but for logging)
             _ = BuyWiselyEngine.target_id(value_dict)
 
             engine = create_service_engine(type)(

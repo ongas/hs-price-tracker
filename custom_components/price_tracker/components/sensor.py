@@ -63,6 +63,9 @@ class PriceTrackerSensor(RestoreEntity):
             device.device_id if device is not None else None,
         )
         self.entity_id = self._attr_unique_id
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[DIAG][PriceTrackerSensor.__init__] entity_id: {self.entity_id}, engine.id_str: {self._engine.id_str()}, engine.entity_id: {self._engine.entity_id}, engine.id: {self._engine.id}")
         self._attr_entity_picture = None
         self._attr_name = self._attr_unique_id
         self._attr_unit_of_measurement = ""
