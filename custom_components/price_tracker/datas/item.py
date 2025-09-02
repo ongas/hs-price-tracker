@@ -1,4 +1,5 @@
 import dataclasses
+from typing import Optional, Any, List
 from enum import Enum
 
 from custom_components.price_tracker.datas.category import ItemCategoryData
@@ -10,11 +11,12 @@ from custom_components.price_tracker.datas.unit import ItemUnitData, ItemUnitTyp
 
 @dataclasses.dataclass
 class ItemOptionData:
-    def __init__(self, id: any, name: str, price: float, inventory: int = None):
+    def __init__(self, id: Any, name: str, price: float, inventory: Optional[int] = 0):
         self.id = id
         self.name = name
         self.price = price
-        self.inventory = InventoryStatus.of(is_sold_out=False, stock=inventory)
+        self.quantity = inventory if inventory is not None else 0
+        self.inventory_status = InventoryStatus.of(is_sold_out=False, stock=self.quantity)
 
     @property
     def dict(self):
@@ -22,7 +24,8 @@ class ItemOptionData:
             "option_id": self.id,
             "name": self.name,
             "price": self.price,
-            "inventory_status": self.inventory.name,
+            "inventory_status": self.inventory_status.name,
+            "quantity": self.quantity,
         }
 
 
@@ -34,42 +37,20 @@ class ItemStatus(Enum):
 
 @dataclasses.dataclass
 class ItemData:
-    def __init__(
-        self,
-        id: any,
-        name: str = "UNKNOWN",
-        price: ItemPriceData = ItemPriceData(),
-        brand: str = None,
-        description: str = None,
-        category: ItemCategoryData = None,
-        delivery: DeliveryData = DeliveryData(),
-        url: str = None,
-        image: str = None,
-        unit: ItemUnitData = None,
-        inventory: InventoryStatus = InventoryStatus.OUT_OF_STOCK,
-        options: [ItemOptionData] = None,
-        status: ItemStatus = ItemStatus.ACTIVE,
-        http_status: int = 200,
-    ) -> None:
-        self.id = id
-        if unit is None:
-            self.unit = ItemUnitData(
-                unit=1, price=price.price if price else 0, unit_type=ItemUnitType.PIECE
-            )
-        else:
-            self.unit = unit
-        self.price = price
-        self.brand = brand
-        self.delivery = delivery
-        self.category = category
-        self.url = url
-        self.image = image
-        self.name = name
-        self.description = description
-        self.inventory = inventory
-        self.options = options
-        self.status = status
-        self.http_status = http_status
+    id: Any
+    name: str = "UNKNOWN"
+    price: ItemPriceData = dataclasses.field(default_factory=ItemPriceData)
+    brand: Optional[str] = None
+    description: Optional[str] = None
+    category: ItemCategoryData = dataclasses.field(default_factory=ItemCategoryData)
+    delivery: DeliveryData = dataclasses.field(default_factory=DeliveryData)
+    url: Optional[str] = None
+    image: Optional[str] = None
+    unit: ItemUnitData = dataclasses.field(default_factory=lambda: ItemUnitData(unit=1, price=0, unit_type=ItemUnitType.PIECE))
+    inventory: InventoryStatus = InventoryStatus.OUT_OF_STOCK
+    options: Optional[List[ItemOptionData]] = dataclasses.field(default_factory=list)
+    status: ItemStatus = ItemStatus.ACTIVE
+    http_status: int = 200
 
     @property
     def total_price(self):
@@ -125,6 +106,45 @@ class ItemData:
                 data[f"product_option_{idx}_id"] = option.id
                 data[f"product_option_{idx}_name"] = option.name
                 data[f"product_option_{idx}_price"] = option.price
-                data[f"product_option_{idx}_quantity"] = option.inventory
+                data[f"product_option_{idx}_quantity"] = option.quantity
 
         return data
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(
+            id=data["product_id"],
+            name=data["name"],
+            brand=data["brand"],
+            product_link=data["product_link"],
+            status=ItemStatus[data["status"]],
+            price=ItemPriceData(
+                price=data["price"],
+                original_price=data.get("original_price", 0.0),
+                discount_rate=data.get("discount_rate", 0.0),
+                discount_amount=data.get("discount_amount", 0.0),
+                payback_price=data.get("payback_price", 0.0),
+                currency=data.get("currency", "UNKNOWN"),
+            ),
+            url=data["url"],
+            image=data["image"],
+            inventory=InventoryStatus[data["inventory_status"]],
+            unit=ItemUnitData(
+                unit=data.get("unit_value", 1),
+                unit_type=ItemUnitType[data.get("unit_type", "PIECE")],
+                price=data.get("unit_price", 0.0),
+            ),
+            category=ItemCategoryData(
+                categories=data.get("display_category", []),
+            ),
+            delivery=DeliveryData(
+                delivery_type=data.get("delivery_type", "UNKNOWN"),
+                pay_type=data.get("delivery_pay_type", "UNKNOWN"),
+                price=data.get("delivery_price", 0.0),
+                threshold_price=data.get("delivery_free_threshold_price", 0.0),
+                minimum_price=data.get("delivery_minimum_price", 0.0),
+                arrive_date=data.get("delivery_arrive_date"),
+            ),
+            options=[ItemOptionData(**opt) for opt in data.get("product_options", [])],
+            http_status=data.get("http_status"),
+        )
