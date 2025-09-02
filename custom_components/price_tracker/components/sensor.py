@@ -39,7 +39,7 @@ class PriceTrackerSensor(RestoreEntity):
         updated_at=datetime.now(),
         period_hour=30,
     )
-    _refresh_period: int = 30  # minutes
+    _refresh_period: int = 30,
     _unit_type: ItemUnitType = ItemUnitType.PIECE
     _unit_value: int = 1
     _updated_at: datetime | None = None
@@ -88,9 +88,9 @@ class PriceTrackerSensor(RestoreEntity):
             self._unit_value = unit_value
             # Defensive: ensure refresh_period is always int
             try:
-                self._refresh_period = int(refresh_period) if refresh_period is not None else 30
+                self._refresh_period = int(refresh_period) if refresh_period is not None else 1
             except Exception:
-                self._refresh_period = 30
+                self._refresh_period = 1
             self._updated_at = datetime.now()
             self._management_category = management_category
             self._management_categories = management_categories_list
@@ -102,19 +102,44 @@ class PriceTrackerSensor(RestoreEntity):
         return self._engine.id_str()
 
     async def async_update(self):
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"[DIAG][PriceTrackerSensor.async_update] ENTRYPOINT for entity_id={self.entity_id}, unique_id={self._attr_unique_id}, updated_at={self._updated_at}, available={self._attr_available}")
-        logger.info(f"[DIAG][PriceTrackerSensor.async_update] _item_data before update: {self._item_data}")
+                # Check last updated at
+        if (
+            self._engine_status
+            and self._updated_at is not None
+            and self._attr_available is True
+        ):
+            if self._updated_at is not None:
+                # Defensive: ensure _refresh_period is int
+                try:
+                    refresh_minutes = int(self._refresh_period)
+                except Exception:
+                    refresh_minutes = 30
+                if (self._updated_at + timedelta(minutes=refresh_minutes)) > datetime.now():
+                    _LOGGER.debug(
+                        "Skip update cause refresh period. {} -({} / {}).".format(
+                            self._attr_unique_id, self._updated_at, refresh_minutes
+                        )
+                    )
+                    return True
+
+        _LOGGER.debug(
+            "Update sensor: %s (%s) - %s",
+            self._attr_unique_id,
+            self._updated_at,
+            self._attr_available,
+        )
+
         # Ignore deleted item
         if self._item_data is not None and self._item_data.status == ItemStatus.DELETED:
             self._attr_available = True
             self._update_updated_at()
             return True
+
         try:
             data = await self._engine.load()
-            logger.info(f"[DIAG][PriceTrackerSensor.async_update] Received ItemData: {data}, as_dict: {getattr(data, 'dict', lambda: 'no dict')() if hasattr(data, 'dict') else str(data)}")
-            logger.info(f"[DIAG][PriceTrackerSensor.async_update] Received ItemData: {data}, as_dict: {getattr(data, 'dict', lambda: 'no dict')() if hasattr(data, 'dict') else str(data)}")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"[DIAG][PriceTrackerSensor.async_update] Received ItemData: {data}, as_dict: {getattr(data, 'dict', 'no dict') if hasattr(data, 'dict') else str(data)}")
 
             if data is None:
                 if (
@@ -150,7 +175,7 @@ class PriceTrackerSensor(RestoreEntity):
                 else self._item_data.unit
             )
             logger.info(f"[DIAG][PriceTrackerSensor.async_update] Setting state: name={self._item_data.name}, price={self._item_data.price.price}, currency={self._item_data.price.currency}, image={self._item_data.image}")
-            logger.info(f"[DIAG][PriceTrackerSensor.async_update] Assigning state: _attr_name={self._item_data.name}, _attr_state={self._item_data.price.price} (type={type(self._item_data.price.price)}), _attr_entity_picture={self._item_data.image}, _attr_unit_of_measurement={self._item_data.price.currency}")
+            logger.info(f"[DIAG][PriceTrackerSensor.async_update] Value to be set for _attr_state: {self._item_data.price.price} (type: {type(self._item_data.price.price)})")
             self._attr_extra_state_attributes = {
                 **self._item_data.dict,
                 **unit.dict,
@@ -163,14 +188,13 @@ class PriceTrackerSensor(RestoreEntity):
                 "refresh_period": self._refresh_period,
             }
             self._attr_name = self._item_data.name
-            logger.info(f"[DIAG][PriceTrackerSensor.async_update] About to assign self._attr_state = {self._item_data.price.price} (type={type(self._item_data.price.price)})")
             self._attr_state = self._item_data.price.price
-            logger.info(f"[DIAG][PriceTrackerSensor.async_update] After assignment self._attr_state = {self._attr_state} (type={type(self._attr_state)})")
+            
             self._attr_entity_picture = self._item_data.image
             self._attr_available = True
             self._attr_unit_of_measurement = self._item_data.price.currency
             self._update_engine_status(True)
-        except Exception as e:
+        except Exception:
             if (
                 self._updated_at is None
                 or self._updated_at + timedelta(hours=6) < datetime.now()
@@ -189,16 +213,91 @@ class PriceTrackerSensor(RestoreEntity):
             """Handle entity which will be added."""
             await super().async_added_to_hass()
             state = await self.async_get_last_state()
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(f"[DIAG][PriceTrackerSensor.async_added_to_hass] ENTRYPOINT for entity_id={self.entity_id}, unique_id={self._attr_unique_id}")
-            # Always force immediate update after entity creation
+
+            if self._item_data is not None:
+                return
+
+            if not state:
+                self._attr_available = False
+                await self.async_update()
+                return
+
+            if "updated_at" in state.attributes:
+                updated_at_val = state.attributes["updated_at"]
+                if updated_at_val:
+                    self._updated_at = datetime.fromisoformat(updated_at_val)
+                else:
+                    self._updated_at = datetime.now()
+                self._attr_available = True
+            else:
+                self._update_engine_status(False)
+
+            self._attr_name = Lu.get(state.attributes, "name")
+            self._attr_state = Lu.get(state.attributes, "price")
+            self._attr_entity_picture = Lu.get(state.attributes, "entity_picture")
+            self._attr_unit_of_measurement = Lu.get(
+                state.attributes, "unit_of_measurement"
+            )
+            self._attr_extra_state_attributes = {
+                **self._attr_extra_state_attributes,
+                **state.attributes,
+                "management_category": self._management_category,
+                "management_categories": self._management_categories,
+            }
+
+            if "product_id" in state.attributes:
+                self._item_data = ItemData(
+                    id=state.attributes["product_id"],
+                    brand=Lu.get(state.attributes, "brand"),
+                    name=state.attributes["name"],
+                    price=ItemPriceData(
+                        price=state.attributes["price"],
+                        original_price=state.attributes["original_price"],
+                        currency=state.attributes["unit_of_measurement"],
+                        payback_price=state.attributes["payback_price"],
+                    ),
+                    unit=ItemUnitData(
+                        unit_type=Lu.get(
+                            state.attributes, "unit_type", ItemUnitType.PIECE.name
+                        ),
+                        unit=Lu.get(state.attributes, "unit_value", 1),
+                        price=Lu.get(state.attributes, "unit_price"),
+                    ),
+                    image=state.attributes["entity_picture"],
+                    description=Lu.get(state.attributes, "description"),
+                    url=Lu.get(state.attributes, "url"),
+                )
+            else:
+                self._attr_available = False
+
+            # Update price change
+            if (
+                "price_change_status" in state.attributes
+                and "price_change_before_price" in state.attributes
+                and "price_change_after_price" in state.attributes
+            ):
+                self._price_change = ItemPriceChangeData(
+                    status=ItemPriceChangeStatus.of(
+                        Lu.get(state.attributes, "price_change_status", "no_change")
+                    ),
+                    before_price=Lu.get(state.attributes, "price_change_before_price"),
+                    after_price=Lu.get(state.attributes, "price_change_after_price"),
+                    updated_at=self._updated_at if self._updated_at is not None else datetime.now(),
+                )
+                self._attr_extra_state_attributes = {
+                    **self._attr_extra_state_attributes,
+                    "price_change_status": self._price_change.status.name,
+                    "price_change_before_price": self._price_change.before_price,
+                    "price_change_after_price": self._price_change.after_price,
+                }
+
             await self.async_update()
+
             async_dispatcher_connect(
                 self.hass, DATA_UPDATED, self._schedule_immediate_update
             )
-        except Exception as e:
-            _LOGGER.warning("Error while adding the sensor: %s", e)
+        except Exception:
+            _LOGGER.warning("Error while adding the sensor")
 
     @callback
     def _schedule_immediate_update(self):
@@ -220,3 +319,4 @@ class PriceTrackerSensor(RestoreEntity):
             "engine_status": "FETCHED" if status else "ERROR",
         }
         self._engine_status = status
+
