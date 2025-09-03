@@ -1,0 +1,84 @@
+{
+  "title": "電子商取引インテグレート",
+  "config": {
+    "flow_title": "電子商取引インテグレート",
+    "step": {
+      "user": {
+        "title": "新しいプラットフォームを追加します。",
+        "description": "新しいプラットフォームを追加します。(e.g. Amazon, Rakuten, etc.)",
+        "data": {
+          "type": "プラットフォームタイプ"
+        }
+      },
+      "setup": {
+        "title": "{title}",
+        "description": "{description}",
+        "data": {
+          "service_type": "サービスタイプ(e.g. Amazon, Rakuten, etc.)",
+          "conf_gs_store_name_like": "店舗名(最小2文字)",
+          "conf_gs_store_code_and_name": "店舗コードと名前",
+          "conf_gs_naver_login_code": "ログインコード"
+        }
+      }
+    },
+    "error": {
+      "base": "不明なエラーが発生しました。",
+      "unknown": "不明なエラーが発生しました。",
+      "no_search_results": "検索結果が見つかりませんでした。"
+    },
+    "abort": {
+      "already_configured": "既に設定されています。"
+    }
+  },
+  "options": {
+    "step": {
+      "setup": {
+        "title": "{title}",
+        "description": "{description}",
+        "data": {
+          "service_type": "サービスタイプ(e.g. Amazon, Rakuten, etc.)",
+          "service_device": "デバイス",
+          "service_entity": "エンティティ",
+          "option_setup_select": "設定",
+          "option_entity_delete": "エンティティ削除",
+          "option_add_select": "エンティティ追加",
+          "proxy": "プロキシ",
+          "option_proxy_select": "プロキシ設定",
+          "selenium": "Selenium",
+          "selenium_proxy": "Seleniumプロキシ",
+          "option_selenium_select": "Selenium設定",
+          "item_url": "商品URL(e.g. https://www.amazon.com/dp/B07VGRJDFY)",
+          "item_management_category": "管理カテゴリ",
+          "item_management_categories": "Categories (split by ,) - e.g. Electronics, Clothing, etc.",
+          "item_unit_type": "単位タイプ",
+          "item_unit": "容量(e.g. unit type > ml, unit > 300)",
+          "item_refresh_interval": "更新間隔(分)",
+          "item_price_change_interval_hour": "価格変更間隔(時間)"
+        }
+      }
+    },
+    "error": {
+      "base": "不明なエラーが発生しました。",
+      "unknown": "不明なエラーが発生しました。",
+      "no_search_results": "検索結果が見つかりませんでした。",
+      "invalid_item_url": "アイテムURLに問題があります。"
+    },
+    "abort": {
+      "proxy_updated": "プロキシが更新されました。",
+      "proxy_not_updated": "プロキシが更新されませんでした。",
+      "selenium_updated": "Seleniumが更新されました。",
+      "selenium_not_updated": "Seleniumが更新されませんでした。"
+    }
+  },
+  "selector": {
+    "option_setup_select": {
+      "options": {
+        "option_personal_select": "個人設定",
+        "option_proxy_select": "プロキシ設定",
+        "option_selenium_select": "Selenium設定",
+        "option_modify_select": "設定変更",
+        "option_add_select": "エンティティ追加"
+      }
+    }
+  }
+}

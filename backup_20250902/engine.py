@@ -81,7 +81,7 @@ class BuyWiselyEngine(PriceEngine):
                 if hasattr(self._crawler, 'arun'):
                     crawl_result = await self._crawler.arun(url=self.item_url)
                 else:
-                    logger.warning(f"[price_tracker][buywisely] crawl4ai does not have a valid arun method. Falling back to BeautifulSoup.")
+                    logger.warning("[price_tracker][buywisely] crawl4ai does not have a valid arun method. Falling back to BeautifulSoup.")
                     crawl_result = None
                 crawl4ai_data = crawl_result if isinstance(crawl_result, dict) else {}
             except Exception as e:
@@ -98,10 +98,10 @@ class BuyWiselyEngine(PriceEngine):
         product_link_value = product_details.get('product_link') or ''
         logger.info(f"[DIAG][BuyWiselyEngine.load] Extracted price_value: {price_value}, currency_value: {currency_value}, brand: {brand_value}, product_link: {product_link_value}, product_details: {product_details}")
         if price_value is None:
-            logger.error(f"[DIAG][BuyWiselyEngine.load] price_value is None, setting to 0.0")
+            logger.error("[DIAG][BuyWiselyEngine.load] price_value is None, setting to 0.0")
             price_value = 0.0
         if not currency_value:
-            logger.error(f"[DIAG][BuyWiselyEngine.load] currency_value is missing, setting to 'AUD'")
+            logger.error("[DIAG][BuyWiselyEngine.load] currency_value is missing, setting to 'AUD'")
             currency_value = 'AUD'
         price = ItemPriceData(price=float(price_value), currency=currency_value)
 

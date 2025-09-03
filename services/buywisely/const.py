@@ -1,0 +1,2 @@
+NAME = "BuyWisely"
+CODE = "buywisely"
