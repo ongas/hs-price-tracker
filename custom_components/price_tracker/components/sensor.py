@@ -129,9 +129,11 @@ class PriceTrackerSensor(RestoreEntity):
             return True
         try:
             data = await self._engine.load()
-            logger.info(f"[DIAG][PriceTrackerSensor.async_update] Received ItemData: {data}, as_dict: {getattr(data, 'dict', lambda: 'no dict')() if hasattr(data, 'dict') else str(data)}")
+            logger.info(f"[DIAG][PriceTrackerSensor.async_update] Received ItemData: {data}, as_dict: {getattr(data, 'dict', 'no dict') if hasattr(data, 'dict') else str(data)}")
 
+            # Always assign self._item_data after successful engine load
             if data is not None:
+                self._item_data = data
                 self._item_data = data  # Always assign after successful engine load
                 logger.info(f"[DIAG][PriceTrackerSensor.async_update] Assigned self._item_data: {self._item_data}")
                 self._price_change = create_item_price_change(
@@ -166,13 +168,21 @@ class PriceTrackerSensor(RestoreEntity):
                 self._attr_name = self._item_data.name
                 price_value = getattr(self._item_data, 'price', None)
                 actual_price = getattr(price_value, 'price', None) if price_value is not None else None
-                logger.info(f"[DIAG][PriceTrackerSensor.async_update] Extracted price_value: {actual_price} from self._item_data.price: {price_value}")
+                logger.info(f"[DIAG][PriceTrackerSensor.async_update] Extracted price_value: {actual_price} from self._item_data.price: {price_value} (type={type(actual_price)})")
+                logger.info(f"[DIAG][PriceTrackerSensor.async_update] Before assignment: self._attr_state={getattr(self, '_attr_state', None)} (type={type(getattr(self, '_attr_state', None))})")
+                # Home Assistant expects sensor state as a string or float, but not None or STATE_UNKNOWN
                 if actual_price is None or actual_price == STATE_UNKNOWN:
-                    logger.warning(f"[DIAG][PriceTrackerSensor.async_update] Invalid price value for state assignment: {actual_price}. Setting state to '0.0'.")
-                    self._attr_state = "0.0"
+                    logger.warning(f"[DIAG][PriceTrackerSensor.async_update] Invalid price value for state assignment: {actual_price}. Setting state to 0.0 (float).")
+                    self._attr_state = 0.0
                 else:
-                    self._attr_state = str(actual_price)
-                logger.info(f"[DIAG][PriceTrackerSensor.async_update] After assignment self._attr_state = {self._attr_state} (type={type(self._attr_state)})")
+                    try:
+                        # Try to assign as float if possible
+                        self._attr_state = float(actual_price)
+                    except Exception as e:
+                        logger.warning(f"[DIAG][PriceTrackerSensor.async_update] Failed to convert price to float: {actual_price}, error: {e}. Setting state to 0.0.")
+                        self._attr_state = 0.0
+                logger.info(f"[DIAG][PriceTrackerSensor.async_update] After assignment: self._attr_state={self._attr_state} (type={type(self._attr_state)})")
+                print(f"[DIAG][PriceTrackerSensor.async_update] Final assigned state: {self._attr_state} (type={type(self._attr_state)})", flush=True)
                 self._attr_entity_picture = self._item_data.image
                 self._attr_available = True
                 import pprint
@@ -196,7 +206,9 @@ class PriceTrackerSensor(RestoreEntity):
                 else:
                     self._attr_available = True
                     self._update_engine_status(False)
+            # ...existing code before except...
         except Exception as e:
+            logger.error(f"[DIAG][async_update][BuyWisely] Exception: {e}")
             if (
                 self._updated_at is None
                 or self._updated_at + timedelta(hours=6) < datetime.now()
@@ -219,6 +231,14 @@ class PriceTrackerSensor(RestoreEntity):
         async_dispatcher_connect(
             self.hass, DATA_UPDATED, self._schedule_immediate_update
         )
+        # If debug mode, schedule repeated updates
+        if getattr(self, '_debug', False):
+            import asyncio
+            async def debug_update_loop():
+                while True:
+                    await self.async_update()
+                    await asyncio.sleep(5)  # Update every 5 seconds in debug mode
+            self.hass.async_create_task(debug_update_loop())
 
     @callback
     def _schedule_immediate_update(self):
