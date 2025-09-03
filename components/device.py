@@ -1,6 +1,10 @@
 from abc import abstractmethod
 from datetime import datetime
 from typing import Optional, List, Union
+from homeassistant.helpers.entity import Entity
+
+from custom_components.price_tracker.components.id import IdGenerator
+from custom_components.price_tracker.consts.defaults import DOMAIN, VERSION
 
 _HAS_DEVICEINFO = False
 try:
@@ -8,10 +12,6 @@ try:
     _HAS_DEVICEINFO = True
 except ImportError:
     DeviceInfo = None
-from homeassistant.helpers.entity import Entity
-
-from custom_components.price_tracker.components.id import IdGenerator
-from custom_components.price_tracker.consts.defaults import DOMAIN, VERSION
 
 
 class PriceTrackerDevice(Entity):

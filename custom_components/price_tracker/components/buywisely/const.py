@@ -1,2 +1,0 @@
-CODE = "buywisely"
-NAME = "Buywisely"
