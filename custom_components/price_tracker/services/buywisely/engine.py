@@ -6,6 +6,7 @@ from custom_components.price_tracker.components.error import (
     InvalidItemUrlError,
 )
 from custom_components.price_tracker.datas.item import ItemData, ItemStatus
+from custom_components.price_tracker.datas.category import ItemCategoryData
 from custom_components.price_tracker.datas.price import ItemPriceData
 from custom_components.price_tracker.services.buywisely.const import (
     NAME,
@@ -20,6 +21,7 @@ from custom_components.price_tracker.utilities.safe_request import (
 
 # Try to import crawl4ai, fallback if unavailable
 import logging
+_LOGGER = logging.getLogger(__name__)
 try:
     from crawl4ai import AsyncWebCrawler
     from crawl4ai.extraction_strategy import NoExtractionStrategy
@@ -36,20 +38,18 @@ _ITEM_LINK = "https://www.buywisely.com.au/item/show?id={}"
 
 class BuyWiselyEngine(PriceEngine):
     def __init__(
-        self,
-        item_url: str,
-        device: None = None,
-        proxies: Optional[list] = None,
-        selenium: Optional[str] = None,
-        selenium_proxy: Optional[list] = None,
-    ):
+            self,
+            item_url: str,
+            device: None = None,
+            proxies: Optional[list] = None,
+            selenium: Optional[str] = None,
+            selenium_proxy: Optional[list] = None,
+        ):
         self.item_url = item_url
         product_id = BuyWiselyEngine.parse_id(item_url)["product_id"]
         self.id = {"product_id": product_id, "item_url": item_url}
         self.product_id = product_id
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"[DIAG][BuyWiselyEngine.__init__] item_url: {item_url}, self.id: {self.id}, self.product_id: {self.product_id}")
+        _LOGGER.info(f"[DIAG][BuyWiselyEngine.__init__] item_url: {item_url}, self.id: {self.id}, self.product_id: {self.product_id}")
         self._proxies = proxies
         self._device = device
         self._selenium = selenium
@@ -65,31 +65,48 @@ class BuyWiselyEngine(PriceEngine):
             post_try_callables=[]
         )
 
+        import logging
+        logger = logging.getLogger(__name__)
+
         if not response.has:
             # Handle cases where request failed or no data
-            return None
+            logger.warning(f"[DIAG][BuyWiselyEngine.load] No response data for item_url={self.item_url}. Returning DELETED ItemData.")
+            return ItemData(
+                id=self.product_id,
+                name=f"Deleted {self.product_id}",
+                brand="",
+                url=self.item_url,
+                status=ItemStatus.DELETED,
+                price=ItemPriceData(price=0.0, currency=""),
+                image="",
+                category=ItemCategoryData(None),
+            )
 
         html = response.text if response.text else ""
+        logger.info('[DIAG][BuyWiselyEngine.load] HTML snapshot: %s', html)
 
         crawl4ai_data = {}
         product_details = None
-        import logging
-        logger = logging.getLogger(__name__)
         if _HAS_CRAWL4AI and self._crawler:
             try:
-                # Use only 'arun' if available, else fallback to BeautifulSoup
+                logger.info(f"[DIAG][BuyWiselyEngine.load] item_url: {self.item_url}, self.id: {self.id}, self.product_id: {self.product_id}")
                 if hasattr(self._crawler, 'arun'):
                     crawl_result = await self._crawler.arun(url=self.item_url)
+                    if not isinstance(crawl_result, dict):
+                        logger.warning(f"[price_tracker][buywisely] crawl4ai returned non-dict result, falling back to BeautifulSoup.")
+                        crawl4ai_data = {}
+                    else:
+                        crawl4ai_data = crawl_result
                 else:
                     logger.warning(f"[price_tracker][buywisely] crawl4ai does not have a valid arun method. Falling back to BeautifulSoup.")
-                    crawl_result = None
-                crawl4ai_data = crawl_result if isinstance(crawl_result, dict) else {}
+                    crawl4ai_data = {}
             except Exception as e:
                 logger.warning(f"[price_tracker][buywisely] crawl4ai extraction failed for URL: {self.item_url}. Error: {e}. Falling back to BeautifulSoup.")
                 crawl4ai_data = {}
         else:
             logger.info("[price_tracker][buywisely] crawl4ai not available, using BeautifulSoup only.")
             crawl4ai_data = {}
+
         product_details = parse_product(html, crawl4ai_data, product_id=self.product_id)
 
         price_value = product_details.get('price')
@@ -97,13 +114,11 @@ class BuyWiselyEngine(PriceEngine):
         brand_value = product_details.get('brand') or ''
         product_link_value = product_details.get('product_link') or ''
         logger.info(f"[DIAG][BuyWiselyEngine.load] Extracted price_value: {price_value}, currency_value: {currency_value}, brand: {brand_value}, product_link: {product_link_value}, product_details: {product_details}")
-        price = ItemPriceData(price=price_value, currency=currency_value) if price_value is not None and currency_value else None
+        price = ItemPriceData(price=price_value, currency=currency_value) if price_value is not None and currency_value else ItemPriceData(price=0.0, currency="")
 
         name_value = product_details.get('title') or ''
         image_value = product_details.get('image') or ''
         status_value = ItemStatus.ACTIVE if product_details.get('availability') == 'In Stock' else ItemStatus.INACTIVE
-
-        # Defensive: log all fields before constructing ItemData
         logger.info(f"[DIAG][BuyWiselyEngine.load] ItemData fields: id={self.product_id}, name={name_value}, brand={brand_value}, product_link={product_link_value}, status={status_value}, price={price}, url={self.item_url}, image={image_value}")
 
         result = ItemData(
@@ -112,10 +127,11 @@ class BuyWiselyEngine(PriceEngine):
             brand=brand_value,
             url=product_link_value if product_link_value else self.item_url,
             status=status_value,
-            price=price if price is not None else ItemPriceData(price=0.0, currency=""),
+            price=price,
             image=image_value,
+            category=ItemCategoryData(None),
         )
-        logger.info(f"[DIAG][BuyWiselyEngine.load] Returning ItemData: {result}, as_dict: {getattr(result, 'dict', lambda: 'no dict')() if hasattr(result, 'dict') else str(result)}")
+        logger.info(f"[DIAG][BuyWiselyEngine.load] Returning ItemData: {result}, as_dict: {getattr(result, 'dict', 'no dict') if hasattr(result, 'dict') else str(result)}")
         return result
 
     def id_str(self) -> str:

@@ -1,8 +1,11 @@
 # Example: Mock test using real HTML from buywisely.com.au
 import pytest
 from unittest.mock import AsyncMock, patch
-from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
-from custom_components.price_tracker.datas.item import ItemStatus
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../custom_components/price_tracker/custom_components/price_tracker')))
+from services.buywisely.engine import BuyWiselyEngine
+from datas.item import ItemStatus
 
 @pytest.mark.asyncio
 @patch('custom_components.price_tracker.services.buywisely.engine.SafeRequest')
@@ -69,7 +72,7 @@ async def test_get_product_details_success(mock_safe_request):
     mock_response_data.has = True
     mock_instance.request = AsyncMock(return_value=mock_response_data)
 
-    engine = BuyWiselyEngine(item_url="http://example.com/product?id=123")
+    engine = BuyWiselyEngine(item_url="http://example.com/product/test-product?id=123")
     
     result = await engine.load()
 
@@ -101,7 +104,7 @@ async def test_get_product_details_no_price(mock_safe_request):
     mock_response_data.has = True
     mock_instance.request = AsyncMock(return_value=mock_response_data)
 
-    engine = BuyWiselyEngine(item_url="http://example.com/another_product?id=123")
+    engine = BuyWiselyEngine(item_url="http://example.com/product/another-product?id=123")
     
     result = await engine.load()
 
@@ -134,7 +137,7 @@ async def test_get_product_details_multiple_prices(mock_safe_request):
     mock_response_data.has = True
     mock_instance.request = AsyncMock(return_value=mock_response_data)
 
-    engine = BuyWiselyEngine(item_url="http://example.com/multiple_prices?id=123")
+    engine = BuyWiselyEngine(item_url="http://example.com/product/multiple-prices?id=123")
     
     result = await engine.load()
 

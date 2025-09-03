@@ -1,6 +1,9 @@
 import pytest
 from homeassistant import config_entries
-from custom_components.price_tracker.config_flow import PriceTrackerConfigFlow
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../custom_components/price_tracker/custom_components/price_tracker')))
+from config_flow import PriceTrackerConfigFlow
 
 @pytest.mark.asyncio
 async def test_config_flow_guided(monkeypatch):
