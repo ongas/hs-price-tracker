@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 import re
 import logging
+import bs4
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,21 +37,71 @@ def parse_product(html: str, crawl4ai_data: dict | None = None, product_id: str 
     # Fallback to BeautifulSoup if crawl4ai data doesn't provide the price
     if price is None:
         prices = []
-        text = soup.get_text()
-        _LOGGER.debug(f"BuyWisely Parser: Text for regex: {text[:500]}")
-        price_matches = re.findall(r'\$\s*([\d,]+\.?\d*)', text)
-        _LOGGER.debug(f"BuyWisely Parser: Regex matches: {price_matches}")
-        for price_match in price_matches:
-            try:
-                price_value = float(price_match.replace(',', ''))
-                prices.append(price_value)
-            except (ValueError, TypeError):
-                continue
-        _LOGGER.debug(f"BuyWisely Parser: Found prices: {prices}")
-        # Ignore zero values when selecting minimum price
-        non_zero_prices = [p for p in prices if p > 0]
-        price = min(non_zero_prices) if non_zero_prices else (min(prices) if prices else None)
-        _LOGGER.debug(f"BuyWisely Parser: Final price after ignoring zeros: {price}")
+        heading_tags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+        heading_prices = []
+        # Extract prices from headings first
+        for tag in heading_tags:
+            for heading in soup.find_all(tag):
+                heading_text = heading.get_text()
+                # Support $ and €
+                matches_dollar = re.findall(r'\$\s*([\d,]+\.?\d*)', heading_text)
+                matches_euro = re.findall(r'€\s*([\d,]+\.?\d*)', heading_text)
+                for match in matches_dollar:
+                    try:
+                        value = float(match.replace(',', ''))
+                        heading_prices.append((value, heading_text, 'AUD'))
+                    except Exception:
+                        continue
+                for match in matches_euro:
+                    try:
+                        value = float(match.replace(',', ''))
+                        heading_prices.append((value, heading_text, 'EUR'))
+                    except Exception:
+                        continue
+        # Log heading price candidates
+        _LOGGER.debug(f"BuyWisely Parser: Heading price candidates: {heading_prices}")
+        # If heading prices found, prefer the largest (most likely product price)
+        if heading_prices:
+            heading_prices_sorted = sorted(heading_prices, key=lambda x: x[0])
+            price, source_text, currency = heading_prices_sorted[0]
+            _LOGGER.debug(f"BuyWisely Parser: Selected heading price (lowest): {price} from text: {source_text}, currency: {currency}")
+        else:
+            # Fallback: Extract all prices from text, but ignore delivery/fee prices
+            text = soup.get_text()
+            price_matches_dollar = re.finditer(r'\$\s*([\d,]+\.?\d*)', text)
+            price_matches_euro = re.finditer(r'€\s*([\d,]+\.?\d*)', text)
+            for match in price_matches_dollar:
+                value = None
+                try:
+                    value = float(match.group(1).replace(',', ''))
+                except Exception:
+                    continue
+                after = text[match.end():match.end()+20].lower()
+                if 'delivery' in after or 'fee' in after:
+                    _LOGGER.debug(f"BuyWisely Parser: Ignoring price {value} due to context: {after}")
+                    continue
+                prices.append((value, text[max(0, match.start()-30):match.end()+30], 'AUD'))
+            for match in price_matches_euro:
+                value = None
+                try:
+                    value = float(match.group(1).replace(',', ''))
+                except Exception:
+                    continue
+                after = text[match.end():match.end()+20].lower()
+                if 'delivery' in after or 'fee' in after:
+                    _LOGGER.debug(f"BuyWisely Parser: Ignoring euro price {value} due to context: {after}")
+                    continue
+                prices.append((value, text[max(0, match.start()-30):match.end()+30], 'EUR'))
+            # Log all price candidates
+            _LOGGER.debug(f"BuyWisely Parser: All price candidates: {prices}")
+            # Prefer largest price (most likely product price)
+            if prices:
+                prices_sorted = sorted(prices, key=lambda x: x[0])
+                price, source_text, currency = prices_sorted[0]
+                _LOGGER.debug(f"BuyWisely Parser: Selected fallback price (lowest): {price} from context: {source_text}, currency: {currency}")
+            else:
+                price = None
+        _LOGGER.debug(f"BuyWisely Parser: Final selected price: {price}, currency: {currency}")
 
     image = None
     # Try to get image from crawl4ai data first
@@ -77,8 +128,8 @@ def parse_product(html: str, crawl4ai_data: dict | None = None, product_id: str 
         # If still no image, try any <img> tag
         if image is None:
             generic_img = soup.find('img')
-            if generic_img and 'src' in generic_img.attrs:
-                image = generic_img['src']
+            if generic_img and isinstance(generic_img, bs4.element.Tag):
+                image = generic_img.get('src')
     
     _LOGGER.debug(f"BuyWisely Parser: Final image: {image}")
     availability = 'In Stock' if price else 'Out of Stock'
@@ -100,8 +151,8 @@ def parse_product(html: str, crawl4ai_data: dict | None = None, product_id: str 
     # Fallback: try to extract brand from HTML meta or text
     if brand is None:
         meta_brand = soup.find('meta', attrs={'name': 'brand'})
-        if meta_brand is not None and hasattr(meta_brand, 'attrs') and 'content' in meta_brand.attrs:
-            brand = meta_brand['content']
+        if meta_brand is not None and isinstance(meta_brand, bs4.element.Tag):
+            brand = meta_brand.get('content')
         # Try regex for 'Brand:' in text
         brand_match = re.search(r'Brand:\s*([\w\s]+)', soup.get_text())
         if brand_match:
@@ -122,13 +173,7 @@ def parse_product(html: str, crawl4ai_data: dict | None = None, product_id: str 
     else:
         product_link = None
     _LOGGER.debug(f"BuyWisely Parser: Product link: {product_link}")
-
-    # Guaranteed diagnostics: write extracted brand and product_link to /tmp/buywisely_parse_product.log
-    try:
-        with open('/tmp/buywisely_parse_product.log', 'a') as f:
-            f.write(f"brand={brand}, product_link={product_link}, title={title}, price={price}, image={image}, currency={currency}, availability={availability}\n")
-    except Exception:
-        pass
+    _LOGGER.debug('[DIAG][parse_product] product_id=%s, price=%s, currency=%s, brand=%s, link=%s', product_id, price, currency, brand, product_link)
 
     return {
         'title': title,
