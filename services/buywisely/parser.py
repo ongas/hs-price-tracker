@@ -21,6 +21,7 @@ def parse_product(html: str, crawl4ai_data: dict | None = None, product_id: str 
     product_data = {}
     image = None
     vendor_url = None
+    brand = "" # Initialize brand with an empty string
 
     # Extract price from the main product information section
     price_range_element = soup.select_one('.MuiBox-root.mui-1lekzkb h2')
@@ -44,12 +45,23 @@ def parse_product(html: str, crawl4ai_data: dict | None = None, product_id: str 
         _LOGGER.debug(f"BuyWisely Parser: First product container HTML: {first_product.prettify()}")
 
         # Extract vendor URL from the first product container
-        vendor_link = first_product.find('a', string=re.compile("Go to store", re.IGNORECASE))
-        if vendor_link and vendor_link.has_attr('href'):
-            vendor_url = vendor_link['href']
+        vendor_link_element = first_product.select_one('.MuiBox-root.mui-70qvj9 a')
+        if vendor_link_element and vendor_link_element.has_attr('href'):
+            vendor_url = vendor_link_element['href']
+            # Check if it's a relative URL and make it absolute
             if vendor_url.startswith('/'):
                 vendor_url = f"https://buywisely.com.au{vendor_url}"
             _LOGGER.debug(f"BuyWisely Parser: Found vendor product URL: {vendor_url}")
+
+        # Extract brand from the title or product container
+        if title:
+            brand = title.split(' ')[0]
+            _LOGGER.debug(f"BuyWisely Parser: Extracted brand from title: {brand}")
+        if not brand:
+            brand_element = first_product.select_one('.MuiBox-root.mui-1ebnygn h4') # Assuming brand is in an h4 within this box
+            if brand_element:
+                brand = brand_element.get_text().strip()
+                _LOGGER.debug(f"BuyWisely Parser: Extracted brand from product container: {brand}")
 
     # Fallback for image
     if image is None:
@@ -65,7 +77,7 @@ def parse_product(html: str, crawl4ai_data: dict | None = None, product_id: str 
                 image = generic_img.get('src')
 
     availability = 'In Stock' if price else 'Out of Stock'
-    brand = None
+    brand = "" # Initialize brand with an empty string
     meta_brand = soup.find('meta', attrs={'name': 'brand'})
     if meta_brand is not None and isinstance(meta_brand, bs4.element.Tag):
         brand = meta_brand.get('content')
