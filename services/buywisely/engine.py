@@ -114,8 +114,7 @@ class BuyWiselyEngine(PriceEngine):
             logger.info("[price_tracker][buywisely] crawl4ai not available, using BeautifulSoup only.")
             crawl4ai_data = {}
 
-        product_details = parse_product(html, crawl4ai_data, product_id=self.product_id)
-
+        product_details = parse_product(html, crawl4ai_data, product_id=self.product_id, recency_days=7)
         price_value = product_details.get('price')
         currency_value = product_details.get('currency') or ''
         brand_value = product_details.get('brand') or ''

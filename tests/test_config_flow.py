@@ -1,5 +1,4 @@
 import pytest
-from homeassistant import config_entries
 import sys
 import os
 # Add both possible package roots to sys.path

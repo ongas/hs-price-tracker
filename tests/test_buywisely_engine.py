@@ -46,7 +46,6 @@ async def test_real_html_product_parsing(mock_safe_request):
             return mock_response
     engine = BuyWiselyEngine(item_url="https://buywisely.com.au/product/sony-wh-1000xm4-wireless-noise-cancelling-headphones-black-1?id=12345", request_cls=MockSafeRequest)
     print("DIAGNOSTIC: About to call engine.load() with custom mock response")
-    from unittest.mock import patch
     mock_response = AsyncMock()
     mock_response.has = True
     mock_response.text = sample_html
@@ -108,7 +107,6 @@ async def test_get_product_details_success(mock_safe_request):
     engine = BuyWiselyEngine(item_url="http://example.com/product/test-product", request_cls=MockSafeRequest)
     
     print("DIAGNOSTIC: About to call engine.load() with custom mock response")
-    from unittest.mock import patch
     mock_response = AsyncMock()
     mock_response.has = True
     mock_response.text = sample_html
@@ -164,7 +162,6 @@ async def test_get_product_details_no_price(mock_safe_request):
     engine = BuyWiselyEngine(item_url="http://example.com/product/another-product", request_cls=MockSafeRequest)
     
     print("DIAGNOSTIC: About to call engine.load() with custom mock response")
-    from unittest.mock import patch
     mock_response = AsyncMock()
     mock_response.has = True
     mock_response.text = sample_html
@@ -223,7 +220,6 @@ async def test_get_product_details_multiple_prices(mock_safe_request):
     engine = BuyWiselyEngine(item_url="http://example.com/product/multiple-prices", request_cls=MockSafeRequest)
     
     print("DIAGNOSTIC: About to call engine.load() with custom mock response")
-    from unittest.mock import patch
     mock_response = AsyncMock()
     mock_response.has = True
     mock_response.text = sample_html

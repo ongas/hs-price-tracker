@@ -194,6 +194,21 @@ class PriceTrackerSensor(RestoreEntity):
                     logger.warning(f"[DIAG][PriceTrackerSensor.async_update][UI STATE] Failed to write to /tmp/price_tracker_ui_state.log: {e}")
                 self._update_engine_status(True)
             else:
+                # Defensive fallback: assign safe values if no product data found
+                logger.warning("[DIAG][PriceTrackerSensor.async_update] No product data found, assigning fallback state.")
+                self._item_data = None
+                self._attr_name = "Unknown Product"
+                self._attr_state = 0.0
+                self._attr_entity_picture = None
+                self._attr_unit_of_measurement = ""
+                self._attr_extra_state_attributes = {
+                    "provider": self._engine.engine_code(),
+                    "management_category": self._management_category,
+                    "management_categories": self._management_categories,
+                    "updated_at": self._updated_at,
+                    "refresh_period": self._refresh_period,
+                    "error": "No valid product data found"
+                }
                 if (
                     self._updated_at is None
                     or self._updated_at + timedelta(hours=6) < datetime.now()
@@ -204,6 +219,14 @@ class PriceTrackerSensor(RestoreEntity):
                 else:
                     self._attr_available = True
                     self._update_engine_status(False)
+                ui_state_log = f"[DIAG][PriceTrackerSensor.async_update][UI STATE] entity_id={self.entity_id}\nSTATE: {self._attr_state}\nATTRIBUTES:\n{self._attr_extra_state_attributes}"
+                logger.info(ui_state_log)
+                print(ui_state_log, flush=True)
+                try:
+                    with open('/tmp/price_tracker_ui_state.log', 'a') as f:
+                        f.write(ui_state_log + '\n')
+                except Exception as e:
+                    logger.warning(f"[DIAG][PriceTrackerSensor.async_update][UI STATE] Failed to write to /tmp/price_tracker_ui_state.log: {e}")
             # ...existing code before except...
         except Exception as e:
             logger.error(f"[DIAG][async_update][BuyWisely] Exception: {e}")
