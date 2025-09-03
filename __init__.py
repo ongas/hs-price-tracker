@@ -19,17 +19,18 @@ from custom_components.price_tracker.consts.confs import (
 )
 from custom_components.price_tracker.consts.defaults import DOMAIN, PLATFORMS
 from custom_components.price_tracker.services.factory import (
-    create_service_item_url_parser,
     create_service_item_target_parser,
     create_service_device_parser_and_parse,
-    has_service_item_target_parser,
 )
 from custom_components.price_tracker.utilities.list import Lu
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+
+
+async def async_setup(hass, config):
+    _LOGGER.info("Price Tracker component is loading!")
     """Set up the price tracker component."""
     _LOGGER.debug("Setting up price tracker component {}".format(config))
     hass.data.setdefault(DOMAIN, {})
@@ -46,7 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("Setting up entry and options {} > {}".format(entry, entry.options))
 
     # For upgrade options (1.4.0)
-    if not has_service_item_target_parser(entry.data["type"]):
+    if not create_service_item_target_parser(entry.data["type"]):
         return False
 
     # For upgrade options (1.0.0)
