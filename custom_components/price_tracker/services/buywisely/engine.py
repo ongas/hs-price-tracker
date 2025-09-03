@@ -93,12 +93,12 @@ class BuyWiselyEngine(PriceEngine):
                 if hasattr(self._crawler, 'arun'):
                     crawl_result = await self._crawler.arun(url=self.item_url)
                     if not isinstance(crawl_result, dict):
-                        logger.warning(f"[price_tracker][buywisely] crawl4ai returned non-dict result, falling back to BeautifulSoup.")
+                        logger.warning("[price_tracker][buywisely] crawl4ai returned non-dict result, falling back to BeautifulSoup.")
                         crawl4ai_data = {}
                     else:
                         crawl4ai_data = crawl_result
                 else:
-                    logger.warning(f"[price_tracker][buywisely] crawl4ai does not have a valid arun method. Falling back to BeautifulSoup.")
+                    logger.warning("[price_tracker][buywisely] crawl4ai does not have a valid arun method. Falling back to BeautifulSoup.")
                     crawl4ai_data = {}
             except Exception as e:
                 logger.warning(f"[price_tracker][buywisely] crawl4ai extraction failed for URL: {self.item_url}. Error: {e}. Falling back to BeautifulSoup.")
