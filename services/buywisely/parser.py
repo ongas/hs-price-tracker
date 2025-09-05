@@ -2,89 +2,93 @@ from bs4 import BeautifulSoup
 import re
 import logging
 import bs4
+import json
+from nextjs_hydration_parser import NextJSHydrationDataExtractor
 
 _LOGGER = logging.getLogger(__name__)
 
+def find_product_data(data):
+    """Recursively searches for the product data in the dictionary."""
+    if isinstance(data, dict):
+        if 'title' in data and 'slug' in data:
+            return data
+        for key, value in data.items():
+            result = find_product_data(value)
+            if result:
+                return result
+    elif isinstance(data, list):
+        for item in data:
+            result = find_product_data(item)
+            if result:
+                return result
+    return None
+
 def parse_product(html: str, crawl4ai_data: dict | None = None, product_id: str | None = None, recency_days: int = 7) -> dict:
+    extractor = NextJSHydrationDataExtractor()
     _LOGGER.debug(f"BuyWisely Parser: HTML content: {html[:500]}")
-    soup = BeautifulSoup(html, 'html.parser')
-
-    title_selector = 'h1'
-    image_selector = 'div.MuiBox-root.mui-1ub93rr img'
-
-    title_element = soup.select_one(title_selector)
-    title = title_element.text.strip() if title_element else None
-    _LOGGER.debug(f"BuyWisely Parser: Title: {title}")
-
+    
+    title = None
     price = None
     currency = 'AUD' # Default currency
-    product_data = {}
     image = None
     vendor_url = None
     brand = "" # Initialize brand with an empty string
+    product_link = None
+    availability = 'Out of Stock'
 
-    # Extract price from the main product information section
-    price_range_element = soup.select_one('.MuiBox-root.mui-1lekzkb h2')
-    if price_range_element:
-        price_text = price_range_element.get_text()
-        matches = re.findall(r'\$\s*([\d,]+\.?\d*)', price_text)
-        if matches:
-            try:
-                price = float(matches[0].replace(',', ''))
-                _LOGGER.debug(f"BuyWisely Parser: Selected price from main section: {price}")
-            except ValueError:
-                price = None
+    try:
+        parsed_data = extractor.parse(html)
+        _LOGGER.debug(f"BuyWisely Parser: Parsed data from nextjs_hydration_parser: {parsed_data}")
 
-    # Find all product containers
-    product_containers = soup.select('.MuiGrid-item:has(.MuiBox-root.mui-1ebnygn)')[:10]
-    _LOGGER.debug(f"BuyWisely Parser: Found {len(product_containers)} product containers.")
+        product_data = find_product_data(parsed_data)
 
-    if product_containers:
-        # Get the first product container, which should be the lowest price
-        first_product = product_containers[0]
-        _LOGGER.debug(f"BuyWisely Parser: First product container HTML: {first_product.prettify()}")
+        if product_data:
+            title = product_data.get('title')
+            slug = product_data.get('slug')
+            if slug:
+                product_link = f'https://www.buywisely.com.au/product/{slug}'
+                vendor_url = product_link # As per problem summary, vendor_url is the product page on buywisely
+            
+            if title:
+                brand = title.split(' ')[0]
 
-        # Extract vendor URL from the first product container
-        vendor_link_element = first_product.select_one('.MuiBox-root.mui-70qvj9 a')
-        if vendor_link_element and vendor_link_element.has_attr('href'):
-            vendor_url = vendor_link_element['href']
-            # Check if it's a relative URL and make it absolute
-            if vendor_url.startswith('/'):
-                vendor_url = f"https://buywisely.com.au{vendor_url}"
-            _LOGGER.debug(f"BuyWisely Parser: Found vendor product URL: {vendor_url}")
+    except Exception as e:
+        _LOGGER.error(f"BuyWisely Parser: Error parsing with nextjs_hydration_parser: {e}")
 
-        # Extract brand from the title or product container
-        if title:
-            brand = title.split(' ')[0]
-            _LOGGER.debug(f"BuyWisely Parser: Extracted brand from title: {brand}")
-        if not brand:
-            brand_element = first_product.select_one('.MuiBox-root.mui-1ebnygn h4') # Assuming brand is in an h4 within this box
-            if brand_element:
-                brand = brand_element.get_text().strip()
-                _LOGGER.debug(f"BuyWisely Parser: Extracted brand from product container: {brand}")
+    # Keep the existing logic for price and image as a fallback
+    soup = BeautifulSoup(html, 'html.parser')
+    if not title:
+        title_element = soup.select_one('h1')
+        title = title_element.text.strip() if title_element else None
 
-    # Fallback for image
-    if image is None:
-        image_element = soup.select_one(image_selector)
+    if not price:
+        price_range_element = soup.select_one('.MuiBox-root.mui-1lekzkb h2')
+        if price_range_element:
+            price_text = price_range_element.get_text()
+            matches = re.findall(r'\$\s*([\d,]+\.?\d*)', price_text)
+            if matches:
+                try:
+                    price = float(matches[0].replace(',', ''))
+                    _LOGGER.debug(f"BuyWisely Parser: Selected price from main section: {price}")
+                except ValueError:
+                    price = None
+    
+    if price:
+        availability = 'In Stock'
+
+    if not image:
+        image_element = soup.select_one('div.MuiBox-root.mui-1ub93rr img')
         if image_element and 'src' in image_element.attrs:
             image = image_element['src']
             if image and isinstance(image, str) and image.startswith('/'):
                 image = 'https://buywisely.com.au' + image
-        # If still no image, try any <img> tag
         if image is None:
             generic_img = soup.find('img')
             if generic_img and isinstance(generic_img, bs4.element.Tag):
                 image = generic_img.get('src')
 
-    availability = 'In Stock' if price else 'Out of Stock'
-    brand = "" # Initialize brand with an empty string
-    meta_brand = soup.find('meta', attrs={'name': 'brand'})
-    if meta_brand is not None and isinstance(meta_brand, bs4.element.Tag):
-        brand = meta_brand.get('content')
     if not brand and title:
         brand = title.split(' ')[0]
-
-    product_link = f'https://www.buywisely.com.au/product/{product_id}' if product_id else None
 
     return {
         'title': title,
@@ -95,5 +99,4 @@ def parse_product(html: str, crawl4ai_data: dict | None = None, product_id: str 
         'brand': brand,
         'url': vendor_url,
         'product_link': product_link,
-        'product_data': product_data,
     }
