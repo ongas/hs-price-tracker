@@ -1,7 +1,4 @@
-playwright>=1.44.0
-
 colorlog==6.8.2
-
 pip>=21.3.1
 ruff==0.7.3
 beautifulsoup4==4.12.3
@@ -22,5 +19,4 @@ opentelemetry-api>=1.28.2
 opentelemetry-sdk>=1.28.2
 curl-cffi>=0.7.4
 pytest-asyncio
-PyExecJS
-nextjs-hydration-parser # For parsing Next.js hydration data
+nextjs-hydration-parser 
