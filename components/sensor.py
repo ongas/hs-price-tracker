@@ -21,7 +21,7 @@ from custom_components.price_tracker.utilities.list import Lu
 _LOGGER = logging.getLogger(__name__)
 
 
-class PriceTrackerSensor(RestoreEntity):
+class PriceTrackerSensor(RestoreEntity): # Force reload
     # STATIC
     _attr_icon = "mdi:cart"
     _attr_device_class = "price"

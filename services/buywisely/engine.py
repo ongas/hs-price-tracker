@@ -95,17 +95,32 @@ class BuyWiselyEngine(PriceEngine):
         name_value = product_details.get('title') or ''
         image_value = product_details.get('image') or ''
         status_value = ItemStatus.ACTIVE if product_details.get('availability') == 'In Stock' else ItemStatus.INACTIVE
-        logger.info(f"[DIAG][BuyWiselyEngine.load] ItemData fields: id={self.product_id}, name={name_value}, brand={brand_value}, product_link={product_link_value}, status={status_value}, price={price}, url={self.item_url}, image={image_value}")
+
+        # --- NEW LOGIC TO FIND MATCHING PRICE OFFER URL ---
+        matching_price_url = product_details.get('product_link') # Default to main product link
+        offers = product_details.get('offers', [])
+        main_product_price = product_details.get('price') # This is the $391.0
+
+        if offers and main_product_price is not None:
+            for offer in offers:
+                if offer.get('base_price') == main_product_price:
+                    if 'seller_product_url' in offer:
+                        matching_price_url = offer['seller_product_url']
+                        break # Found a match, exit loop
+        # --- END NEW LOGIC ---
+
+        logger.info(f"[DIAG][BuyWiselyEngine.load] ItemData fields: id={self.product_id}, name={name_value}, brand={brand_value}, product_link={matching_price_url}, status={status_value}, price={price}, url={self.item_url}, image={image_value}")
 
         result = ItemData(
             id=self.product_id,
             name=name_value,
             brand=brand_value,
-            url=product_link_value if product_link_value else self.item_url,
+            url=matching_price_url, # Use the matching_price_url here
             status=status_value,
             price=price,
             image=image_value,
             category=ItemCategoryData(None),
+            offers=offers # Keep the full offers list in ItemData
         )
         logger.info(f"[DIAG][BuyWiselyEngine.load] Returning ItemData: {result}, as_dict: {getattr(result, 'dict', 'no dict') if hasattr(result, 'dict') else str(result)}")
         return result

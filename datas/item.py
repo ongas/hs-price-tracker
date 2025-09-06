@@ -51,6 +51,7 @@ class ItemData:
     options: Optional[List[ItemOptionData]] = dataclasses.field(default_factory=list)
     status: ItemStatus = ItemStatus.ACTIVE
     http_status: int = 200
+    offers: Optional[List[dict]] = dataclasses.field(default_factory=list)
 
     @property
     def total_price(self):
