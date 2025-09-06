@@ -1,5 +1,5 @@
 playwright>=1.44.0
-crawl4ai
+
 colorlog==6.8.2
 
 pip>=21.3.1

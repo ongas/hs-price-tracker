@@ -8,7 +8,7 @@ from datas.item import ItemStatus
 @patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
 async def test_real_fetched_html_product_parsing(mock_safe_request):
     # Path to the real fetched HTML file
-    html_path = os.path.join(os.path.dirname(__file__), "buywisely_fetched.html")
+    html_path = os.path.join(os.path.dirname(__file__), "buywisely_retriever_test", "buywisely_fetched.html")
     assert os.path.exists(html_path), f"Test HTML file not found: {html_path}"
     with open(html_path, "r", encoding="utf-8") as f:
         sample_html = f.read()
@@ -31,7 +31,7 @@ async def test_real_fetched_html_product_parsing(mock_safe_request):
     result = await engine.load()
     print(f"DIAGNOSTIC: engine.load() returned: {result}")
     assert result is not None, "BuyWiselyEngine.load() returned None for real fetched HTML test."
-    print(f"DIAGNOSTIC: name={getattr(result, 'name', None)}, price={getattr(getattr(result, 'price', None), 'price', None)}, currency={getattr(getattr(result, 'price', None), 'currency', None)}, image={getattr(result, 'image', None)}, status={getattr(result, 'status', None)}")
+    print(f"DIAGNOSTIC: name={getattr(result, 'name', None)}, price={getattr(getattr(result, 'price', None), 'price', None)}, currency={getattr(getattr(result, 'price'), 'currency', None)}, image={getattr(result, 'image', None)}, status={getattr(result, 'status', None)}")
     status = getattr(result, 'status', None)
     assert status is not None
     assert status.value == ItemStatus.ACTIVE.value
