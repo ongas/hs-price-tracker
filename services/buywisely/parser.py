@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 import re
 import logging
 import bs4
-import json
+
 from nextjs_hydration_parser import NextJSHydrationDataExtractor
 
 _LOGGER = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ def find_product_data(data):
                 return result
     return None
 
-def parse_product(html: str, crawl4ai_data: dict | None = None, product_id: str | None = None, recency_days: int = 7) -> dict:
+def parse_product(html: str, product_id: str | None = None, recency_days: int = 7) -> dict:
     extractor = NextJSHydrationDataExtractor()
     _LOGGER.debug(f"BuyWisely Parser: HTML content: {html[:500]}")
     
@@ -58,20 +58,35 @@ def parse_product(html: str, crawl4ai_data: dict | None = None, product_id: str 
     # Keep the existing logic for price and image as a fallback
     soup = BeautifulSoup(html, 'html.parser')
     if not title:
-        title_element = soup.select_one('h1')
+        title_element = soup.select_one('h2')
         title = title_element.text.strip() if title_element else None
 
     if not price:
-        price_range_element = soup.select_one('.MuiBox-root.mui-1lekzkb h2')
-        if price_range_element:
-            price_text = price_range_element.get_text()
-            matches = re.findall(r'\$\s*([\d,]+\.?\d*)', price_text)
+        all_h3_elements = soup.select('h3')
+        extracted_prices = []
+        for h3_element in all_h3_elements[:10]:
+            price_text = h3_element.get_text()
+            matches = re.findall(r'([\$€])\s*([\d,]+\.?\d*)', price_text) # Capture the currency symbol
             if matches:
                 try:
-                    price = float(matches[0].replace(',', ''))
-                    _LOGGER.debug(f"BuyWisely Parser: Selected price from main section: {price}")
+                    # matches will be a list of tuples, e.g., [('$', '100.00'), ('€', '25.99')]
+                    for symbol, value in matches:
+                        extracted_prices.append((float(value.replace(',', '')), symbol))
                 except ValueError:
-                    price = None
+                    pass
+        if extracted_prices:
+            # Find the minimum price and its corresponding symbol
+            min_price_tuple = min(extracted_prices, key=lambda x: x[0])
+            price = min_price_tuple[0]
+            symbol = min_price_tuple[1]
+
+            if symbol == '$':
+                currency = 'AUD' # Assuming $ implies AUD for BuyWisely
+            elif symbol == '€':
+                currency = 'EUR'
+            else:
+                currency = 'AUD' # Default if no known symbol or $
+            _LOGGER.debug(f"BuyWisely Parser: Selected minimum price: {price}, Currency: {currency}")
     
     if price:
         availability = 'In Stock'
