@@ -105,6 +105,8 @@ def parse_product(html: str, product_id: str | None = None, recency_days: int = 
     if not brand and title:
         brand = title.split(' ')[0]
 
+    offers = product_data.get('offers', []) if product_data else []
+
     return {
         'title': title,
         'price': price,
@@ -114,4 +116,5 @@ def parse_product(html: str, product_id: str | None = None, recency_days: int = 
         'brand': brand,
         'url': vendor_url,
         'product_link': product_link,
+        'offers': offers,
     }
