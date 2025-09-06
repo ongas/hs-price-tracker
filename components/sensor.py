@@ -172,6 +172,7 @@ class PriceTrackerSensor(RestoreEntity):
                 if actual_price is None or actual_price == STATE_UNKNOWN:
                     logger.warning(f"[DIAG][PriceTrackerSensor.async_update] Invalid price value for state assignment: {actual_price}. Setting state to 0.0 (float).")
                     self._attr_state = 0.0
+                    self._attr_extra_state_attributes["error_message"] = "Invalid price value"
                 else:
                     try:
                         # Try to assign as float if possible
@@ -179,6 +180,7 @@ class PriceTrackerSensor(RestoreEntity):
                     except Exception as e:
                         logger.warning(f"[DIAG][PriceTrackerSensor.async_update] Failed to convert price to float: {actual_price}, error: {e}. Setting state to 0.0.")
                         self._attr_state = 0.0
+                        self._attr_extra_state_attributes["error_message"] = f"Price conversion failed: {e}"
                 logger.info(f"[DIAG][PriceTrackerSensor.async_update] After assignment: self._attr_state={self._attr_state} (type={type(self._attr_state)})")
                 print(f"[DIAG][PriceTrackerSensor.async_update] Final assigned state: {self._attr_state} (type={type(self._attr_state)})", flush=True)
                 self._attr_entity_picture = self._item_data.image
@@ -207,7 +209,7 @@ class PriceTrackerSensor(RestoreEntity):
                     "management_categories": self._management_categories,
                     "updated_at": self._updated_at,
                     "refresh_period": self._refresh_period,
-                    "error": "No valid product data found"
+                    "error_message": "No valid product data found" # Added error_message here
                 }
                 if (
                     self._updated_at is None
@@ -230,6 +232,7 @@ class PriceTrackerSensor(RestoreEntity):
             # ...existing code before except...
         except Exception as e:
             logger.error(f"[DIAG][async_update][BuyWisely] Exception: {e}")
+            self._attr_extra_state_attributes["error_message"] = f"Update failed: {e}" # Added error_message here
             if (
                 self._updated_at is None
                 or self._updated_at + timedelta(hours=6) < datetime.now()
