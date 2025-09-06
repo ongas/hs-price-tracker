@@ -19,18 +19,8 @@ from custom_components.price_tracker.utilities.safe_request import (
 )
 
 
-# Try to import crawl4ai, fallback if unavailable
 import logging
 _LOGGER = logging.getLogger(__name__)
-try:
-    from crawl4ai import AsyncWebCrawler
-    from crawl4ai.extraction_strategy import NoExtractionStrategy
-    _HAS_CRAWL4AI = True
-except ImportError:
-    AsyncWebCrawler = None
-    NoExtractionStrategy = None
-    _HAS_CRAWL4AI = False
-    logging.getLogger(__name__).warning("[price_tracker][buywisely] crawl4ai not available, will fallback to BeautifulSoup.")
 
 _URL = "https://www.buywisely.com.au/item/show?id={}"
 _ITEM_LINK = "https://www.buywisely.com.au/item/show?id={}"
@@ -55,7 +45,7 @@ class BuyWiselyEngine(PriceEngine):
         self._device = device
         self._selenium = selenium
         self._selenium_proxy = selenium_proxy
-        self._crawler = AsyncWebCrawler(extraction_strategy=NoExtractionStrategy()) if _HAS_CRAWL4AI and AsyncWebCrawler and NoExtractionStrategy else None
+        
         self._request_cls = request_cls or SafeRequest
 
     async def load(self) -> ItemData | None:
@@ -92,29 +82,9 @@ class BuyWiselyEngine(PriceEngine):
         html = response.text if response.text else ""
         logger.info('[DIAG][BuyWiselyEngine.load] HTML snapshot: %s', html)
 
-        crawl4ai_data = {}
-        product_details = None
-        if _HAS_CRAWL4AI and self._crawler:
-            try:
-                logger.info(f"[DIAG][BuyWiselyEngine.load] item_url: {self.item_url}, self.id: {self.id}, self.product_id: {self.product_id}")
-                if hasattr(self._crawler, 'arun'):
-                    crawl_result = await self._crawler.arun(url=self.item_url)
-                    if not isinstance(crawl_result, dict):
-                        logger.warning("[price_tracker][buywisely] crawl4ai returned non-dict result, falling back to BeautifulSoup.")
-                        crawl4ai_data = {}
-                    else:
-                        crawl4ai_data = crawl_result
-                else:
-                    logger.warning("[price_tracker][buywisely] crawl4ai does not have a valid arun method. Falling back to BeautifulSoup.")
-                    crawl4ai_data = {}
-            except Exception as e:
-                logger.warning(f"[price_tracker][buywisely] crawl4ai extraction failed for URL: {self.item_url}. Error: {e}. Falling back to BeautifulSoup.")
-                crawl4ai_data = {}
-        else:
-            logger.info("[price_tracker][buywisely] crawl4ai not available, using BeautifulSoup only.")
-            crawl4ai_data = {}
+        
 
-        product_details = parse_product(html, crawl4ai_data, product_id=self.product_id, recency_days=7)
+        product_details = parse_product(html, product_id=self.product_id, recency_days=7)
         price_value = product_details.get('price')
         currency_value = product_details.get('currency') or ''
         brand_value = product_details.get('brand') or ''
