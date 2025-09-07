@@ -41,8 +41,10 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(config_entry):
         return PriceTrackerOptionsFlowHandler(config_entry)
 
+    async def async_step_user(self, user_input=None):
         errors: dict = {}
         if user_input is None:
+            user_input = {}
             # Step 1: Select service and language
             return self.async_show_form(
                 step_id="user",
@@ -54,25 +56,33 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         selected_lang = user_input.get("lang")
 
         # Only use new modular flow for BuyWisely
-        if selected_service_type == "buywisely":
+        if isinstance(selected_service_type, str) and selected_service_type == "buywisely":
             self.selected_service_type = selected_service_type
             self.selected_lang = selected_lang
             return await self.async_step_product_details()
 
         # For all other services, use original direct delegation
         try:
+            service_type = price_tracker_setup_service_user_input(user_input)
+            if not isinstance(service_type, str):
+                errors["base"] = "unsupported"
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=price_tracker_setup_init(self.hass),
+                    errors=errors,
+                )
             if step := price_tracker_setup_service(
-                service_type=price_tracker_setup_service_user_input(user_input),
+                service_type=service_type,
                 config_flow=self,
             ):
                 return await step.setup(user_input)
         except UnsupportedError:
             errors["base"] = "unsupported"
-            return self.async_show_form(
-                step_id="user",
-                data_schema=price_tracker_setup_init(self.hass),
-                errors=errors,
-            )
+        return self.async_show_form(
+            step_id="user",
+            data_schema=price_tracker_setup_init(self.hass),
+            errors=errors,
+        )
 
     async def async_step_product_details(self, user_input=None):
         import logging
@@ -194,8 +204,13 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
     async def async_step_setup(self, user_input=None):
+        if user_input is None:
+            user_input = {}
+        service_type = price_tracker_setup_service_user_input(user_input)
+        if not isinstance(service_type, str):
+            raise NotImplementedError("Not implemented (Set up). {}".format(user_input))
         if step := price_tracker_setup_service(
-            service_type=price_tracker_setup_service_user_input(user_input),
+            service_type=service_type,
             config_flow=self,
         ):
             return await step.setup(user_input)
@@ -204,22 +219,26 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class PriceTrackerOptionsFlowHandler(config_entries.OptionsFlow):
-
+    def __init__(self, config_entry) -> None:
         self.config_entry = config_entry
-        self.setup: PriceTrackerSetup = price_tracker_setup_option_service(
+        self.setup: Optional[PriceTrackerSetup] = price_tracker_setup_option_service(
             service_type=self.config_entry.data[CONF_TYPE],
             option_flow=self,
             config_entry=config_entry,
         )
+        if self.setup is None:
+            raise UnsupportedError("Option service setup returned None.")
 
     async def async_step_init(self, user_input: Optional[dict] = None):
         """Delegate step"""
+        assert self.setup is not None, "Option service setup is None."
         if user_input is None:
             user_input = {}
         return await self.setup.option_setup(user_input)
 
     async def async_step_setup(self, user_input: Optional[dict] = None):
         """Set-up flows."""
+        assert self.setup is not None, "Option service setup is None."
         # Select option (1)
         if user_input is None:
             return await self.setup.option_setup({})
