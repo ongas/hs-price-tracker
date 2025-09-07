@@ -19,4 +19,4 @@ opentelemetry-api>=1.28.2
 opentelemetry-sdk>=1.28.2
 curl-cffi>=0.7.4
 pytest-asyncio
-nextjs-hydration-parser 
+nextjs-hydration-parser
