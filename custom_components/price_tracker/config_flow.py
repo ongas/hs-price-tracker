@@ -41,7 +41,6 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(config_entry):
         return PriceTrackerOptionsFlowHandler(config_entry)
 
-    async def async_step_user(self, user_input=None):
         errors: dict = {}
         if user_input is None:
             # Step 1: Select service and language
@@ -63,7 +62,7 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # For all other services, use original direct delegation
         try:
             if step := price_tracker_setup_service(
-                service_type=selected_service_type,
+                service_type=price_tracker_setup_service_user_input(user_input),
                 config_flow=self,
             ):
                 return await step.setup(user_input)
@@ -199,24 +198,19 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             service_type=price_tracker_setup_service_user_input(user_input),
             config_flow=self,
         ):
-            if user_input is None:
-                user_input = {}
             return await step.setup(user_input)
 
         raise NotImplementedError("Not implemented (Set up). {}".format(user_input))
 
 
 class PriceTrackerOptionsFlowHandler(config_entries.OptionsFlow):
-    def __init__(self, config_entry) -> None:
+
         self.config_entry = config_entry
-        setup_instance = price_tracker_setup_option_service(
+        self.setup: PriceTrackerSetup = price_tracker_setup_option_service(
             service_type=self.config_entry.data[CONF_TYPE],
             option_flow=self,
             config_entry=config_entry,
         )
-        if setup_instance is None:
-            raise UnsupportedError("Option service setup returned None.")
-        self.setup: PriceTrackerSetup = setup_instance
 
     async def async_step_init(self, user_input: Optional[dict] = None):
         """Delegate step"""
