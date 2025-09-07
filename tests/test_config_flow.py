@@ -1,5 +1,4 @@
 import pytest
-import os
 from unittest.mock import MagicMock, AsyncMock
 from custom_components.price_tracker.config_flow import PriceTrackerConfigFlow
 
