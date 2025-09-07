@@ -1,1 +1,0 @@
-DOMAIN = "price_tracker"
