@@ -281,4 +281,3 @@ class PriceTrackerOptionsFlowHandler(config_entries.OptionsFlow):
                 )
 
         raise NotImplementedError("Not implemented (Set up). {}".format(user_input))
-
