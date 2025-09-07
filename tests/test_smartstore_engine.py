@@ -1,9 +1,6 @@
 import pytest
 from curl_cffi import requests
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../custom_components/price_tracker/custom_components/price_tracker')))
-from services.smartstore.engine import SmartstoreEngine
+from custom_components.price_tracker.services.smartstore.engine import SmartstoreEngine
 
 
 @pytest.hookimpl(trylast=True)
