@@ -31,7 +31,6 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> bool:
         """Migrate old entry."""
         _LOGGER.debug("Migrate entry (config-flow)")
-
         return False
 
     async def async_step_import(self, import_info):
@@ -44,7 +43,6 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         errors: dict = {}
-
         if user_input is None:
             # Step 1: Select service and language
             return self.async_show_form(
@@ -61,6 +59,7 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self.selected_service_type = selected_service_type
             self.selected_lang = selected_lang
             return await self.async_step_product_details()
+
         # For all other services, use original direct delegation
         try:
             if step := price_tracker_setup_service(
@@ -70,17 +69,18 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return await step.setup(user_input)
         except UnsupportedError:
             errors["base"] = "unsupported"
-        return self.async_show_form(
-            step_id="user",
-            data_schema=price_tracker_setup_init(self.hass),
-            errors=errors,
-        )
+            return self.async_show_form(
+                step_id="user",
+                data_schema=price_tracker_setup_init(self.hass),
+                errors=errors,
+            )
 
     async def async_step_product_details(self, user_input=None):
         import logging
         logger = logging.getLogger(__name__)
         errors: dict = {}
         import voluptuous as vol
+
         # Basic required field
         schema = vol.Schema({
             vol.Required("item_url"): str,
@@ -164,16 +164,19 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             logger.info(f"[DIAG][config_flow] async_step_product_details: config_data={config_data}")
 
             logger.info(f"[DIAG][config_flow] async_step_product_details: config_data BEFORE step.setup={config_data}")
+
             # Setup entry with all config data
             step = price_tracker_setup_service(
                 service_type=config_data["service_type"],
                 config_flow=self,
             )
+
             if step:
                 logger.info(f"[DIAG][config_flow] async_step_product_details: calling setup for service_type={config_data['service_type']} with config_data={config_data}")
                 result = await step.setup(config_data)
                 logger.info(f"[DIAG][config_flow] async_step_product_details: setup result={result}")
                 return result
+
             errors["base"] = "unsupported"
             logger.info("[DIAG][config_flow] async_step_product_details: unsupported service, showing form again")
             return self.async_show_form(
@@ -181,6 +184,7 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data_schema=schema,
                 errors=errors,
             )
+
         except Exception as e:
             logger.error(f"[DIAG][config_flow] async_step_product_details: Exception occurred: {e}", exc_info=True)
             errors["base"] = "unknown"
@@ -222,7 +226,6 @@ class PriceTrackerOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_setup(self, user_input: Optional[dict] = None):
         """Set-up flows."""
-
         # Select option (1)
         if user_input is None:
             return await self.setup.option_setup({})
@@ -230,16 +233,14 @@ class PriceTrackerOptionsFlowHandler(config_entries.OptionsFlow):
         # Proxy configuration
         if (
             self.setup.const_option_setup_select in user_input
-            and user_input[self.setup.const_option_setup_select]
-            == self.setup.const_option_proxy_select
+            and user_input[self.setup.const_option_setup_select] == self.setup.const_option_proxy_select
         ):
             return await self.setup.option_proxy(user_input)
 
         # Selenium select
         if (
             self.setup.const_option_setup_select in user_input
-            and user_input[self.setup.const_option_setup_select]
-            == self.setup.const_option_selenium_select
+            and user_input[self.setup.const_option_setup_select] == self.setup.const_option_selenium_select
         ):
             return await self.setup.option_selenium(user_input)
 
@@ -250,15 +251,15 @@ class PriceTrackerOptionsFlowHandler(config_entries.OptionsFlow):
                 if device is not None:
                     return device
 
-        if (
-            Lu.get(user_input, self.setup.const_option_setup_select)
-            == self.setup.const_option_modify_select
-            and Lu.get(user_input, self.setup.const_option_select_entity) is None
-        ):
-            return await self.setup.option_select_entity(
-                device=Lu.get(user_input, self.setup.const_option_select_device),
-                user_input=user_input,
-            )
+            if (
+                Lu.get(user_input, self.setup.const_option_setup_select)
+                == self.setup.const_option_modify_select
+                and Lu.get(user_input, self.setup.const_option_select_entity) is None
+            ):
+                return await self.setup.option_select_entity(
+                    device=Lu.get(user_input, self.setup.const_option_select_device),
+                    user_input=user_input,
+                )
 
         # 2
         if self.setup.const_option_setup_select in user_input:
