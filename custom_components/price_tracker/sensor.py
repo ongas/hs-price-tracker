@@ -36,6 +36,8 @@ async def async_setup_entry(
     config = hass.data[DOMAIN][config_entry.entry_id]
     type = config[CONF_TYPE]
 
+    _LOGGER.info("[DIAG][sensor.py] async_setup_entry called for entry_id=%s, config=%s", config_entry.entry_id, config)
+
     if config_entry.options:
         config.update(config_entry.options)
 
@@ -58,6 +60,7 @@ async def async_setup_entry(
                     }
                 )
                 devices = {**devices, **{target_device.device_id: target_device}}
+    _LOGGER.info("[DIAG][sensor.py] Devices generated: %s", devices)
     async_add_entities(list(devices.values()), update_before_add=True)
 
     for target in Lu.get_or_default(config, CONF_TARGET, []):
@@ -67,13 +70,7 @@ async def async_setup_entry(
             else:
                 device = None
 
-            _LOGGER.debug(
-                "Registering sensor for device: %s, configuration is %s, %s - %s",
-                device,
-                target,
-                proxy,
-                proxy_opensource,
-            )
+            _LOGGER.info("[DIAG][sensor.py] Registering sensor for device: %s, target: %s, proxy: %s, proxy_opensource: %s", device, target, proxy, proxy_opensource)
 
             engine = create_service_engine(type)(
                 item_url=target[CONF_ITEM_URL],
@@ -82,6 +79,7 @@ async def async_setup_entry(
                 selenium=selenium,
                 selenium_proxy=selenium_proxy,
             )
+            _LOGGER.info("[DIAG][sensor.py] Created engine: %s, engine.id_str(): %s, engine.entity_id: %s", engine, getattr(engine, 'id_str', lambda: None)(), getattr(engine, 'entity_id', None))
             sensor = PriceTrackerSensor(
                 engine=engine,
                 device=device,
@@ -100,6 +98,7 @@ async def async_setup_entry(
                 ),
                 debug=Lu.get_or_default(config, CONF_DEBUG, False),
             )
+            _LOGGER.info("[DIAG][sensor.py] Created sensor: %s, sensor.entity_id: %s, sensor._attr_unique_id: %s", sensor, getattr(sensor, 'entity_id', None), getattr(sensor, '_attr_unique_id', None))
 
             if (
                 engine.id_str() in Lu.map(sensors, lambda x: x.engine_id_str)
@@ -116,8 +115,9 @@ async def async_setup_entry(
             sensors.append(sensor)
 
         except Exception as e:
-            _LOGGER.exception("Device(sensor) configuration error {}".format(e), e)
+            _LOGGER.exception("[DIAG][sensor.py] Device(sensor) configuration error: %s", e)
 
+    _LOGGER.info("[DIAG][sensor.py] Calling async_add_entities with sensors: %s", sensors)
     async_add_entities(sensors, update_before_add=True)
 
 

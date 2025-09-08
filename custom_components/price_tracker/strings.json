@@ -2,16 +2,16 @@
   "config": {
     "step": {
       "setup": {
-        "title": "{title}",
-        "description": "{description}"
+  "title": "Price Tracker Setup",
+  "description": "Enter the product URL to track with Buywisely."
       }
     }
   },
   "options": {
     "step": {
       "setup": {
-        "title": "{title}",
-        "description": "{description}"
+  "title": "Price Tracker Setup",
+  "description": "Enter the product URL to track with Buywisely."
       }
     }
   }

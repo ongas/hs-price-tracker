@@ -36,8 +36,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    _LOGGER.debug("Setting up entry and data {} > {}".format(entry, entry.data))
-    _LOGGER.debug("Setting up entry and options {} > {}".format(entry, entry.options))
+    _LOGGER.info("[DIAG][__init__.py] Setting up entry: %s", entry)
+    _LOGGER.info("[DIAG][__init__.py] entry.data: %s", entry.data)
+    _LOGGER.info("[DIAG][__init__.py] entry.options: %s", entry.options)
 
     # For upgrade options (1.4.0)
     if not has_service_item_target_parser(entry.data["type"]):
@@ -110,6 +111,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     data = dict(data)
     listeners = entry.add_update_listener(options_update_listener)
+    _LOGGER.info("[DIAG][__init__.py] Storing in hass.data[%s][%s]: %s", DOMAIN, entry.entry_id, data)
     hass.data[DOMAIN][entry.entry_id] = data
 
     entry.async_on_unload(listeners)
