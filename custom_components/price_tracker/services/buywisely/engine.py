@@ -120,7 +120,6 @@ class BuyWiselyEngine(PriceEngine):
             price=price,
             image=image_value,
             category=ItemCategoryData(None),
-            offers=offers # Keep the full offers list in ItemData
         )
         logger.info(f"[DIAG][BuyWiselyEngine.load] Returning ItemData: {result}, as_dict: {getattr(result, 'dict', 'no dict') if hasattr(result, 'dict') else str(result)}")
         return result

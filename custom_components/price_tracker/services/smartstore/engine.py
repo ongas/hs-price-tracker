@@ -126,7 +126,7 @@ class SmartstoreEngine(PriceEngine):
                 options=naver_parser.options,
                 status=ItemStatus.ACTIVE,
             )
-        except NotFoundError as e:
+        except NotFoundError:
             return ItemData(
                 id=self.id_str(),
                 name="Deleted {}".format(self.id_str()),

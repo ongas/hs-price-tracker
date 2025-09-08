@@ -78,7 +78,7 @@ class RankingdakEngine(PriceEngine):
                 options=parser.options,
                 inventory=parser.inventory_status,
             )
-        except NotFoundError as e:
+        except NotFoundError:
             return ItemData(
                 id=self.id_str(),
                 name="Deleted {}".format(self.id_str()),

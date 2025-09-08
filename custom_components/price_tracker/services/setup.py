@@ -17,9 +17,11 @@ from custom_components.price_tracker.services.oliveyoung.setup import Oliveyoung
 from custom_components.price_tracker.services.rankingdak.setup import RankingdakSetup
 from custom_components.price_tracker.services.smartstore.setup import SmartstoreSetup
 from custom_components.price_tracker.services.ssg.setup import SsgSetup
+from custom_components.price_tracker.services.buywisely.setup import BuyWiselySetup
 
 _SERVICE_TYPE = "service_type"
 _SERVICE_SETUP = {
+    BuyWiselySetup.setup_code(): lambda cfg: BuyWiselySetup(config_flow=cfg),
     CoupangSetup.setup_code(): lambda cfg: CoupangSetup(config_flow=cfg),
     GsthefreshSetup.setup_code(): lambda cfg: GsthefreshSetup(config_flow=cfg),
     IdusSetup.setup_code(): lambda cfg: IdusSetup(config_flow=cfg),
@@ -66,6 +68,7 @@ _SERVICE_OPTION_SETUP = {
     ),
 }
 _KIND = {
+    BuyWiselySetup.setup_code(): BuyWiselySetup.setup_name(),
     CoupangSetup.setup_code(): CoupangSetup.setup_name(),
     GsthefreshSetup.setup_code(): GsthefreshSetup.setup_name(),
     IdusSetup.setup_code(): IdusSetup.setup_name(),
