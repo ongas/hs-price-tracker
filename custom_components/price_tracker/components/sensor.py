@@ -179,7 +179,7 @@ class PriceTrackerSensor(RestoreEntity):
             self._attr_available = True
             self._attr_unit_of_measurement = self._item_data.price.currency
             self._update_engine_status(True)
-        except Exception as e:
+        except Exception:
             if (
                 self._updated_at is None
                 or self._updated_at + timedelta(hours=6) < datetime.now()

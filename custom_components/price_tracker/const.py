@@ -1,0 +1,1 @@
+DOMAIN = "price_tracker"
