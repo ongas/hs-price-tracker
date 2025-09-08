@@ -4,11 +4,11 @@ import pytest
 from unittest.mock import AsyncMock, patch
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
-from services.buywisely.engine import BuyWiselyEngine
+from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
 
 
-from datas.item import ItemStatus
-from services.buywisely.parser import parse_product
+from custom_components.price_tracker.datas.item import ItemStatus
+from custom_components.price_tracker.services.buywisely.parser import parse_product
 
 @pytest.mark.asyncio
 @patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
