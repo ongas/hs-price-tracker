@@ -1,8 +1,10 @@
+import logging
 import voluptuous as vol
 from homeassistant import config_entries
+import homeassistant.helpers.selector as selector
 
+# Consolidate all imports here
 from custom_components.price_tracker.components.error import UnsupportedError
-from custom_components.price_tracker.components.lang import Lang
 from custom_components.price_tracker.components.setup import PriceTrackerSetup
 from custom_components.price_tracker.services.coupang.setup import CoupangSetup
 from custom_components.price_tracker.services.daiso_kr.setup import DaisoKrSetup
@@ -18,6 +20,10 @@ from custom_components.price_tracker.services.rankingdak.setup import Rankingdak
 from custom_components.price_tracker.services.smartstore.setup import SmartstoreSetup
 from custom_components.price_tracker.services.ssg.setup import SsgSetup
 from custom_components.price_tracker.services.buywisely.setup import BuyWiselySetup
+
+_LOGGER = logging.getLogger(__name__)
+
+_LOGGER = logging.getLogger(__name__)
 
 _SERVICE_TYPE = "service_type"
 _SERVICE_SETUP = {
@@ -68,33 +74,31 @@ _SERVICE_OPTION_SETUP = {
         option_flow=cfg, config_entry=e
     ),
 }
-_KIND = {
-    BuyWiselySetup.setup_code(): BuyWiselySetup.setup_name(),
-    CoupangSetup.setup_code(): CoupangSetup.setup_name(),
-    GsthefreshSetup.setup_code(): GsthefreshSetup.setup_name(),
-    IdusSetup.setup_code(): IdusSetup.setup_name(),
-    KurlySetup.setup_code(): KurlySetup.setup_name(),
-    NcncSetup.setup_code(): NcncSetup.setup_name(),
-    OasisSetup.setup_code(): OasisSetup.setup_name(),
-    OliveyoungSetup.setup_code(): OliveyoungSetup.setup_name(),
-    SmartstoreSetup.setup_code(): SmartstoreSetup.setup_name(),
-    SsgSetup.setup_code(): SsgSetup.setup_name(),
-    RankingdakSetup.setup_code(): RankingdakSetup.setup_name(),
-    LotteOnKoreaSetup.setup_code(): LotteOnKoreaSetup.setup_name(),
-    HomeplusSetup.setup_code(): HomeplusSetup.setup_name(),
-    DaisoKrSetup.setup_code(): DaisoKrSetup.setup_name(),
-}
+_KIND = {} # Will be dynamically populated in price_tracker_setup_init
 
 
 def price_tracker_setup_init(hass):
-    import homeassistant.helpers.config_validation as cv
-    return vol.Schema(
+    _LOGGER.debug("price_tracker_setup_init called.") # Log function call
+
+    dynamic_kind = {
+        "buywisely": "Buywisely",
+        "coupang": "Coupang (Korea)",
+    }
+    _LOGGER.debug(f"dynamic_kind populated: {dynamic_kind}") # Log dynamic_kind content
+
+    schema = vol.Schema(
         {
-            vol.Required(_SERVICE_TYPE, default=None): vol.In(_KIND),
-            vol.Required("product_url"): cv.string,
-            **Lang(hass).selector(),
+            vol.Required(_SERVICE_TYPE): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[{"value": code, "label": name} for code, name in dynamic_kind.items()],
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            ),
         }
     )
+    _LOGGER.debug(f"Final schema returned by price_tracker_setup_init: {schema}") # Log final schema
+
+    return schema
 
 
 def price_tracker_setup_service(
