@@ -12,7 +12,7 @@ def test_setup_config_data_with_target():
     setup = PriceTrackerSetup()
     user_input = {"service_type": "buywisely", "target": "foo"}
     result = setup.setup_config_data(user_input)
-    assert result["type"] == "buywisely"
+    assert result["service_type"] == "buywisely"
     assert result["target"] == "foo"
 
 def test_async_set_unique_id():

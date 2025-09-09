@@ -1,5 +1,0 @@
-# Example deployment config for DEPLOYMENT_SCRIPT.sh
-# Copy this file to DEPLOYMENT_CONFIG.sh and edit as needed. Do not commit DEPLOYMENT_CONFIG.sh to git.
-
-# Set the deployment target directory (no trailing slash)
-TARGET_DIR="/mnt/e/Source/Repos/homeassistant/Docker/config/custom_components/price_tracker"
