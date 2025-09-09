@@ -6,6 +6,28 @@ __pycache__
 */build/*
 */dist/*
 venv
+# artifacts
+__pycache__
+.pytest*
+/pytest_cache/
+*.egg-info
+/build/*
+/dist/*
+venv
+
+# misc
+.coverage
+.vscode
+coverage.xml
+.ruff_cache
+.ruff_cache/
+.idea
+
+# Home Assistant configuration
+.test/config/*
+!.test/configuration.yaml
+
+DEPLOYMENT_CONFIG.sh
 
 # misc
 .coverage

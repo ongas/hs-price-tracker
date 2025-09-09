@@ -1,5 +1,0 @@
-[tool.pytest.ini_options]
-pythonpath = "custom_components/price_tracker"
-addopts = [
-    "--import-mode=importlib",
-]
