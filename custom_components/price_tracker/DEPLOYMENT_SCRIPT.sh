@@ -1,8 +1,10 @@
 #!/bin/bash
 # Deploy price_tracker custom component to Home Assistant dev container
 
-SRC_DIR="custom/price_tracker/hs-price-tracker/custom_components/price_tracker"
-TARGET_DIR="Docker/config/custom_components/price_tracker"
+
+# Use relative paths so the script can be run from the hs-price-tracker directory or its subdirs
+SRC_DIR="$(dirname "$0")"
+TARGET_DIR="../../../../Docker/config/custom_components/price_tracker"
 
 # Create target directory if it doesn't exist
 mkdir -p "$TARGET_DIR"
