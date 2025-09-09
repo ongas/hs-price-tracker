@@ -22,8 +22,10 @@ from .consts.confs import (
 from .consts.defaults import DOMAIN
 from .datas.unit import ItemUnitType
 from .services.factory import create_service_device_generator, create_service_engine
-from .services.setup import _SERVICE_TYPE
 from .utilities.list import Lu
+from .consts.confs import (
+    CONF_TYPE,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,7 +36,9 @@ async def async_setup_entry(
     async_add_entities,
 ):
     config = hass.data[DOMAIN][config_entry.entry_id]
-    service_type_value = config[_SERVICE_TYPE]
+    type = config[CONF_TYPE]
+
+
 
     _LOGGER.info("[DIAG][sensor.py] async_setup_entry called for entry_id=%s, config=%s", config_entry.entry_id, config)
 
@@ -51,7 +55,7 @@ async def async_setup_entry(
     if CONF_DEVICE in config:
         for device in config[CONF_DEVICE]:
             # Get device generator
-            device_generator = create_service_device_generator(service_type_value)
+            device_generator = create_service_device_generator(type)
             if device_generator:
                 target_device = device_generator(
                     {
@@ -72,7 +76,7 @@ async def async_setup_entry(
 
             _LOGGER.info("[DIAG][sensor.py] Registering sensor for device: %s, target: %s, proxy: %s, proxy_opensource: %s", device, target, proxy, proxy_opensource)
 
-            engine = create_service_engine(service_type_value)(
+            engine = create_service_engine(type)(
                 item_url=target[CONF_ITEM_URL],
                 proxies=proxy,
                 device=device,
