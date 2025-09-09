@@ -23,7 +23,7 @@ from custom_components.price_tracker.services.factory import (
     has_service_item_target_parser,
 )
 from custom_components.price_tracker.utilities.list import Lu
-from custom_components.price_tracker.services.setup import _SERVICE_TYPE
+from custom_components.price_tracker.consts.confs import CONF_TYPE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("[DIAG][__init__.py] entry.options: %s", entry.options)
 
     # For upgrade options (1.4.0)
-    if not has_service_item_target_parser(entry.data[_SERVICE_TYPE]):
+    if not has_service_item_target_parser(entry.data[CONF_TYPE]):
         return False
 
     # For upgrade options (1.0.0)
@@ -55,9 +55,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 lambda x: {
                     **x,
                     CONF_ITEM_DEVICE_ID: IdGenerator.generate_device_id(
-                        create_service_device_parser_and_parse(entry.data[_SERVICE_TYPE], x)
+                        create_service_device_parser_and_parse(entry.data[CONF_TYPE], x)
                     )
-                    if create_service_device_parser_and_parse(entry.data[_SERVICE_TYPE], x)
+                    if create_service_device_parser_and_parse(entry.data[CONF_TYPE], x)
                     is not None
                     else None,
                 },
@@ -88,11 +88,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 lambda x: {
                     **x,
                     CONF_ITEM_UNIQUE_ID: IdGenerator.generate_entity_id(
-                        service_type=entry.data[_SERVICE_TYPE],
+                        service_type=entry.data[CONF_TYPE],
                         entity_target=create_service_item_target_parser(
-                            entry.data[_SERVICE_TYPE]
+                            entry.data[CONF_TYPE]
                         )(
-                            create_service_item_url_parser(entry.data[_SERVICE_TYPE])(
+                            create_service_item_url_parser(entry.data[CONF_TYPE])(
                                 x["item_url"]
                             )
                         ),
