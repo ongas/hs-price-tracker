@@ -106,6 +106,8 @@ def parse_product(html: str, product_id: str | None = None, recency_days: int = 
         brand = title.split(' ')[0]
 
     offers = product_data.get('offers', []) if product_data else []
+    # Only consider the first 10 sellers (offers)
+    offers = offers[:10]
 
     return {
         'title': title,
