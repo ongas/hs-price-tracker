@@ -33,7 +33,7 @@ def test_naver_smartstore_parse_3():
         impersonate="chrome",
     )
 
-    assert r.status_code is 200
+    assert r.status_code == 200
 
 
 @pytest.mark.asyncio

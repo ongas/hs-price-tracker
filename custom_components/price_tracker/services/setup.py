@@ -37,6 +37,7 @@ _SERVICE_SETUP = {
     DaisoKrSetup.setup_code(): lambda cfg: DaisoKrSetup(config_flow=cfg),
 }
 _SERVICE_OPTION_SETUP = {
+    BuyWiselySetup.setup_code(): lambda cfg, e: BuyWiselySetup(option_flow=cfg, config_entry=e),
     CoupangSetup.setup_code(): lambda cfg, e: CoupangSetup(
         option_flow=cfg, config_entry=e
     ),
@@ -86,9 +87,11 @@ _KIND = {
 
 
 def price_tracker_setup_init(hass):
+    import homeassistant.helpers.config_validation as cv
     return vol.Schema(
         {
             vol.Required(_SERVICE_TYPE, default=None): vol.In(_KIND),
+            vol.Required("product_url"): cv.string,
             **Lang(hass).selector(),
         }
     )
@@ -112,11 +115,16 @@ def price_tracker_setup_option_service(
     option_flow: config_entries.OptionsFlow = None,
     config_entry: any = None,
 ) -> PriceTrackerSetup | None:
+    import logging
+    _LOGGER = logging.getLogger(__name__)
     if service_type is None or option_flow is None:
-        """Do nothing"""
+        _LOGGER.error("[DIAG][setup.py] service_type or option_flow is None. service_type=%s", service_type)
         return None
 
+    _LOGGER.info("[DIAG][setup.py] price_tracker_setup_option_service called with service_type=%s", service_type)
+    _LOGGER.info("[DIAG][setup.py] _SERVICE_OPTION_SETUP keys: %s", list(_SERVICE_OPTION_SETUP.keys()))
     if service_type not in _SERVICE_OPTION_SETUP:
+        _LOGGER.error("[DIAG][setup.py] Unsupported service type: %s. Available: %s", service_type, list(_SERVICE_OPTION_SETUP.keys()))
         raise UnsupportedError(f"Unsupported service type: {service_type}")
 
     return _SERVICE_OPTION_SETUP[service_type](option_flow, config_entry)

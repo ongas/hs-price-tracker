@@ -1,7 +1,6 @@
 import pytest
 
 from custom_components.price_tracker.services.kurly.engine import KurlyEngine
-from custom_components.price_tracker.services.ssg.engine import SsgEngine
 
 
 @pytest.hookimpl(trylast=True)
