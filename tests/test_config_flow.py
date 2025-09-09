@@ -1,3 +1,4 @@
+import voluptuous as vol
 import pytest
 import sys
 import os
@@ -106,3 +107,61 @@ async def test_config_flow_guided(monkeypatch):
 #     assert result["type"] == "create_entry"
 #     assert result["data"]["service_type"] == "coupang"
 #     assert result["data"]["product_url"] == "http://example.com/imported"
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_service_type_handling(monkeypatch):
+    """Test that async_setup_entry correctly handles 'service_type' from config_entry.data."""
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+
+    # Mock hass object
+    mock_hass = MagicMock(spec=HomeAssistant)
+    mock_hass.data = {"price_tracker": {}} # Initialize hass.data for DOMAIN
+    mock_hass.config = MagicMock()
+    mock_hass.config.config_dir = "/tmp/hass_config"
+    mock_hass.bus = MagicMock() # Add this line to mock the bus attribute
+
+    # Mock entity and device registries
+    mock_entity_registry = MagicMock()
+    mock_entity_registry.entities.get_entries_for_config_entry_id.return_value = [] # Mock the method called
+    monkeypatch.setattr("homeassistant.helpers.entity_registry.async_get", MagicMock(return_value=mock_entity_registry))
+
+    mock_device_registry = MagicMock()
+    mock_device_registry.async_entries_for_config_entry.return_value = [] # Mock the method called
+    monkeypatch.setattr("homeassistant.helpers.device_registry.async_get", MagicMock(return_value=mock_device_registry))
+
+    # Mock config_entry
+    mock_config_entry = MagicMock(spec=ConfigEntry)
+    mock_config_entry.entry_id = "test_entry_id"
+    mock_config_entry.data = {"service_type": "buywisely", "product_url": "http://example.com/product"}
+    mock_config_entry.options = {} # Ensure options is not None
+
+    # Mock async_update_entry to prevent errors during setup
+    mock_config_entry.add_update_listener = MagicMock()
+    mock_hass.config_entries.async_update_entry = AsyncMock()
+    mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
+
+    # Mock the actual async_setup_entry from __init__.py
+    # We need to import it directly to call it
+    from custom_components.price_tracker import async_setup_entry as init_async_setup_entry
+
+    # Mock the actual async_setup_entry from sensor.py
+    from custom_components.price_tracker.sensor import async_setup_entry as sensor_async_setup_entry
+
+    # Patch hass.data[DOMAIN][entry.entry_id] to be the config_entry.data
+    # This simulates how sensor.py gets its config
+    mock_hass.data["price_tracker"][mock_config_entry.entry_id] = mock_config_entry.data
+
+    # Call async_setup_entry from __init__.py
+    # This should process the config_entry and store data in hass.data
+    result_init = await init_async_setup_entry(mock_hass, mock_config_entry)
+    assert result_init is True # Should return True on successful setup
+
+    # Now call async_setup_entry from sensor.py
+    # This is where the KeyError previously occurred
+    mock_async_add_entities = AsyncMock()
+    await sensor_async_setup_entry(mock_hass, mock_config_entry, mock_async_add_entities)
+
+    # Assert that no KeyError occurred and entities were attempted to be added
+    mock_async_add_entities.assert_called()
+    # You might add more specific assertions here, e.g., checking the type of entities added
