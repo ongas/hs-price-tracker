@@ -1,6 +1,7 @@
 # artifacts
 __pycache__
 .pytest*
+/.pytest_cache/
 *.egg-info
 */build/*
 */dist/*
@@ -11,6 +12,7 @@ venv
 .vscode
 coverage.xml
 .ruff_cache
+.ruff_cache/
 .idea
 
 # Home Assistant configuration
