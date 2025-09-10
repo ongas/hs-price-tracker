@@ -4,10 +4,7 @@ from homeassistant import config_entries, core
 
 from .components.sensor import PriceTrackerSensor
 from .consts.confs import (
-    CONF_ITEM_DEVICE_ID,
     CONF_DEVICE,
-    CONF_TARGET,
-    CONF_ITEM_URL,
     CONF_ITEM_UNIT_TYPE,
     CONF_ITEM_UNIT,
     CONF_ITEM_REFRESH_INTERVAL,
@@ -64,59 +61,40 @@ async def async_setup_entry(
     _LOGGER.info("[DIAG][sensor.py] Devices generated: %s", devices)
     async_add_entities(list(devices.values()), update_before_add=True)
 
-    for target in Lu.get_or_default(config, CONF_TARGET, []):
-        try:
-            if CONF_ITEM_DEVICE_ID in target and target[CONF_ITEM_DEVICE_ID] in devices:
-                device = devices[target[CONF_ITEM_DEVICE_ID]]
-            else:
-                device = None
+    item_url = config['product_url']
+    device = None # Assuming no device is configured directly for now
 
-            _LOGGER.info("[DIAG][sensor.py] Registering sensor for device: %s, target: %s, proxy: %s, proxy_opensource: %s", device, target, proxy, proxy_opensource)
+    try:
+        _LOGGER.info("[DIAG][sensor.py] Registering sensor for item_url: %s, proxy: %s, proxy_opensource: %s", item_url, proxy, proxy_opensource)
 
-            engine = create_service_engine(service_type)(
-                item_url=target[CONF_ITEM_URL],
-                proxies=proxy,
-                device=device,
-                selenium=selenium,
-                selenium_proxy=selenium_proxy,
-            )
-            _LOGGER.info("[DIAG][sensor.py] Created engine: %s, engine.id_str(): %s, engine.entity_id: %s", engine, getattr(engine, 'id_str', lambda: None)(), getattr(engine, 'entity_id', None))
-            sensor = PriceTrackerSensor(
-                engine=engine,
-                device=device,
-                unit_type=ItemUnitType.of(target[CONF_ITEM_UNIT_TYPE])
-                if CONF_ITEM_UNIT_TYPE in target
-                and target[CONF_ITEM_UNIT_TYPE] != "auto"
-                else ItemUnitType.PIECE,
-                unit_value=Lu.get(target, CONF_ITEM_UNIT, 1)
-                if CONF_ITEM_UNIT_TYPE in target
-                and target[CONF_ITEM_UNIT_TYPE] != "auto"
-                else 1,
-                refresh_period=Lu.get(target, CONF_ITEM_REFRESH_INTERVAL, 30),
-                management_category=Lu.get(target, CONF_ITEM_MANAGEMENT_CATEGORY, None),
-                management_categories=Lu.get(
-                    target, CONF_ITEM_MANAGEMENT_CATEGORIES, None
-                ),
-                debug=Lu.get_or_default(config, CONF_DEBUG, False),
-            )
-            _LOGGER.info("[DIAG][sensor.py] Created sensor: %s, sensor.entity_id: %s, sensor._attr_unique_id: %s", sensor, getattr(sensor, 'entity_id', None), getattr(sensor, '_attr_unique_id', None))
+        engine = create_service_engine(service_type)(
+            item_url=item_url,
+            proxies=proxy,
+            device=device,
+            selenium=selenium,
+            selenium_proxy=selenium_proxy,
+        )
+        _LOGGER.info("[DIAG][sensor.py] Created engine: %s, engine.id_str(): %s, engine.entity_id: %s", engine, getattr(engine, 'id_str', lambda: None)(), getattr(engine, 'entity_id', None))
+        sensor = PriceTrackerSensor(
+            engine=engine,
+            device=device,
+            unit_type=ItemUnitType.of(Lu.get(config, CONF_ITEM_UNIT_TYPE, "auto")) # Use config directly
+            if Lu.get(config, CONF_ITEM_UNIT_TYPE, "auto") != "auto"
+            else ItemUnitType.PIECE,
+            unit_value=Lu.get(config, CONF_ITEM_UNIT, 1), # Use config directly
+            refresh_period=Lu.get(config, CONF_ITEM_REFRESH_INTERVAL, 30), # Use config directly
+            management_category=Lu.get(config, CONF_ITEM_MANAGEMENT_CATEGORY, None), # Use config directly
+            management_categories=Lu.get(
+                config, CONF_ITEM_MANAGEMENT_CATEGORIES, None
+            ), # Use config directly
+            debug=Lu.get_or_default(config, CONF_DEBUG, False),
+        )
+        _LOGGER.info("[DIAG][sensor.py] Created sensor: %s, sensor.entity_id: %s, sensor._attr_unique_id: %s", sensor, getattr(sensor, 'entity_id', None), getattr(sensor, '_attr_unique_id', None))
 
-            if (
-                engine.id_str() in Lu.map(sensors, lambda x: x.engine_id_str)
-                and engine.id_str() != ""
-                and engine.id_str() is not None
-            ):
-                # Remove duplicate
-                _LOGGER.warning(
-                    "Duplicate sensor detected, skipping {}".format(engine.id_str())
-                )
-                hass.data[DOMAIN][config_entry.entry_id][CONF_TARGET].remove(target)
-                continue
+        sensors.append(sensor)
 
-            sensors.append(sensor)
-
-        except Exception as e:
-            _LOGGER.exception("[DIAG][sensor.py] Device(sensor) configuration error: %s", e)
+    except Exception as e:
+        _LOGGER.exception("[DIAG][sensor.py] Sensor configuration error: %s", e)
 
     _LOGGER.info("[DIAG][sensor.py] Calling async_add_entities with sensors: %s", sensors)
     async_add_entities(sensors, update_before_add=True)
