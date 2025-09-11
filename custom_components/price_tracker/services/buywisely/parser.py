@@ -3,22 +3,22 @@ import logging
 from nextjs_hydration_parser import NextJSHydrationDataExtractor
 from .html_utils import extract_image, extract_title
 
-import bs4
 
 _LOGGER = logging.getLogger(__name__)
 
-def find_product_data(data):
-    """Recursively searches for the product data in the dictionary."""
+
+def _find_nested_product_data(data):
+    """Recursively searches for the product data in the dictionary or list."""
     if isinstance(data, dict):
-        if 'title' in data and 'slug' in data:
-            return data
+        if 'product' in data:
+            return data['product']
         for key, value in data.items():
-            result = find_product_data(value)
+            result = _find_nested_product_data(value)
             if result:
                 return result
     elif isinstance(data, list):
         for item in data:
-            result = find_product_data(item)
+            result = _find_nested_product_data(item)
             if result:
                 return result
     return None
@@ -35,23 +35,44 @@ def parse_product(html: str, product_id: str | None = None, recency_days: int = 
     product_link = None
     availability = 'Out of Stock'
     offers = []
-    product_data = None
+    
     try:
         parsed_data = extractor.parse(html)
         _LOGGER.debug(f"BuyWisely Parser: Parsed data from nextjs_hydration_parser: {parsed_data}")
-        product_data = find_product_data(parsed_data)
-        _LOGGER.debug(f"BuyWisely Parser: Extracted product_data: {product_data}")
-        if product_data:
-            title = product_data.get('title')
-            slug = product_data.get('slug')
+
+        # Try to find product_data and offers within the parsed_data
+        found_product_data = _find_nested_product_data(parsed_data)
+
+        if found_product_data:
+            title = found_product_data.get('title')
+            slug = found_product_data.get('slug')
             if slug:
                 product_link = f'https://www.buywisely.com.au/product/{slug}'
                 vendor_url = product_link
             if title:
                 brand = title.split(' ')[0]
+            
+            # Extract offers directly from found_product_data
+            offers = found_product_data.get('offers', [])
+            _LOGGER.debug(f"BuyWisely Parser: Offers extracted from product_data: {offers}")
+
+            if offers:
+                # Find the lowest price from the offers
+                def get_base_price(offer):
+                    try:
+                        return float(offer.get('base_price', float('inf')))
+                    except ValueError:
+                        return float('inf')
+                
+                lowest_offer = min(offers, key=get_base_price)
+                price = lowest_offer.get('base_price')
+                currency = 'AUD' # Assuming AUD for BuyWisely
+                availability = 'In Stock' if price is not None else 'Out of Stock'
+        
     except Exception as e:
         _LOGGER.error(f"BuyWisely Parser: Error parsing with nextjs_hydration_parser: {e}")
-    # Fallbacks using HTML
+
+    # Fallbacks using HTML (only if primary extraction failed for title/price)
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(html, 'html.parser')
     if not title:
@@ -68,88 +89,30 @@ def parse_product(html: str, product_id: str | None = None, recency_days: int = 
                         extracted_prices.append((float(value.replace(',', '')), symbol))
                     except ValueError:
                         pass
-        if extracted_prices:
-            min_price_tuple = min(extracted_prices, key=lambda x: x[0])
-            price = min_price_tuple[0]
-            symbol = min_price_tuple[1]
-            if symbol == '$':
-                currency = 'AUD'
-            elif symbol == '€':
-                currency = 'EUR'
-            else:
-                currency = 'AUD'
-            _LOGGER.debug(f"BuyWisely Parser: Selected minimum price: {price}, Currency: {currency}")
-    if price:
+            if extracted_prices:
+                min_price_tuple = min(extracted_prices, key=lambda x: x[0])
+                price = min_price_tuple[0]
+                symbol = min_price_tuple[1]
+                if symbol == '$':
+                    currency = 'AUD'
+                elif symbol == '€':
+                    currency = 'EUR'
+                else:
+                    currency = 'AUD'
+                _LOGGER.debug(f"BuyWisely Parser: Selected minimum price from H3: {price}, Currency: {currency}")
+
+    if price and not availability: # Set availability if price found by fallback
         availability = 'In Stock'
+
     if not image:
         image = extract_image(soup)
     if not brand and title:
         brand = title.split(' ')[0] if title else None
-    if product_data:
-        offers = product_data.get('offers', [])
+
+    # Ensure offers are always sliced to 10 if they exist
+    if offers:
         offers = offers[:10]
-        _LOGGER.debug(f"BuyWisely Parser: Offers after slicing: {offers}")
-    return {
-        'title': title,
-        'price': price,
-        'image': image,
-        'currency': currency,
-        'availability': availability,
-        'brand': brand,
-        'url': vendor_url,
-        'product_link': product_link,
-        'offers': offers,
-    }
-    if not title:
-        title_element = soup.select_one('h2')
-        title = title_element.text.strip() if title_element else None
-
-    if not price:
-        all_h3_elements = soup.select('h3')
-        extracted_prices = []
-        for h3_element in all_h3_elements[:10]:
-            price_text = h3_element.get_text()
-            matches = re.findall(r'([\$€])\s*([\d,]+\.?\d*)', price_text)
-            if matches:
-                for symbol, value in matches:
-                    try:
-                        extracted_prices.append((float(value.replace(',', '')), symbol))
-                    except ValueError:
-                        pass
-        if extracted_prices:
-            min_price_tuple = min(extracted_prices, key=lambda x: x[0])
-            price = min_price_tuple[0]
-            symbol = min_price_tuple[1]
-            if symbol == '$':
-                currency = 'AUD'
-            elif symbol == '€':
-                currency = 'EUR'
-            else:
-                currency = 'AUD'
-            _LOGGER.debug(f"BuyWisely Parser: Selected minimum price: {price}, Currency: {currency}")
-    
-    if price:
-        availability = 'In Stock'
-
-    if not image:
-        image_element = soup.select_one('div.MuiBox-root.mui-1ub93rr img')
-        if image_element and 'src' in image_element.attrs:
-            image = image_element['src']
-            if image and isinstance(image, str) and image.startswith('/'):
-                image = 'https://buywisely.com.au' + image
-        if image is None:
-            generic_img = soup.find('img')
-            if generic_img and isinstance(generic_img, bs4.element.Tag):
-                image = generic_img.get('src')
-
-    if not brand and title:
-        brand = title.split(' ')[0]
-
-    _LOGGER.debug(f"BuyWisely Parser: Offers before slicing: {product_data.get('offers', [])}") # NEW LOG
-    offers = product_data.get('offers', []) if product_data else []
-    # Only consider the first 10 sellers (offers)
-    offers = offers[:10]
-    _LOGGER.debug(f"BuyWisely Parser: Offers after slicing: {offers}") # NEW LOG
+    _LOGGER.debug(f"BuyWisely Parser: Final offers after slicing: {offers}")
 
     return {
         'title': title,
