@@ -163,4 +163,86 @@ def parse_product(html: str, product_id: str | None = None, recency_days: int = 
         'url': vendor_url,
         'product_link': product_link,
         'offers': offers,
+    }:
+                currency = 'AUD' # Assuming $ implies AUD for BuyWisely
+            elif symbol == '€':
+                currency = 'EUR'
+            else:
+                currency = 'AUD' # Default if no known symbol or $
+            _LOGGER.debug(f"BuyWisely Parser: Selected minimum price: {price}, Currency: {currency}")
+    
+    if price:
+        availability = 'In Stock'
+
+    if not image:
+        image_element = soup.select_one('div.MuiBox-root.mui-1ub93rr img')
+        if image_element and 'src' in image_element.attrs:
+            image = image_element['src']
+            if image and isinstance(image, str) and image.startswith('/'):
+                image = 'https://buywisely.com.au' + image
+        if image is None:
+            generic_img = soup.find('img')
+            if generic_img and isinstance(generic_img, bs4.element.Tag):
+                image = generic_img.get('src')
+
+    if not brand and title:
+        brand = title.split(' ')[0]
+
+    _LOGGER.debug(f"BuyWisely Parser: Offers before slicing: {product_data.get('offers', [])}") # NEW LOG
+    offers = product_data.get('offers', []) if product_data else []
+    # Only consider the first 10 sellers (offers)
+    offers = offers[:10]
+    _LOGGER.debug(f"BuyWisely Parser: Offers after slicing: {offers}") # NEW LOG
+
+    return {
+        'title': title,
+        'price': price,
+        'image': image,
+        'currency': currency,
+        'availability': availability,
+        'brand': brand,
+        'url': vendor_url,
+        'product_link': product_link,
+        'offers': offers,
+    }:
+                currency = 'AUD' # Assuming $ implies AUD for BuyWisely
+            elif symbol == '€':
+                currency = 'EUR'
+            else:
+                currency = 'AUD' # Default if no known symbol or $
+            _LOGGER.debug(f"BuyWisely Parser: Selected minimum price: {price}, Currency: {currency}")
+    
+    if price:
+        availability = 'In Stock'
+
+    if not image:
+        image_element = soup.select_one('div.MuiBox-root.mui-1ub93rr img')
+        if image_element and 'src' in image_element.attrs:
+            image = image_element['src']
+            if image and isinstance(image, str) and image.startswith('/'):
+                image = 'https://buywisely.com.au' + image
+        if image is None:
+            generic_img = soup.find('img')
+            if generic_img and isinstance(generic_img, bs4.element.Tag):
+                image = generic_img.get('src')
+
+    if not brand and title:
+        brand = title.split(' ')[0]
+
+    _LOGGER.debug(f"BuyWisely Parser: Offers before slicing: {product_data.get('offers', [])}") # NEW LOG
+    offers = product_data.get('offers', []) if product_data else []
+    # Only consider the first 10 sellers (offers)
+    offers = offers[:10]
+    _LOGGER.debug(f"BuyWisely Parser: Offers after slicing: {offers}") # NEW LOG
+
+    return {
+        'title': title,
+        'price': price,
+        'image': image,
+        'currency': currency,
+        'availability': availability,
+        'brand': brand,
+        'url': vendor_url,
+        'product_link': product_link,
+        'offers': offers,
     }
