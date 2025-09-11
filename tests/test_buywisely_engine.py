@@ -20,6 +20,9 @@ async def test_real_html_product_parsing(mock_safe_request):
         <h2>Sony - WH-1000XM4 Wireless Noise Cancelling Headphones - Black</h2>
         <h3>$348.00</h3>
         <img class="product-image" alt="Product Image" src="https://buywisely.com.au/product/sony-wh-1000xm4-wireless-noise-cancelling-headphones-black-1">
+        <script id="__NEXT_DATA__" type="application/json">
+        {"props":{"pageProps":{"product":{"availability":"In Stock","offers":[{"base_price":348.00}]}}}}
+        </script>
     </body>
     </html>
     """
@@ -37,6 +40,9 @@ async def test_real_html_product_parsing(mock_safe_request):
         <h2>Sony - WH-1000XM4 Wireless Noise Cancelling Headphones - Black</h2>
         <h3>$348.00</h3>
         <img class="product-image" alt="Product Image" src="https://buywisely.com.au/product/sony-wh-1000xm4-wireless-noise-cancelling-headphones-black-1">
+        <script id="__NEXT_DATA__" type="application/json">
+        {"props":{"pageProps":{"product":{"availability":"In Stock","offers":[{"base_price":348.00}]}}}}
+        </script>
     </body>
     </html>
     """
@@ -80,6 +86,9 @@ async def test_get_product_details_success(mock_safe_request):
         <h2>Test Product Title</h2>
         <h3>$123.45</h3>
         <img class="product-image" alt="Product Image" src="http://example.com/test_image.jpg">
+        <script id="__NEXT_DATA__" type="application/json">
+        {"props":{"pageProps":{"product":{"availability":"In Stock","offers":[{"base_price":123.45}]}}}}
+        </script>
     </body>
     </html>
     """
@@ -97,6 +106,9 @@ async def test_get_product_details_success(mock_safe_request):
         <h2>Test Product Title</h2>
         <h3>$123.45</h3>
         <img class="product-image" alt="Product Image" src="http://example.com/test_image.jpg">
+        <script id="__NEXT_DATA__" type="application/json">
+        {"props":{"pageProps":{"product":{"availability":"In Stock","offers":[{"base_price":123.45}]}}}}
+        </script>
     </body>
     </html>
     """
@@ -193,6 +205,9 @@ async def test_get_product_details_multiple_prices(mock_safe_request):
         <h3>$100.00</h3>
         <h3>$99.50</h3>
         <img class="product-image" alt="Product Image" src="http://example.com/multiple_prices.jpg">
+        <script id="__NEXT_DATA__" type="application/json">
+        {"props":{"pageProps":{"product":{"availability":"In Stock","offers":[{"base_price":100.00},{"base_price":99.50}]}}}}
+        </script>
     </body>
     </html>
     """
@@ -210,6 +225,9 @@ async def test_get_product_details_multiple_prices(mock_safe_request):
         <h3>$100.00</h3>
         <h3>$99.50</h3>
         <img class="product-image" alt="Product Image" src="http://example.com/multiple_prices.jpg">
+        <script id="__NEXT_DATA__" type="application/json">
+        {"props":{"pageProps":{"product":{"availability":"In Stock","offers":[{"base_price":100.00},{"base_price":99.50}]}}}}
+        </script>
     </body>
     </html>
     """
