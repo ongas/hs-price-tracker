@@ -86,7 +86,11 @@ class BuyWiselyEngine(PriceEngine):
 
 
         product_details = parse_product(html, product_id=self.product_id, recency_days=7)
+        _LOGGER.debug(f"BuyWisely Engine: Product details from parser: {product_details}") # NEW LOG
+
         offers = product_details.get('offers', [])
+        _LOGGER.debug(f"BuyWisely Engine: Offers received from parser: {offers}") # NEW LOG
+
         logger.info(f"[DIAG][BuyWiselyEngine.load] Offers list: {offers}")
         # Log each offer's base_price and seller_product_url
         for idx, offer in enumerate(offers):
@@ -95,12 +99,18 @@ class BuyWiselyEngine(PriceEngine):
         lowest_offer = None
         if offers:
             def get_base_price(offer):
+                _LOGGER.debug(f"BuyWisely Engine: get_base_price - Processing offer: {offer}") # NEW LOG
                 try:
-                    return float(offer.get('base_price', float('inf')))
-                except Exception:
+                    price_val = float(offer.get('base_price', float('inf')))
+                    _LOGGER.debug(f"BuyWisely Engine: get_base_price - Extracted price: {price_val}") # NEW LOG
+                    return price_val
+                except Exception as e:
+                    _LOGGER.error(f"BuyWisely Engine: get_base_price - Error converting price for offer {offer}: {e}") # NEW LOG
                     return float('inf')
             lowest_offer = min(offers, key=get_base_price)
             logger.info(f"[DIAG][BuyWiselyEngine.load] Selected lowest_offer: {lowest_offer}")
+        _LOGGER.debug(f"BuyWisely Engine: Final lowest_offer selected: {lowest_offer}") # NEW LOG
+
         if lowest_offer and 'base_price' in lowest_offer and 'seller_product_url' in lowest_offer:
             price_value = lowest_offer['base_price']
             matching_price_url = lowest_offer['seller_product_url']
