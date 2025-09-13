@@ -7,7 +7,9 @@ def test_parser():
 def test_parser_limits_offers_to_ten():
     # This HTML has 15 offers, with the lowest price (5.0) being the 11th offer.
     # The parser should only consider the first 10 offers, so the expected lowest price is 10.0.
-    with open('/mnt/e/Source/Repos/homeassistant/custom_components/price_tracker/tests/buywisely/mock_buywisely_page_many_offers.html', 'r', encoding='utf-8') as f:
+    import os
+    mock_path = os.path.join(os.path.dirname(__file__), 'mock_buywisely_page_many_offers.html')
+    with open(mock_path, 'r', encoding='utf-8') as f:
         html = f.read()
     result = parse_product(html, product_id="test-product-many-offers")
     assert result.name == "Test Product with Many Offers"
