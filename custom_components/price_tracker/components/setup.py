@@ -17,7 +17,6 @@ from custom_components.price_tracker.components.error import (
 from custom_components.price_tracker.components.id import IdGenerator
 from custom_components.price_tracker.components.lang import Lang
 from custom_components.price_tracker.consts.confs import (
-    CONF_TYPE,
     CONF_TARGET,
     CONF_ITEM_MANAGEMENT_CATEGORIES,
 )

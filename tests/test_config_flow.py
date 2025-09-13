@@ -180,51 +180,67 @@ async def test_lowest_price_populates_ha_entity(monkeypatch):
     mock_engine_instance.id_str.return_value = "test-product-lowest-price"
     mock_engine_instance.entity_id = "test-product-lowest-price"
 
-    # Patch create_service_engine to return our mock engine instance directly
-    monkeypatch.setattr("custom_components.price_tracker.services.factory.create_service_engine", MagicMock(return_value=lambda **kwargs: mock_engine_instance))
 
-    from custom_components.price_tracker import async_setup_entry as init_async_setup_entry
-    from custom_components.price_tracker.sensor import async_setup_entry as sensor_async_setup_entry
 
-    mock_hass.data["price_tracker"][mock_config_entry.entry_id] = mock_config_entry.data
+    # Patch the BuyWiselyEngine constructor in the service engine mapping directly for the entire test
+    import custom_components.price_tracker.services.factory as factory_mod
+    original_service_item_engine = factory_mod._SERVICE_ITEM_ENGINE.copy()
+    factory_mod._SERVICE_ITEM_ENGINE["buywisely"] = lambda **kwargs: mock_engine_instance
 
-    result_init = await init_async_setup_entry(mock_hass, mock_config_entry)
-    assert result_init is True
+    try:
+        from custom_components.price_tracker import async_setup_entry as init_async_setup_entry
+        from custom_components.price_tracker.sensor import async_setup_entry as sensor_async_setup_entry
 
-    mock_async_add_entities = AsyncMock()
-    await sensor_async_setup_entry(mock_hass, mock_config_entry, mock_async_add_entities)
+        mock_hass.data["price_tracker"][mock_config_entry.entry_id] = mock_config_entry.data
 
-    # Assert that entities were added
-    # We expect two calls to async_add_entities, one for devices (empty) and one for sensors.
-    # We need to get the sensor entity from the second call.
-    assert mock_async_add_entities.call_count == 2
-    added_entities = mock_async_add_entities.call_args_list[1][0][0]
-    assert len(added_entities) == 1
-    sensor_entity = added_entities[0]
+        result_init = await init_async_setup_entry(mock_hass, mock_config_entry)
+        assert result_init is True
 
-    # Ensure it's a PriceTrackerSensor instance
-    assert isinstance(sensor_entity, PriceTrackerSensor)
+        mock_async_add_entities = AsyncMock()
+        await sensor_async_setup_entry(mock_hass, mock_config_entry, mock_async_add_entities)
+        print(f"DIAGNOSTIC: mock_async_add_entities.call_args_list: {mock_async_add_entities.call_args_list}")
 
-    # Set _updated_at to an old date to force update
-    sensor_entity._updated_at = datetime(2000, 1, 1)
+        # Assert that entities were added
+        # We expect two calls to async_add_entities, one for devices (empty) and one for sensors.
+        # We need to get the sensor entity from the second call.
+        assert mock_async_add_entities.call_count == 2
+        added_entities = mock_async_add_entities.call_args_list[1][0][0]
+        assert len(added_entities) == 1
+        sensor_entity = added_entities[0]
 
-    # Manually trigger update to ensure state is set (async_add_entities doesn't always trigger it immediately in tests)
-    await sensor_entity.async_update()
+        # Ensure it's a PriceTrackerSensor instance
+        assert isinstance(sensor_entity, PriceTrackerSensor)
+        print(f"DIAGNOSTIC: sensor_entity: {sensor_entity}")
+        print(f"DIAGNOSTIC: sensor_entity._engine: {getattr(sensor_entity, '_engine', None)}")
 
-    print(f"DIAGNOSTIC: sensor_entity.state: {sensor_entity.state}")
-    print(f"DIAGNOSTIC: sensor_entity._item_data: {sensor_entity._item_data}")
-    print(f"DIAGNOSTIC: sensor_entity._item_data.price: {sensor_entity._item_data.price}")
-    print(f"DIAGNOSTIC: sensor_entity._item_data.price.price: {sensor_entity._item_data.price.price}")
+        # Set _updated_at to an old date to force update
+        sensor_entity._updated_at = datetime(2000, 1, 1)
 
-    # Assert the state and attributes
-    assert sensor_entity.state == mock_lowest_price
-    assert sensor_entity.unit_of_measurement == mock_currency
-    assert sensor_entity.name == mock_product_name
-    assert sensor_entity.entity_picture == mock_image_url
-    assert sensor_entity.extra_state_attributes["price"] == mock_lowest_price
-    assert sensor_entity.extra_state_attributes["currency"] == mock_currency
-    assert sensor_entity.extra_state_attributes["name"] == mock_product_name
-    assert sensor_entity.extra_state_attributes["image"] == mock_image_url
-    assert sensor_entity.extra_state_attributes["url"] == mock_item_data.url
-    assert sensor_entity.extra_state_attributes["brand"] == mock_item_data.brand
-    assert sensor_entity.extra_state_attributes["status"] == mock_item_data.status.name
+        # Manually trigger update to ensure state is set (async_add_entities doesn't always trigger it immediately in tests)
+        await sensor_entity.async_update()
+        print(f"DIAGNOSTIC: sensor_entity.state: {sensor_entity.state}")
+        print(f"DIAGNOSTIC: sensor_entity._item_data: {sensor_entity._item_data}")
+        if sensor_entity._item_data is not None:
+            print(f"DIAGNOSTIC: sensor_entity._item_data.price: {sensor_entity._item_data.price}")
+            if sensor_entity._item_data.price is not None:
+                print(f"DIAGNOSTIC: sensor_entity._item_data.price.price: {sensor_entity._item_data.price.price}")
+            else:
+                print("DIAGNOSTIC: sensor_entity._item_data.price is None")
+        else:
+            print("DIAGNOSTIC: sensor_entity._item_data is None")
+
+        # Assert the state and attributes
+        assert sensor_entity.state == mock_lowest_price
+        assert sensor_entity.unit_of_measurement == mock_currency
+        assert sensor_entity.name == mock_product_name
+        assert sensor_entity.entity_picture == mock_image_url
+        assert sensor_entity.extra_state_attributes is not None
+        assert sensor_entity.extra_state_attributes.get("price") == mock_lowest_price
+        assert sensor_entity.extra_state_attributes.get("currency") == mock_currency
+        assert sensor_entity.extra_state_attributes.get("name") == mock_product_name
+        assert sensor_entity.extra_state_attributes.get("image") == mock_image_url
+        assert sensor_entity.extra_state_attributes.get("url") == mock_item_data.url
+        assert sensor_entity.extra_state_attributes.get("brand") == mock_item_data.brand
+        assert sensor_entity.extra_state_attributes.get("status") == mock_item_data.status.name
+    finally:
+        factory_mod._SERVICE_ITEM_ENGINE = original_service_item_engine
