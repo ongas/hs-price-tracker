@@ -285,7 +285,7 @@ async def test_lowest_price_selection(mock_safe_request):
 async def test_product_url_extraction_from_next_data(mock_safe_request):
     sample_html = (
         '<html><body><script id="__NEXT_DATA__" type="application/json">'
-        '{"props":{"pageProps":{"product":{"title":"Test Product Title","availability":"In Stock","slug":"test-product-slug-123","offers":[{"base_price":123.45}]}}}}'
+        '{"props":{"pageProps":{"product":{"title":"Test Product Title","availability":"In Stock","url":"https://www.external-site.com/product/external-product-slug-123","offers":[{"base_price":123.45}]}}}}'
         '</script></body></html>'
     )
     mock_response = AsyncMock()
@@ -307,7 +307,7 @@ async def test_product_url_extraction_from_next_data(mock_safe_request):
 
     print("[DIAG] result:", result)
     assert result is not None, "Expected result, got None"
-    assert getattr(result, 'url', None) == "https://www.buywisely.com.au/product/test-product-slug-123", f"URL mismatch: {getattr(result, 'url', None)}"
+    assert getattr(result, 'url', None) == "https://www.external-site.com/product/external-product-slug-123", f"URL mismatch: {getattr(result, 'url', None)}"
     assert getattr(result, 'name', None) == "Test Product Title", f"Name mismatch: {getattr(result, 'name', None)}"
     assert getattr(getattr(result, 'price', None), 'price', None) == 123.45, f"Price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
     status = getattr(result, 'status', None)
@@ -407,7 +407,7 @@ async def test_html_extractor_finds_next_data_script(mock_safe_request):
 
     sample_html = (
         '<html><body><script id="__NEXT_DATA__" type="application/json">'
-        '{"props":{"pageProps":{"product":{"availability":"In Stock","slug":"test-slug"}}}}'
+        '{"props":{"pageProps":{"product":{"availability":"In Stock","url":"https://www.external-site.com/product/external-test-slug"}}}}'
         '</script></body></html>'
     )
     # Mock the SafeRequest response
@@ -426,4 +426,34 @@ async def test_html_extractor_finds_next_data_script(mock_safe_request):
     # Assert that the URL was correctly extracted from __NEXT_DATA__
     print("[DIAG] result:", result)
     assert result is not None, "Expected result, got None"
-    assert getattr(result, 'url', None) == "https://www.buywisely.com.au/product/test-slug", f"URL mismatch: {getattr(result, 'url', None)}"
+    assert getattr(result, 'url', None) == "https://www.external-site.com/product/external-test-slug", f"URL mismatch: {getattr(result, 'url', None)}"
+
+@pytest.mark.asyncio
+@patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
+async def test_product_url_buywisely_failure(mock_safe_request):
+    # Simulate HTML where the extracted product URL is a BuyWisely URL
+    sample_html = (
+        '<html><body><script id="__NEXT_DATA__" type="application/json">'
+        '{"props":{"pageProps":{"product":{"title":"Product with BuyWisely URL","slug":"buywisely-product","offers":[{"base_price":10.00}],"image":"http://example.com/image.jpg"}}}}'
+        '</script></body></html>'
+    )
+    mock_response = AsyncMock()
+    mock_response.has = True
+    mock_response.text = sample_html
+    mock_response.__bool__.return_value = True
+    mock_instance = mock_safe_request.return_value
+    mock_instance.user_agent = lambda *args, **kwargs: None
+    mock_instance.request = AsyncMock(return_value=mock_response)
+
+    class MockSafeRequest:
+        def user_agent(self, *args, **kwargs):
+            pass
+        async def request(self, *args, **kwargs):
+            return mock_response
+    engine = BuyWiselyEngine(item_url="http://example.com/product/some-product", request_cls=MockSafeRequest)
+    
+    result = await engine.load()
+
+    # Assert that the URL is now an empty string due to the validation
+    assert result is not None, "Expected result, got None"
+    assert getattr(result, 'url', None) == "", f"URL should be empty, but was {getattr(result, 'url', None)}"
