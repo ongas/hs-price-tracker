@@ -56,12 +56,19 @@ def extract_product_data_from_html(html: str) -> dict:
             _LOGGER.info(f"BuyWisely HtmlExtractor: Found product data: {product_data}")
             title = product_data.get('title')
             slug = product_data.get('slug')
-            vendor_url = None
-            if slug:
-                vendor_url = f'https://www.buywisely.com.au/product/{slug}'
-                _LOGGER.info(f"BuyWisely HtmlExtractor: Constructed vendor_url: {vendor_url}")
+            extracted_url = product_data.get('url') # Get URL if it exists in product_data
+
+            if extracted_url:
+                vendor_url = extracted_url
+                _LOGGER.info(f"BuyWisely HtmlExtractor: Extracted vendor_url directly: {vendor_url}")
+            elif slug:
+                # If only slug is available, construct a relative path or just use the slug
+                # The full URL construction should ideally happen in data_transformer
+                vendor_url = slug # Pass the slug as the URL for data_transformer to handle
+                _LOGGER.info(f"BuyWisely HtmlExtractor: Using slug as vendor_url: {vendor_url}")
             else:
-                _LOGGER.info("BuyWisely HtmlExtractor: Slug not found in product data.")
+                vendor_url = None
+                _LOGGER.info("BuyWisely HtmlExtractor: No slug or URL found in product data.")
             brand = title.split(' ')[0] if title else ''
             offers = product_data.get('offers', [])
             offers = offers[:10]
