@@ -1,4 +1,15 @@
 #
+# Mock Test Data
+
+## HTML Mock Files
+
+- Only one HTML mock file is present: `tests/buywisely/mock_buywisely_page_many_offers.html`.
+- This file is used by the BuyWisely parser tests (see `tests/buywisely/test_buywisely_parser.py`).
+- No other mock HTML, JSON, or CSV test data files are present or required by the current engine/common tests.
+- If additional mock data is needed for future engines or tests, place them in the `tests/` directory and document their usage here.
+
+---
+#
 # Engine Test Refactor and Parameterization (2025-09-13)
 
 ## Unified Engine Test Structure
