@@ -49,25 +49,16 @@ class BuyWiselyEngine(PriceEngine):
         self._request_cls = request_cls or SafeRequest
 
     async def load(self) -> ItemData | None:
-        print("DIAGNOSTIC: BuyWiselyEngine.load() SafeRequest class:", self._request_cls)
         self._request = self._request_cls()
-        print("DIAGNOSTIC: BuyWiselyEngine.load() self._request instance:", self._request)
         self._request.user_agent(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3')
         response = await self._request.request(
             method=SafeRequestMethod.GET,
             url=self.item_url,
             post_try_callables=[]
         )
-        print("DIAGNOSTIC: BuyWiselyEngine.load() response:", response)
-        print("DIAGNOSTIC: BuyWiselyEngine.load() response.has:", getattr(response, 'has', None))
-        print("DIAGNOSTIC: BuyWiselyEngine.load() response.text:", getattr(response, 'text', None))
-
-        import logging
-        logger = logging.getLogger(__name__)
 
         if not response.has:
-            # Handle cases where request failed or no data
-            logger.warning(f"[DIAG][BuyWiselyEngine.load] No response data for item_url={self.item_url}. Returning DELETED ItemData.")
+            _LOGGER.warning(f"No response data for item_url={self.item_url}. Returning DELETED ItemData.")
             return ItemData(
                 id=self.product_id,
                 name=f"Deleted {self.product_id}",
@@ -80,64 +71,9 @@ class BuyWiselyEngine(PriceEngine):
             )
 
         html = response.text if response.text else ""
-        logger.info('[DIAG][BuyWiselyEngine.load] HTML snapshot: %s', html)
-
+        product_details = parse_product(html, product_id=self.product_id, item_url=self.item_url)
         
-
-
-        product_details = parse_product(html, product_id=self.product_id, recency_days=7)
-        _LOGGER.debug(f"BuyWisely Engine: Product details from parser: {product_details}") # NEW LOG
-
-        offers = product_details.get('offers', [])
-        _LOGGER.debug(f"BuyWisely Engine: Offers received from parser: {offers}") # NEW LOG
-
-        logger.info(f"[DIAG][BuyWiselyEngine.load] Offers list: {offers}")
-        # Log each offer's base_price and seller_product_url
-        for idx, offer in enumerate(offers):
-            logger.info(f"[DIAG][BuyWiselyEngine.load] Offer {idx}: base_price={offer.get('base_price')}, seller_product_url={offer.get('seller_product_url')}")
-        # Find the offer with the absolute lowest base_price (as float)
-        lowest_offer = None
-        if offers:
-            def get_base_price(offer):
-                _LOGGER.debug(f"BuyWisely Engine: get_base_price - Processing offer: {offer}") # NEW LOG
-                try:
-                    price_val = float(offer.get('base_price', float('inf')))
-                    _LOGGER.debug(f"BuyWisely Engine: get_base_price - Extracted price: {price_val}") # NEW LOG
-                    return price_val
-                except Exception as e:
-                    _LOGGER.error(f"BuyWisely Engine: get_base_price - Error converting price for offer {offer}: {e}") # NEW LOG
-                    return float('inf')
-            lowest_offer = min(offers, key=get_base_price)
-            logger.info(f"[DIAG][BuyWiselyEngine.load] Selected lowest_offer: {lowest_offer}")
-        _LOGGER.debug(f"BuyWisely Engine: Final lowest_offer selected: {lowest_offer}") # NEW LOG
-
-        if lowest_offer and 'base_price' in lowest_offer and 'seller_product_url' in lowest_offer:
-            price_value = lowest_offer['base_price']
-            matching_price_url = lowest_offer['seller_product_url']
-        else:
-            price_value = product_details.get('price')
-            matching_price_url = product_details.get('product_link') or self.item_url
-        currency_value = product_details.get('currency') or ''
-        brand_value = product_details.get('brand') or ''
-        name_value = product_details.get('title') or ''
-        image_value = product_details.get('image') or ''
-        status_value = ItemStatus.ACTIVE if product_details.get('availability') == 'In Stock' else ItemStatus.INACTIVE
-        price = ItemPriceData(price=price_value, currency=currency_value) if price_value is not None and currency_value else ItemPriceData(price=0.0, currency="")
-
-        logger.info(f"[DIAG][BuyWiselyEngine.load] ItemData fields: id={self.product_id}, name={name_value}, brand={brand_value}, product_link={matching_price_url}, status={status_value}, price={price}, url={self.item_url}, image={image_value}")
-
-        result = ItemData(
-            id=self.product_id,
-            name=name_value,
-            brand=brand_value,
-            url=matching_price_url, # Always use the lowest price seller's URL
-            status=status_value,
-            price=price,
-            image=image_value,
-            category=ItemCategoryData(None),
-        )
-        logger.info(f"[DIAG][BuyWiselyEngine.load] Returning ItemData: {result}, as_dict: {getattr(result, 'dict', 'no dict') if hasattr(result, 'dict') else str(result)}")
-        return result
+        return product_details
 
     def id_str(self) -> str:
         return self.product_id
