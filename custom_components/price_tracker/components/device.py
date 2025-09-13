@@ -1,7 +1,6 @@
 from abc import abstractmethod
 from datetime import datetime
 
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 
 from custom_components.price_tracker.components.id import IdGenerator
@@ -49,27 +48,26 @@ class PriceTrackerDevice(Entity):
     def name(self):
         if self._name:
             return self._name
-
         return self._device_id
 
     @property
     def device_info(self):
-        return DeviceInfo(
-            identifiers={(DOMAIN, self.entity_id)},
-            name=self.name,
-            manufacturer=self._device_type,
-            model="E-Commerce Integrator Device",
-            sw_version=VERSION,
-            serial_number=self._device_id,
-        )
+        return {
+            "identifiers": {(DOMAIN, self.entity_id)},
+            "name": self.name,
+            "manufacturer": self._device_type,
+            "model": "E-Commerce Integrator Device",
+            "sw_version": VERSION,
+            "serial_number": self._device_id,
+        }
 
     @staticmethod
     def device_code() -> str:
-        pass
+        return ""
 
     @staticmethod
     def device_name() -> str:
-        pass
+        return ""
 
 
 class CommerceDevice(Entity):
