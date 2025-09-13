@@ -23,8 +23,8 @@ coverage.xml
 .ruff_cache/
 .idea
 
+
 # Home Assistant configuration
-DEVELOPMENT_NOTES.md
 .test/config/*
 !.test/configuration.yaml
 
