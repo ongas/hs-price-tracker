@@ -1,13 +1,10 @@
 import logging
+from typing import Union, Optional
+from custom_components.price_tracker.datas.item import ItemStatus, ItemData
 from .html_extractor import extract_product_data_from_html
 from .data_transformer import transform_raw_product_data
 
 _LOGGER = logging.getLogger(__name__)
-
-from typing import Union
-from custom_components.price_tracker.datas.item import ItemStatus, ItemData
-
-from typing import Optional
 def parse_product(html: str, product_id: str = '', item_url: str = '', context: Optional[str] = None) -> Union[dict, ItemData]:
     raw_data = extract_product_data_from_html(html)
     product_id = product_id or ''
