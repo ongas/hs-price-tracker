@@ -78,6 +78,7 @@ async def test_async_setup_entry_service_type_handling(monkeypatch):
     mock_hass.config = MagicMock()
     mock_hass.config.config_dir = "/tmp/hass_config"
     mock_hass.bus = MagicMock() # Add this line to mock the bus attribute
+    mock_hass.services = MagicMock()
 
     # Mock entity and device registries
     mock_entity_registry = MagicMock()
@@ -137,6 +138,7 @@ async def test_lowest_price_populates_ha_entity(monkeypatch):
     mock_hass.config = MagicMock()
     mock_hass.config.config_dir = "/tmp/hass_config"
     mock_hass.bus = MagicMock()
+    mock_hass.services = MagicMock()
 
     # Mock entity and device registries
     mock_entity_registry = MagicMock()
