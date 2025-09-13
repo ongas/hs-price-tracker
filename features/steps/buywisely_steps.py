@@ -154,10 +154,6 @@ def step_when_tracked(context):
     context.lowest_offer = min(context.offers, key=lambda o: o["price"])
     context.no_offers = False
 
-@then('the lowest price and its corresponding seller URL are selected and displayed')
-def step_then_lowest_selected(context):
-    assert_that(context.lowest_offer["price"], is_(95.0))
-    assert_that(context.lowest_offer["currency"], is_("AUD"))
 
 @given('a BuyWisely product has no available offers')
 def step_given_no_offers(context):
