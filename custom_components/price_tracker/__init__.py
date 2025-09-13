@@ -25,6 +25,8 @@ from custom_components.price_tracker.services.factory import (
 from custom_components.price_tracker.utilities.list import Lu
 
 
+import voluptuous as vol
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -40,6 +42,40 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("[DIAG][__init__.py] Setting up entry: %s", entry)
     _LOGGER.info("[DIAG][__init__.py] entry.data: %s", entry.data)
     _LOGGER.info("[DIAG][__init__.py] entry.options: %s", entry.options)
+
+    # Define service for manual update
+    SERVICE_UPDATE_ENTITY = "update_entity"
+    SERVICE_SCHEMA_UPDATE_ENTITY = vol.Schema({
+        vol.Required("entity_id"): str,
+    })
+
+    async def handle_update_entity(call):
+        entity_id = call.data.get("entity_id")
+        _LOGGER.debug(f"Service call to update entity: {entity_id}")
+
+        entity_registry = er.async_get(hass)
+        entity_entry = entity_registry.async_get(entity_id)
+
+        if entity_entry:
+            component = hass.data.get("entity_component", {}).get(entity_entry.platform)
+            if component:
+                entity = component.get_entity(entity_id)
+                if entity and hasattr(entity, 'async_update'):
+                    _LOGGER.info(f"Manually triggering update for {entity_id}")
+                    await entity.async_update()
+                else:
+                    _LOGGER.warning(f"Entity {entity_id} not found or does not have async_update method.")
+            else:
+                _LOGGER.warning(f"Component for platform {entity_entry.platform} not found for entity {entity_id}.")
+        else:
+            _LOGGER.warning(f"Entity {entity_id} not found in entity registry.")
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_UPDATE_ENTITY,
+        handle_update_entity,
+        schema=SERVICE_SCHEMA_UPDATE_ENTITY,
+    )
 
     # For upgrade options (1.4.0)
     if not has_service_item_target_parser(entry.data['service_type']):
