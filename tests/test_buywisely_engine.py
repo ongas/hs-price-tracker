@@ -39,13 +39,13 @@ async def test_real_html_product_parsing(mock_safe_request):
     print("[DIAG] HTML passed to parser:", sample_html)
     result = await engine.load()
     print("[DIAG] result:", result)
-    assert result is not None, f"Expected result, got None"
+    assert result is not None, "Expected result, got None"
     assert getattr(result, 'name', None) == "Sony - WH-1000XM4 Wireless Noise Cancelling Headphones - Black", f"Name mismatch: {getattr(result, 'name', None)}"
     assert getattr(getattr(result, 'price', None), 'price', None) == 348.00, f"Price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
     assert getattr(getattr(result, 'price', None), 'currency', None) == "AUD", f"Currency mismatch: {getattr(getattr(result, 'price', None), 'currency', None)}"
     assert getattr(result, 'image', None) == "https://buywisely.com.au/product/sony-wh-1000xm4-wireless-noise-cancelling-headphones-black-1", f"Image mismatch: {getattr(result, 'image', None)}"
     status = getattr(result, 'status', None)
-    assert status is not None, f"Status missing"
+    assert status is not None, "Status missing"
     assert status.value == ItemStatus.ACTIVE.value, f"Status value mismatch: {status.value}"
     mock_response = AsyncMock()
     mock_response.has = True
@@ -68,13 +68,13 @@ async def test_real_html_product_parsing(mock_safe_request):
     print("[DIAG] HTML passed to parser:", sample_html)
     result = await engine.load()
     print("[DIAG] result:", result)
-    assert result is not None, f"Expected result, got None"
+    assert result is not None, "Expected result, got None"
     assert getattr(result, 'name', None) == "Sony - WH-1000XM4 Wireless Noise Cancelling Headphones - Black", f"Name mismatch: {getattr(result, 'name', None)}"
     assert getattr(getattr(result, 'price', None), 'price', None) == 348.00, f"Price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
     assert getattr(getattr(result, 'price', None), 'currency', None) == "AUD", f"Currency mismatch: {getattr(getattr(result, 'price', None), 'currency', None)}"
     assert getattr(result, 'image', None) == "https://buywisely.com.au/product/sony-wh-1000xm4-wireless-noise-cancelling-headphones-black-1", f"Image mismatch: {getattr(result, 'image', None)}"
     status = getattr(result, 'status', None)
-    assert status is not None, f"Status missing"
+    assert status is not None, "Status missing"
     assert status.value == ItemStatus.ACTIVE.value, f"Status value mismatch: {status.value}"
 @pytest.mark.asyncio
 @patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
@@ -106,13 +106,13 @@ async def test_get_product_details_success(mock_safe_request):
     print("[DIAG] HTML passed to parser:", sample_html)
     result = await engine.load()
     print("[DIAG] result:", result)
-    assert result is not None, f"Expected result, got None"
+    assert result is not None, "Expected result, got None"
     assert getattr(result, 'name', None) == "Test Product Title", f"Name mismatch: {getattr(result, 'name', None)}"
     assert getattr(getattr(result, 'price', None), 'price', None) == 123.45, f"Price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
     assert getattr(getattr(result, 'price', None), 'currency', None) == "AUD", f"Currency mismatch: {getattr(getattr(result, 'price', None), 'currency', None)}"
     assert getattr(result, 'image', None) == "http://example.com/test_image.jpg", f"Image mismatch: {getattr(result, 'image', None)}"
     status = getattr(result, 'status', None)
-    assert status is not None, f"Status missing"
+    assert status is not None, "Status missing"
     assert status.value == ItemStatus.ACTIVE.value, f"Status value mismatch: {status.value}"
 
 @pytest.mark.asyncio
@@ -145,12 +145,12 @@ async def test_get_product_details_no_price(mock_safe_request):
     print("[DIAG] HTML passed to parser:", sample_html)
     result = await engine.load()
     print("[DIAG] result:", result)
-    assert result is not None, f"Expected result, got None"
+    assert result is not None, "Expected result, got None"
     assert getattr(result, 'name', None) == "Another Product", f"Name mismatch: {getattr(result, 'name', None)}"
     assert getattr(getattr(result, 'price', None), 'price', None) == 0.0, f"Price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
     assert getattr(getattr(result, 'price', None), 'currency', None) == "", f"Currency mismatch: {getattr(getattr(result, 'price', None), 'currency', None)}"
     status = getattr(result, 'status', None)
-    assert status is not None, f"Status missing"
+    assert status is not None, "Status missing"
     assert status.value == ItemStatus.INACTIVE.value, f"Status value mismatch: {status.value}"
     mock_response = AsyncMock()
     mock_response.has = True
@@ -174,12 +174,12 @@ async def test_get_product_details_no_price(mock_safe_request):
     print("[DIAG] HTML passed to parser:", sample_html)
     result = await engine.load()
     print("[DIAG] result:", result)
-    assert result is not None, f"Expected result, got None"
+    assert result is not None, "Expected result, got None"
     assert getattr(result, 'name', None) == "Another Product", f"Name mismatch: {getattr(result, 'name', None)}"
     assert getattr(getattr(result, 'price', None), 'price', None) == 0.0, f"Price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
     assert getattr(getattr(result, 'price', None), 'currency', None) == "", f"Currency mismatch: {getattr(getattr(result, 'price', None), 'currency', None)}"
     status = getattr(result, 'status', None)
-    assert status is not None, f"Status missing"
+    assert status is not None, "Status missing"
     assert status.value == ItemStatus.INACTIVE.value, f"Status value mismatch: {status.value}"
     mock_response = AsyncMock()
     mock_response.has = True
@@ -203,12 +203,12 @@ async def test_get_product_details_no_price(mock_safe_request):
     print("[DIAG] HTML passed to parser:", sample_html)
     result = await engine.load()
     print("[DIAG] result:", result)
-    assert result is not None, f"Expected result, got None"
+    assert result is not None, "Expected result, got None"
     assert getattr(result, 'name', None) == "Another Product", f"Name mismatch: {getattr(result, 'name', None)}"
     assert getattr(getattr(result, 'price', None), 'price', None) == 0.0, f"Price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
     assert getattr(getattr(result, 'price', None), 'currency', None) == "", f"Currency mismatch: {getattr(getattr(result, 'price', None), 'currency', None)}"
     status = getattr(result, 'status', None)
-    assert status is not None, f"Status missing"
+    assert status is not None, "Status missing"
     assert status.value == ItemStatus.INACTIVE.value, f"Status value mismatch: {status.value}"
 
 @pytest.mark.asyncio
@@ -241,13 +241,13 @@ async def test_get_product_details_multiple_prices(mock_safe_request):
     print("[DIAG] HTML passed to parser:", sample_html)
     result = await engine.load()
     print("[DIAG] result:", result)
-    assert result is not None, f"Expected result, got None"
+    assert result is not None, "Expected result, got None"
     assert getattr(result, 'name', None) == "Product with Multiple Prices", f"Name mismatch: {getattr(result, 'name', None)}"
     assert getattr(getattr(result, 'price', None), 'price', None) == 99.50, f"Price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
     assert getattr(getattr(result, 'price', None), 'currency', None) == "AUD", f"Currency mismatch: {getattr(getattr(result, 'price', None), 'currency', None)}"
     assert getattr(result, 'image', None) == "http://example.com/multiple_prices.jpg", f"Image mismatch: {getattr(result, 'image', None)}"
     status = getattr(result, 'status', None)
-    assert status is not None, f"Status missing"
+    assert status is not None, "Status missing"
     assert status.value == ItemStatus.ACTIVE.value, f"Status value mismatch: {status.value}"
 
 @pytest.mark.asyncio
@@ -272,12 +272,12 @@ async def test_lowest_price_selection(mock_safe_request):
     result = await engine.load()
 
     print("[DIAG] result:", result)
-    assert result is not None, f"Expected result, got None"
+    assert result is not None, "Expected result, got None"
     assert getattr(getattr(result, 'price', None), 'price', None) == 5.00, f"Lowest price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
     assert getattr(getattr(result, 'price', None), 'currency', None) == "AUD", f"Currency mismatch: {getattr(getattr(result, 'price', None), 'currency', None)}"
     assert getattr(result, 'name', None) == "Product with Multiple Prices", f"Name mismatch: {getattr(result, 'name', None)}"
     status = getattr(result, 'status', None)
-    assert status is not None, f"Status missing"
+    assert status is not None, "Status missing"
     assert getattr(status, 'value', None) == ItemStatus.ACTIVE.value, f"Status value mismatch: {getattr(status, 'value', None)}"
 
 @pytest.mark.asyncio
@@ -306,12 +306,12 @@ async def test_product_url_extraction_from_next_data(mock_safe_request):
     result = await engine.load()
 
     print("[DIAG] result:", result)
-    assert result is not None, f"Expected result, got None"
+    assert result is not None, "Expected result, got None"
     assert getattr(result, 'url', None) == "https://www.buywisely.com.au/product/test-product-slug-123", f"URL mismatch: {getattr(result, 'url', None)}"
     assert getattr(result, 'name', None) == "Test Product Title", f"Name mismatch: {getattr(result, 'name', None)}"
     assert getattr(getattr(result, 'price', None), 'price', None) == 123.45, f"Price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
     status = getattr(result, 'status', None)
-    assert status is not None, f"Status missing"
+    assert status is not None, "Status missing"
     assert getattr(status, 'value', None) == ItemStatus.ACTIVE.value, f"Status value mismatch: {getattr(status, 'value', None)}"
 
 @pytest.mark.asyncio
@@ -341,12 +341,12 @@ async def test_product_url_fallback_to_item_url_when_no_slug(mock_safe_request):
     result = await engine.load()
 
     print("[DIAG] result:", result)
-    assert result is not None, f"Expected result, got None"
+    assert result is not None, "Expected result, got None"
     assert getattr(result, 'url', None) == test_item_url, f"URL fallback mismatch: {getattr(result, 'url', None)}"
     assert getattr(result, 'name', None) == "Test Product Title", f"Name mismatch: {getattr(result, 'name', None)}"
     assert getattr(getattr(result, 'price', None), 'price', None) == 123.45, f"Price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
     status = getattr(result, 'status', None)
-    assert status is not None, f"Status missing"
+    assert status is not None, "Status missing"
     assert getattr(status, 'value', None) == ItemStatus.ACTIVE.value, f"Status value mismatch: {getattr(status, 'value', None)}"
 
 # Test cases for parse_product directly
@@ -425,5 +425,5 @@ async def test_html_extractor_finds_next_data_script(mock_safe_request):
 
     # Assert that the URL was correctly extracted from __NEXT_DATA__
     print("[DIAG] result:", result)
-    assert result is not None, f"Expected result, got None"
+    assert result is not None, "Expected result, got None"
     assert getattr(result, 'url', None) == "https://www.buywisely.com.au/product/test-slug", f"URL mismatch: {getattr(result, 'url', None)}"

@@ -1,4 +1,3 @@
-from bs4 import BeautifulSoup
 import bs4
 
 def extract_image(soup):
