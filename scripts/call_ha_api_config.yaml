@@ -1,3 +1,3 @@
-secrets_file_path: ../../../../Docker/config/secrets.yaml
+secrets_file_path: ../../../Docker/config/secrets.yaml
 entity_id: sensor.price_buywisely_type_motorola_moto_g75_5g_256gb_grey_with_buds
 ha_instance: localhost:8123

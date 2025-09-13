@@ -1,13 +1,14 @@
+import yaml
 import asyncio
-import json
 import logging
 import random
 from enum import Enum
 from typing import Optional, Callable, Self, Awaitable
 import dataclasses
+import os # Import os module
 
 import fake_useragent
-from curl_cffi import requests, CurlHttpVersion, CurlSslVersion
+from curl_cffi import requests, CurlHttpVersion
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class SafeRequest:
             "Accept": "text/html,application/json,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
             "Accept-Language": "en-US,en;q=0.9,ko;q=0.8,ja;q=0.7,zh-CN;q=0.6,zh;q=0.5",
             "Accept-Encoding": "gzip, deflate, br, zstd",
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36",
             "Pragma": "no-cache",
         }
         self._timeout = 25
@@ -124,11 +125,39 @@ async def fetch_buywisely_html(item_url: str):
     )
     
     if response.has:
-        print(response.text)
+        return response.text # Return the HTML content
     else:
         print(f"Failed to fetch HTML for {item_url}. Response was empty or error occurred.")
+        return None
 
 if __name__ == "__main__":
-    # You can change this URL to a specific product page on BuyWisely
-    sample_url = "https://www.buywisely.com.au/product/apple-iphone-15-pro-max-256gb-natural-titanium"
-    asyncio.run(fetch_buywisely_html(sample_url))
+    CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), 'product_urls.yaml') # Changed to product_urls.yaml
+
+    try:
+        with open(CONFIG_FILE_PATH, 'r') as f:
+            config = yaml.safe_load(f)
+    except FileNotFoundError:
+        print(f"Error: Configuration file not found at {CONFIG_FILE_PATH}")
+        exit(1)
+    except yaml.YAMLError as e:
+        print(f"Error parsing configuration file: {e}")
+        exit(1)
+
+    product_urls = config.get('product_urls', []) # Get the list of product URLs
+
+    if not product_urls:
+        print("No product URLs found in the configuration file.")
+        exit(0)
+
+    for i, product_url in enumerate(product_urls):
+        print(f"Fetching HTML from: {product_url}")
+        html_content = asyncio.run(fetch_buywisely_html(product_url))
+
+        if html_content:
+            # Save the full HTML content
+            filename_html = f"fetched_html_content_{i}.html" # Hardcode filename for simplicity
+            with open(filename_html, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            print(f"HTML content saved to {filename_html}")
+        else:
+            print(f"Failed to fetch HTML content for {product_url}.")
