@@ -93,21 +93,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # For upgrade options (1.0.0)
     if entry.data is not None and "device" in entry.data:
-        """Update device_id"""
+        # Update device_id safely
+        def safe_device_id(x):
+            device_target = create_service_device_parser_and_parse(entry.data['service_type'], x)
+            return {
+                **x,
+                CONF_ITEM_DEVICE_ID: IdGenerator.generate_device_id(device_target) if device_target is not None else None,
+            }
         data = {
             **entry.data,
-            "device": Lu.map(
-                entry.data["device"],
-                lambda x: {
-                    **x,
-                    CONF_ITEM_DEVICE_ID: IdGenerator.generate_device_id(
-                        create_service_device_parser_and_parse(entry.data['service_type'], x)
-                    )
-                    if create_service_device_parser_and_parse(entry.data['service_type'], x)
-                    is not None
-                    else None,
-                },
-            ),
+            "device": Lu.map(entry.data["device"], safe_device_id),
         }
     else:
         data = entry.data
