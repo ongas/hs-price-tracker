@@ -111,16 +111,15 @@ def extract_product_data_from_html(html: str) -> dict:
                     match = re.search(r"([\d,.]+)", price_text.replace(",", ""))
                     if match:
                         price_val = float(match.group(1))
-                raw_data = {
-                    'title': None,
-                    'price': price_val,
-                    'image': None,
-                    'currency': 'AUD',
-                    'availability': 'In Stock' if price_val is not None else 'Out of Stock',
-                    'brand': '',
-                    'url': None,
-                    'offers': [],
-                }
+                raw_data = {}
+                if price_val is not None:
+                    raw_data['price'] = price_val
+                    raw_data['currency'] = 'AUD'
+                    raw_data['availability'] = 'In Stock'
+                    raw_data['brand'] = ''
+                    raw_data['offers'] = []
+                else:
+                    raw_data['availability'] = 'Out of Stock'
                 _LOGGER.info(f"BuyWisely HtmlExtractor: BeautifulSoup fallback extracted price: {price_val}")
             except Exception as e:
                 _LOGGER.error(f"BuyWisely HtmlExtractor: BeautifulSoup fallback failed: {e}")

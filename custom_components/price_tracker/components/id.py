@@ -15,6 +15,8 @@ class IdGenerator:
 
     @staticmethod
     def generate_device_id(device_target: str) -> str:
+        if device_target is None:
+            raise ValueError("device_target must not be None")
         return DOMAIN + ".price-device_{}".format(device_target)
 
     @staticmethod

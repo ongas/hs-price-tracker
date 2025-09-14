@@ -48,10 +48,10 @@ async def test_config_flow_guided(monkeypatch):
         "product_url": "https://buywisely.com.au/product/sony-wh-1000xm4-wireless-noise-cancelling-headphones-black-1?id=12345"
     }
     result = await flow.async_step_user(user_input_step2)
-    assert result["type"] == "create_entry"
-    assert result["title"] == mock_kind[user_input_step1["service_type"]]
-    assert result["data"]["service_type"] == "buywisely"
-    assert result["data"]["product_url"] == user_input_step2["product_url"]
+    assert result.get("type") == "create_entry"
+    assert result.get("title") == mock_kind[user_input_step1["service_type"]]
+    assert result.get("data", {}).get("service_type") == "buywisely"
+    assert result.get("data", {}).get("product_url") == user_input_step2["product_url"]
 
     # Test for other service (product_url should not be required)
     user_input_step1_other = {"service_type": "coupang", "lang": "en"}
@@ -61,10 +61,10 @@ async def test_config_flow_guided(monkeypatch):
 
     user_input_step2_other = {} # No product_url needed
     result = await flow.async_step_user(user_input_step2_other)
-    assert result["type"] == "create_entry"
-    assert result["title"] == mock_kind[user_input_step1_other["service_type"]]
-    assert result["data"]["service_type"] == "coupang"
-    assert "product_url" not in result["data"]
+    assert result.get("type") == "create_entry"
+    assert result.get("title") == mock_kind[user_input_step1_other["service_type"]]
+    assert result.get("data", {}).get("service_type") == "coupang"
+    assert "product_url" not in result.get("data", {})
 
 @pytest.mark.asyncio
 async def test_async_setup_entry_service_type_handling(monkeypatch):
@@ -139,6 +139,8 @@ async def test_lowest_price_populates_ha_entity(monkeypatch):
     mock_hass.config.config_dir = "/tmp/hass_config"
     mock_hass.bus = MagicMock()
     mock_hass.services = MagicMock()
+    # Patch async_create_task to avoid AttributeError
+    mock_hass.async_create_task = MagicMock()
 
     # Mock entity and device registries
     mock_entity_registry = MagicMock()
@@ -217,7 +219,8 @@ async def test_lowest_price_populates_ha_entity(monkeypatch):
 
         # Set _updated_at to an old date to force update
         sensor_entity._updated_at = datetime(2000, 1, 1)
-
+        # Ensure hass is set for the entity (normally done by Home Assistant framework)
+        sensor_entity.hass = mock_hass
         # Manually trigger update to ensure state is set (async_add_entities doesn't always trigger it immediately in tests)
         await sensor_entity.async_update()
         print(f"DIAGNOSTIC: sensor_entity.state: {sensor_entity.state}")

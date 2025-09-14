@@ -67,8 +67,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as e:
             _LOGGER.warning(f"[DIAG][__init__.py] Exception while retrieving entity from hass.data: {e}")
 
+        # Fallback: try entity_component registry if not found in price_tracker dict
         if not entity:
-            _LOGGER.warning(f"[DIAG][__init__.py] Could not find entity object for {entity_id} in hass.data['price_tracker']['entities'].")
+            try:
+                entity_component = hass.data.get("entity_component", {}).get("sensor")
+                if entity_component and hasattr(entity_component, "get_entity"):
+                    entity = entity_component.get_entity(entity_id)
+                    _LOGGER.debug(f"[DIAG][__init__.py] Fallback: Found entity via entity_component.get_entity: {entity}")
+            except Exception as e:
+                _LOGGER.warning(f"[DIAG][__init__.py] Exception in fallback entity_component lookup: {e}")
+
+        if not entity:
+            _LOGGER.warning(f"[DIAG][__init__.py] Could not find entity object for {entity_id} in hass.data['price_tracker']['entities'] or entity_component.")
         else:
             _LOGGER.debug(f"[DIAG][__init__.py] Found entity object: {entity} (type: {type(entity)})")
             if hasattr(entity, 'async_manual_update'):

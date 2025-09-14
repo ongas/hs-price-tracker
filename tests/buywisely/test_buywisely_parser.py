@@ -1,10 +1,6 @@
+
 from unittest.mock import patch
 from custom_components.price_tracker.services.buywisely.parser import parse_product
-
-def test_parser():
-    import pytest
-    pytest.skip("This test is skipped because fallback HTML extraction is not supported. The parser requires Next.js hydration data.")
-
 
 def test_nextjs_hydration_parser_used_for_seller_url():
     """Test that nextjs-hydration-parser is used to extract seller's URL from Next.js hydration data."""

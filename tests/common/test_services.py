@@ -85,9 +85,8 @@ async def test_entity_registration_in_async_added_to_hass(monkeypatch):
                 self.hass.data['price_tracker']['entities'] = {}
             self.hass.data['price_tracker']['entities'][self.entity_id] = self
     sensor = DummySensor()
-    # Call async_added_to_hass
-    import asyncio
-    asyncio.get_event_loop().run_until_complete(sensor.async_added_to_hass())
+    # Await async_added_to_hass directly (pytest-asyncio compatible)
+    await sensor.async_added_to_hass()
     assert 'price_tracker' in hass.data and 'entities' in hass.data['price_tracker'], "Entity not registered in hass.data"
     assert hass.data['price_tracker']['entities'][sensor.entity_id] is sensor, "Entity not correctly registered"
 
@@ -166,11 +165,12 @@ async def test_service_call_valid_entity(mock_hass, mock_config_entry):
     mock_entity_entry.platform = "sensor"
     mock_entity_registry.async_get.return_value = mock_entity_entry
     
+
     mock_component = MagicMock()
     mock_sensor_entity = MagicMock()
     mock_sensor_entity.async_update = AsyncMock()
+    mock_sensor_entity.async_manual_update = AsyncMock()
     mock_component.get_entity.return_value = mock_sensor_entity
-    
     mock_hass.data["entity_component"]["sensor"] = mock_component
 
     with patch("homeassistant.helpers.device_registry.async_get") as mock_dr_async_get:
@@ -185,7 +185,7 @@ async def test_service_call_valid_entity(mock_hass, mock_config_entry):
 
     mock_entity_registry.async_get.assert_called_once_with(entity_id)
     mock_component.get_entity.assert_called_once_with(entity_id)
-    mock_sensor_entity.async_update.assert_awaited_once()
+    mock_sensor_entity.async_manual_update.assert_awaited_once()
 
 
 @pytest.mark.asyncio
