@@ -1,4 +1,3 @@
-import pytest
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 
 def test_buywisely_fallback_logic():

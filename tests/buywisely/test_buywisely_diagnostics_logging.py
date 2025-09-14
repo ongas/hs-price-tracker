@@ -1,5 +1,4 @@
 import logging
-import pytest
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 
 class LogCapture(logging.Handler):

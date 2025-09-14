@@ -1,5 +1,4 @@
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 
 def test_buywisely_timeout_and_rate_limiting():

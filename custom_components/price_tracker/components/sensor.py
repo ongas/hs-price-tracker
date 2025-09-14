@@ -243,6 +243,8 @@ class PriceTrackerSensor(RestoreEntity):
         try:
             data = await self._engine.load()
 
+            _LOGGER.info(f"[DIAG][sensor.py] async_update loaded data.url: {getattr(data, 'url', None)}")
+
             if data is None:
                 if (
                     self._updated_at is None
@@ -265,6 +267,8 @@ class PriceTrackerSensor(RestoreEntity):
                 else None,
             )
             self._item_data = data
+
+            _LOGGER.info(f"[DIAG][sensor.py] Setting _attr_extra_state_attributes['url'] to: {getattr(self._item_data, 'url', None)}")
 
             # Calculate unit
             unit = (

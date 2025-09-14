@@ -31,6 +31,8 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
 
     extracted_url_or_slug = raw_data.get('url')
 
+    _LOGGER.info(f"[DIAG][data_transformer] extracted_url_or_slug: {extracted_url_or_slug}, item_url: {item_url}")
+
     if extracted_url_or_slug and (extracted_url_or_slug.startswith("http://") or extracted_url_or_slug.startswith("https://")):
         # It's a full URL, use it directly
         product_link = extracted_url_or_slug
@@ -44,10 +46,14 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
         # No URL or slug extracted, fall back to item_url
         product_link = item_url
 
+    _LOGGER.info(f"[DIAG][data_transformer] product_link to be set as url: {product_link}")
+
     # Requirement 4: If the seller's product page URL contains 'buywisely', it indicates a failure.
     if "buywisely" in product_link: # Simplified check
         _LOGGER.warning(f"[DataTransformer] Detected BuyWisely URL as product link, indicating extraction failure: {product_link}")
         product_link = "" # Explicitly set to empty string for failure
+
+    _LOGGER.info(f"[DIAG][data_transformer] Final url for ItemData: {product_link}")
 
     price = ItemPriceData(price=price_value, currency=currency_value) if price_value is not None and currency_value else ItemPriceData(price=0.0, currency="")
 

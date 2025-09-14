@@ -97,6 +97,7 @@ def extract_product_data_from_html(html: str) -> dict:
                 'url': vendor_url,
                 'offers': offers,
             }
+            _LOGGER.info(f"[DIAG][html_extractor] raw_data['url'] set to: {vendor_url}")
         else:
             _LOGGER.info("BuyWisely HtmlExtractor: Product data not found in any supported hydration format. Trying BeautifulSoup fallback.")
             try:
