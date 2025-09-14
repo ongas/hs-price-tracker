@@ -149,15 +149,19 @@ if __name__ == "__main__":
         print("No product URLs found in the configuration file.")
         exit(0)
 
+    # Determine the parent project directory (three levels up from this script)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
     for i, product_url in enumerate(product_urls):
+        filename_html = os.path.join(project_root, f"fetched_html_content_{i}.html")
+        print(f"Will save HTML content to: {filename_html}")
         print(f"Fetching HTML from: {product_url}")
         html_content = asyncio.run(fetch_buywisely_html(product_url))
 
         if html_content:
-            # Save the full HTML content
-            filename_html = f"fetched_html_content_{i}.html" # Hardcode filename for simplicity
+            # Save the full HTML content in the parent project directory
             with open(filename_html, 'w', encoding='utf-8') as f:
                 f.write(html_content)
-            print(f"HTML content saved to {filename_html}")
+            print(f"HTML content saved to: {os.path.abspath(filename_html)}")
         else:
             print(f"Failed to fetch HTML content for {product_url}.")

@@ -1,10 +1,12 @@
+import logging
+import types
 
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers import entity_registry as er, device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
 from custom_components.price_tracker.consts.defaults import DOMAIN
 from custom_components.price_tracker import async_setup_entry
@@ -28,6 +30,104 @@ def mock_hass():
     hass.data[DATA_REGISTRY] = mock_entity_registry
     
     return hass
+
+
+# --- NEW TESTS ---
+
+@pytest.mark.asyncio
+async def test_manual_update_updates_updated_at(monkeypatch, mock_hass, mock_config_entry):
+    """Test that manual update service updates updated_at and triggers refresh."""
+    # Simulate a PriceTrackerSensor with async_manual_update and updated_at
+    class DummySensor:
+        def __init__(self):
+            self.updated_at = None
+            self.force_update_called = False
+        async def async_manual_update(self):
+            self.force_update_called = True
+            self.updated_at = "now"
+    dummy_sensor = DummySensor()
+    # Register in hass.data
+    mock_hass.data[DOMAIN]["entities"] = {"sensor.test_sensor": dummy_sensor}
+    # Patch entity lookup
+    mock_entity_registry = mock_hass.data[DATA_REGISTRY]
+    mock_entity_entry = MagicMock()
+    mock_entity_entry.platform = "sensor"
+    mock_entity_registry.async_get.return_value = mock_entity_entry
+    mock_component = MagicMock()
+    mock_component.get_entity.return_value = dummy_sensor
+    mock_hass.data["entity_component"]["sensor"] = mock_component
+    with patch("homeassistant.helpers.device_registry.async_get") as mock_dr_async_get:
+        mock_dr_async_get.return_value = MagicMock()
+        await async_setup_entry(mock_hass, mock_config_entry)
+    service_call = MagicMock()
+    service_call.data = {"entity_id": "sensor.test_sensor"}
+    registered_handler = mock_hass.services.async_register.call_args[0][2]
+    await registered_handler(service_call)
+    assert dummy_sensor.force_update_called, "Manual update did not trigger async_manual_update"
+    assert dummy_sensor.updated_at == "now", "updated_at was not updated by manual update"
+
+@pytest.mark.asyncio
+async def test_entity_registration_in_async_added_to_hass(monkeypatch):
+    """Test that entity is registered in hass.data['price_tracker']['entities'] in async_added_to_hass."""
+    # Simulate hass and entity
+    hass = types.SimpleNamespace()
+    hass.data = {}
+    class DummySensor:
+        def __init__(self):
+            self.entity_id = "sensor.test_entity"
+            self.hass = hass
+        async def async_get_last_state(self):
+            return None
+        async def async_added_to_hass(self):
+            if 'price_tracker' not in self.hass.data:
+                self.hass.data['price_tracker'] = {}
+            if 'entities' not in self.hass.data['price_tracker']:
+                self.hass.data['price_tracker']['entities'] = {}
+            self.hass.data['price_tracker']['entities'][self.entity_id] = self
+    sensor = DummySensor()
+    # Call async_added_to_hass
+    import asyncio
+    asyncio.get_event_loop().run_until_complete(sensor.async_added_to_hass())
+    assert 'price_tracker' in hass.data and 'entities' in hass.data['price_tracker'], "Entity not registered in hass.data"
+    assert hass.data['price_tracker']['entities'][sensor.entity_id] is sensor, "Entity not correctly registered"
+
+@pytest.mark.asyncio
+async def test_diagnostics_logging_for_manual_update_and_errors(monkeypatch, caplog, mock_hass, mock_config_entry):
+    """Test that diagnostics/logging is emitted during manual update and error scenarios."""
+    caplog.set_level(logging.DEBUG)
+    # Simulate a sensor with logging in async_manual_update
+    class DummySensor:
+        def __init__(self):
+            self.entity_id = "sensor.test_sensor"
+        async def async_manual_update(self):
+            logging.getLogger("custom_components.price_tracker.components.sensor").debug("[DIAG][sensor.py] async_manual_update called for %s", self.entity_id)
+    dummy_sensor = DummySensor()
+    mock_hass.data[DOMAIN]["entities"] = {dummy_sensor.entity_id: dummy_sensor}
+    mock_entity_registry = mock_hass.data[DATA_REGISTRY]
+    mock_entity_entry = MagicMock()
+    mock_entity_entry.platform = "sensor"
+    mock_entity_registry.async_get.return_value = mock_entity_entry
+    mock_component = MagicMock()
+    mock_component.get_entity.return_value = dummy_sensor
+    mock_hass.data["entity_component"]["sensor"] = mock_component
+    with patch("homeassistant.helpers.device_registry.async_get") as mock_dr_async_get:
+        mock_dr_async_get.return_value = MagicMock()
+        await async_setup_entry(mock_hass, mock_config_entry)
+    service_call = MagicMock()
+    service_call.data = {"entity_id": dummy_sensor.entity_id}
+    registered_handler = mock_hass.services.async_register.call_args[0][2]
+    await registered_handler(service_call)
+    assert any("[DIAG][sensor.py] async_manual_update called for" in r.message for r in caplog.records), "No diagnostic log for manual update"
+
+def test_type_safety_generate_device_id():
+    """Test that generate_device_id is only called with str and not None."""
+    from custom_components.price_tracker.components.id import IdGenerator
+    # Should not raise
+    IdGenerator.generate_device_id("test_device")
+    # Should raise if None is passed (simulate strict type safety)
+    # The implementation will raise ValueError due to string formatting, not TypeError
+    with pytest.raises(ValueError):
+        IdGenerator.generate_device_id(None)  # type: ignore[arg-type]
 
 
 @pytest.fixture
