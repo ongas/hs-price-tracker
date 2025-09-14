@@ -15,7 +15,7 @@ The `price_tracker` custom component enables Home Assistant to track product pri
 - `services/`: Contains service-specific engines, parsers, and data transformers (see Services section).
 
 **Home Assistant Configuration:**
-- Main config: `configuration.yaml` (e.g., `Docker/config/configuration.yaml`).
+- Main config: `configuration.yaml` (e.g., `docker/config/configuration.yaml`).
 - Common sections: `default_config:`, `frontend:`, `automation:`, `script:`, `scene:`, `http:`, `sensor:`, `binary_sensor:`, `mqtt:`.
 - Changes require a Home Assistant restart.
 
@@ -25,15 +25,15 @@ The `price_tracker` custom component enables Home Assistant to track product pri
 - **Systematic Isolation:** Address one problem at a time, starting with fundamental issues.
 - **Incremental Changes:** Make small, focused changes and verify impact.
 - **Extensive Logging:** Use `_LOGGER.debug`, `_LOGGER.info`, `_LOGGER.warning`, and `_LOGGER.error` for visibility.
-- **Log Filtering:** Use `grep` and `tail` to extract relevant log info.
-- **Clean Environment:** Restart Home Assistant container and clear logs for each test.
+- **Log Filtering:** Use `grep` and `tail` to extract relevant log info from the Home Assistant log file (`../../docker/config/home-assistant.log`).
+- **Clean Environment:** Restart Home Assistant container and clear logs for each test (truncate or delete `../../docker/config/home-assistant.log`).
 - **Verification:** Confirm each change by observing logs and entity states.
 - **Library Usage:** Use `nextjs-hydration-parser` for Next.js string extraction and `BeautifulSoup` for fallback parsing.
 
 ### Debugging Workflow
 1. Understand the problem and form a hypothesis.
 2. Outline specific steps to test the hypothesis.
-3. Prepare the environment (stop container, clear logs, restart container).
+3. Prepare the environment (stop container, clear logs by truncating or deleting `../../docker/config/home-assistant.log`, restart container).
 4. Implement changes (edit code, add logging, etc.).
 5. Trigger actions if needed (e.g., manual update).
 6. Collect and analyze logs (use `tail`, `grep`, etc.).
@@ -48,6 +48,7 @@ The `price_tracker` custom component enables Home Assistant to track product pri
 - **Project Root:** `custom_components/price_tracker`
 - **Deployment Source (only this gets deployed!):** `custom_components/price_tracker/custom_components/price_tracker`
 - **HA-Dev Container Target:** `../../docker/config/custom_components/price_tracker`
+- **Home Assistant Log File:** `../../docker/config/home-assistant.log` (relative to project root; use for log filtering and debugging)
 
 > **Warning:** Never deploy the project root. Only deploy the inner deployment source directory as shown above.
 
@@ -74,12 +75,24 @@ The `price_tracker` custom component enables Home Assistant to track product pri
 
 ## 5. Deployment Workflow
 
-**Conda Environment Activation:**
-- Activate the `homeassistant` conda environment before running tests or scripts:
-    ```bash
-    conda activate homeassistant
-    echo $CONDA_DEFAULT_ENV
-    ```
+
+**Conda Environment Activation (MANDATORY):**
+- You must **only** use the `homeassistant` conda environment for all development, testing, and deployment. **Never create or use a Python virtualenv, venv, or pipenv.**
+- To activate:
+        ```bash
+        conda activate homeassistant
+        echo $CONDA_DEFAULT_ENV
+        ```
+    The prompt must show `homeassistant` as the active environment. If not, troubleshooting and test execution will fail.
+
+**Troubleshooting Missing Dependencies:**
+- If you encounter errors such as `ModuleNotFoundError: No module named 'nextjs_hydration_parser'`, ensure you are in the correct conda environment and all dependencies are installed:
+        ```bash
+        conda activate homeassistant
+        pip install -r requirements.txt
+        ```
+    **Never use `python -m venv`, `virtualenv`, or `pipenv` for this project.** All dependencies must be managed through the conda environment only.
+    Always verify the environment before running or debugging tests.
 
 **Steps:**
 1. **Code Modification:** Make changes as needed.

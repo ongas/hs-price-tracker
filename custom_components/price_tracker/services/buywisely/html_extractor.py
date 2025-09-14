@@ -86,7 +86,17 @@ def extract_product_data_from_html(html: str) -> dict:
             brand = title.split(' ')[0] if title else ''
             offers = product_data.get('offers', [])
             offers = offers[:10]
-            _LOGGER.info(f"BuyWisely HtmlExtractor: Extracted {len(offers)} offers")
+            # Extract seller_product_url from the lowest price offer if available
+            lowest_offer_url = None
+            if offers:
+                try:
+                    lowest_offer = min(offers, key=lambda o: float(o.get('base_price', float('inf'))))
+                    lowest_offer_url = lowest_offer.get('seller_product_url')
+                except Exception as e:
+                    _LOGGER.warning(f"[DIAG][html_extractor] Failed to extract lowest_offer_url: {e}")
+            # Prefer seller_product_url from lowest offer, fallback to vendor_url
+            main_url = lowest_offer_url or vendor_url
+            _LOGGER.info(f"[DIAG][html_extractor] main_url set to: {main_url}")
             raw_data = {
                 'title': title,
                 'price': product_data.get('lowest_price'),
@@ -94,10 +104,10 @@ def extract_product_data_from_html(html: str) -> dict:
                 'currency': product_data.get('currency', 'AUD'),
                 'availability': 'In Stock' if offers else 'Out of Stock',
                 'brand': brand,
-                'url': vendor_url,
+                'url': main_url,
                 'offers': offers,
             }
-            _LOGGER.info(f"[DIAG][html_extractor] raw_data['url'] set to: {vendor_url}")
+            _LOGGER.info(f"[DIAG][html_extractor] raw_data['url'] set to: {main_url}")
         else:
             _LOGGER.info("BuyWisely HtmlExtractor: Product data not found in any supported hydration format. Trying BeautifulSoup fallback.")
             try:
