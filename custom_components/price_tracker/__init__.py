@@ -50,25 +50,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     })
 
     async def handle_update_entity(call):
+        _LOGGER.debug(f"[DIAG][__init__.py] handle_update_entity called with call.data: {call.data}")
         entity_id = call.data.get("entity_id")
-        _LOGGER.debug(f"Service call to update entity: {entity_id}")
+        _LOGGER.debug(f"[DIAG][__init__.py] Service call to update entity: {entity_id}")
 
         entity_registry = er.async_get(hass)
         entity_entry = entity_registry.async_get(entity_id)
+        _LOGGER.debug(f"[DIAG][__init__.py] entity_entry for {entity_id}: {entity_entry}")
 
-        if entity_entry:
-            component = hass.data.get("entity_component", {}).get(entity_entry.platform)
-            if component:
-                entity = component.get_entity(entity_id)
-                if entity and hasattr(entity, 'async_update'):
-                    _LOGGER.info(f"Manually triggering update for {entity_id}")
-                    await entity.async_update()
-                else:
-                    _LOGGER.warning(f"Entity {entity_id} not found or does not have async_update method.")
-            else:
-                _LOGGER.warning(f"Component for platform {entity_entry.platform} not found for entity {entity_id}.")
+        # Retrieve entity from hass.data
+        entity = None
+        try:
+            entities_dict = hass.data.get('price_tracker', {}).get('entities', {})
+            _LOGGER.debug(f"[DIAG][__init__.py] hass.data['price_tracker']['entities'] keys at lookup: {list(entities_dict.keys())}")
+            entity = entities_dict.get(entity_id)
+        except Exception as e:
+            _LOGGER.warning(f"[DIAG][__init__.py] Exception while retrieving entity from hass.data: {e}")
+
+        if not entity:
+            _LOGGER.warning(f"[DIAG][__init__.py] Could not find entity object for {entity_id} in hass.data['price_tracker']['entities'].")
         else:
-            _LOGGER.warning(f"Entity {entity_id} not found in entity registry.")
+            _LOGGER.debug(f"[DIAG][__init__.py] Found entity object: {entity} (type: {type(entity)})")
+            if hasattr(entity, 'async_manual_update'):
+                _LOGGER.info(f"[DIAG][__init__.py] Manually triggering manual update for {entity_id} (entity: {entity})")
+                await entity.async_manual_update()
+            elif hasattr(entity, 'async_update'):
+                _LOGGER.info(f"[DIAG][__init__.py] Manually triggering update for {entity_id} (entity: {entity})")
+                await entity.async_update()
+            else:
+                _LOGGER.warning(f"[DIAG][__init__.py] Entity {entity_id} does not have async_update/manual_update method. Entity: {entity}")
 
     hass.services.async_register(
         DOMAIN,
