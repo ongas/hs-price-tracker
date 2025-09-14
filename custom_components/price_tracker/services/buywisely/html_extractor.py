@@ -1,23 +1,23 @@
-import importlib.util
-import os
 import logging
+from nextjs_hydration_parser import NextJSHydrationDataExtractor
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _load_nextjs_extractor():
-    module_name = "nextjs_hydration_parser"
-    file_path = os.path.join(os.path.dirname(__file__), "nextjs_hydration_parser.py")
-    spec = importlib.util.spec_from_file_location(module_name, file_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Could not load spec for {file_path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.NextJSHydrationDataExtractor
-
-NextJSHydrationDataExtractor = _load_nextjs_extractor()
-
-_LOGGER = logging.getLogger(__name__)
+def _find_product_data_recursive(data):
+    if isinstance(data, dict):
+        if 'product' in data and isinstance(data['product'], dict):
+            return data['product']
+        for key, value in data.items():
+            result = _find_product_data_recursive(value)
+            if result:
+                return result
+    elif isinstance(data, list):
+        for item in data:
+            result = _find_product_data_recursive(item)
+            if result:
+                return result
+    return None
 
 def extract_product_data_from_html(html: str) -> dict:
     """Extracts product data from BuyWisely HTML content."""
@@ -26,31 +26,27 @@ def extract_product_data_from_html(html: str) -> dict:
     raw_data = {}
     product_data = None
     try:
-        print("[DIAG][extract_product_data_from_html] HTML to parser:", html)
         parsed_data = extractor.parse(html)
-        print(f"[DIAG][extract_product_data_from_html] parsed_data: {parsed_data}")
-        for idx, item in enumerate(parsed_data):
-            print(f"[DIAG][extract_product_data_from_html] parsed_data[{idx}]: type={type(item)}, keys={getattr(item, 'keys', lambda: [])() if hasattr(item, 'keys') else 'N/A'}")
         _LOGGER.info(f"BuyWisely HtmlExtractor: Parsed data from nextjs_hydration_parser: {parsed_data}")
 
-        # Try legacy Next.js hydration format first
-        for item in parsed_data:
-            if isinstance(item, dict) and 'props' in item and 'pageProps' in item['props'] and 'product' in item['props']['pageProps']:
-                product_data = item['props']['pageProps']['product']
-                _LOGGER.info("BuyWisely HtmlExtractor: Found product data in legacy __NEXT_DATA__ format.")
-                break
+        # Attempt to extract product data from the most common specific path
+        try:
+            if isinstance(parsed_data, list) and len(parsed_data) > 0 and \
+               isinstance(parsed_data[0], dict) and 'extracted_data' in parsed_data[0] and \
+               isinstance(parsed_data[0]['extracted_data'], list) and len(parsed_data[0]['extracted_data']) > 0 and \
+               isinstance(parsed_data[0]['extracted_data'][0], dict) and 'data' in parsed_data[0]['extracted_data'][0] and \
+               isinstance(parsed_data[0]['extracted_data'][0]['data'], list) and len(parsed_data[0]['extracted_data'][0]['data']) > 0 and \
+               isinstance(parsed_data[0]['extracted_data'][0]['data'][0], list) and len(parsed_data[0]['extracted_data'][0]['data'][0]) > 3 and \
+               isinstance(parsed_data[0]['extracted_data'][0]['data'][0][3], dict) and 'product' in parsed_data[0]['extracted_data'][0]['data'][0][3]:
+                product_data = parsed_data[0]['extracted_data'][0]['data'][0][3]['product']
+                _LOGGER.info("BuyWisely HtmlExtractor: Found product data at specific nested path.")
+        except (IndexError, KeyError, TypeError) as e:
+            _LOGGER.debug(f"BuyWisely HtmlExtractor: Product data not found at specific nested path: {e}")
+            product_data = None
 
-        # If not found, try new self.__next_f.push format
+        # Fallback to recursive search if not found at specific path
         if not product_data:
-            for item in parsed_data:
-                if isinstance(item, dict) and 'extracted_data' in item:
-                    for ed in item['extracted_data']:
-                        if 'data' in ed and isinstance(ed['data'], dict) and 'title' in ed['data']:
-                            product_data = ed['data']
-                            _LOGGER.info("BuyWisely HtmlExtractor: Found product data in self.__next_f.push format.")
-                            break
-                if product_data:
-                    break
+            product_data = _find_product_data_recursive(parsed_data)
 
         if product_data:
             _LOGGER.info(f"BuyWisely HtmlExtractor: Found product data: {product_data}")
@@ -62,9 +58,7 @@ def extract_product_data_from_html(html: str) -> dict:
                 vendor_url = extracted_url
                 _LOGGER.info(f"BuyWisely HtmlExtractor: Extracted vendor_url directly: {vendor_url}")
             elif slug:
-                # If only slug is available, construct a relative path or just use the slug
-                # The full URL construction should ideally happen in data_transformer
-                vendor_url = slug # Pass the slug as the URL for data_transformer to handle
+                vendor_url = slug
                 _LOGGER.info(f"BuyWisely HtmlExtractor: Using slug as vendor_url: {vendor_url}")
             else:
                 vendor_url = None
