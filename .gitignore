@@ -1,3 +1,5 @@
+# Ignore technical notes
+DEVELOPMENT_NOTES.md
 # artifacts
 __pycache__
 .pytest*
