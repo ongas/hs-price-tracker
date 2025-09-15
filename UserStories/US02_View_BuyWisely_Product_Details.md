@@ -7,6 +7,6 @@
 ## Acceptance Criteria
 - User can view a list of all BuyWisely products being tracked.
 - Each product displays its name, brand, image, current price, and availability (active/inactive/deleted).
-- The product's tracked URL always points to the lowest price offer available.
+- The product's tracked URL always points to the seller_product_url of the lowest-priced offer, never to any fallback or hydration field.
 
 ---

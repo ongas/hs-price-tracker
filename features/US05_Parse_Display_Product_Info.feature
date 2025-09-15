@@ -6,5 +6,6 @@ Feature: Parse and Display Product Information from BuyWisely
   Scenario: Parse and display product details
     Given I have added a BuyWisely product to the price tracker
     When the system parses the product page
-    Then the product's name, brand, image, price, and offers are extracted and shown to me
-    And if parsing fails, I am notified or fallback logic is used
+  Then the product's name, brand, image, price, and offers are extracted and shown to me
+  And the seller URL is always extracted from the offers list (never from fallback or hydration fields)
+  And if parsing fails, I am notified

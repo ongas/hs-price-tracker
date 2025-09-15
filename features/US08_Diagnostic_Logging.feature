@@ -6,5 +6,5 @@ Feature: Diagnostic Logging for BuyWisely Integration
   Scenario: Generate diagnostic logs for product tracking
     Given the BuyWisely integration is running
     When a product is loaded, parsed, or data is extracted
-    Then diagnostic logs are generated including product URLs, IDs, extracted data, and error messages
+  Then diagnostic logs are generated including product URLs, IDs, extracted data, error messages, the full hydration data, offers list, all candidate seller_product_url values, and the final url set in the entity
     And logs are accessible via the Home Assistant log system

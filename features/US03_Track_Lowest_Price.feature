@@ -6,7 +6,7 @@ Feature: Automatically Track the Lowest Price for a BuyWisely Product
   Scenario: Track the lowest price among multiple offers
     Given a BuyWisely product has multiple offers
     When the product is tracked
-    Then the lowest price and its corresponding seller URL are selected and displayed
+  Then the lowest price and its corresponding seller_product_url are selected and displayed (no fallback logic)
 
   Scenario: No offers available for a product
     Given a BuyWisely product has no available offers

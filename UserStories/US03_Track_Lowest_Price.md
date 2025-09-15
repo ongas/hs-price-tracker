@@ -5,8 +5,8 @@
 **so that** I can be sure I am monitoring the best deal across all offers for that product.
 
 ## Acceptance Criteria
-- The system parses all available offers for a product from BuyWisely.
-- The lowest price and its corresponding seller URL are always selected and displayed.
+- The system parses all available offers for a product from BuyWisely, strictly using only the offers list in the hydration data.
+- The lowest price and its corresponding seller_product_url are always selected and displayed (no fallback logic).
 - If no offers are available, the product is marked as inactive or deleted.
 
 ---

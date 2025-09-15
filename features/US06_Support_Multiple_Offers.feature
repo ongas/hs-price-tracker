@@ -7,4 +7,4 @@ Feature: Support Multiple Offers for a BuyWisely Product
     Given a BuyWisely product has multiple offers
     When I view the product details
     Then up to 10 offers are displayed, each with price and currency information
-    And the lowest price is always selected for tracking
+  And the lowest price and its seller_product_url are always selected for tracking (no fallback logic)

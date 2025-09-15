@@ -7,6 +7,7 @@
 ## Acceptance Criteria
 - The system parses product HTML and JSON data from BuyWisely pages.
 - Product details such as name, brand, image, price, and offers are extracted and shown to the user.
-- If parsing fails, the user is notified or fallback logic is used.
+- The seller URL is always extracted from the offers list (never from fallback or hydration fields).
+- If parsing fails, the user is notified.
 
 ---

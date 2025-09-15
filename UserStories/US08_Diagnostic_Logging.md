@@ -6,7 +6,7 @@
 
 ## Acceptance Criteria
 - Diagnostic logs are generated for product loading, parsing, and data extraction steps.
-- Logs include product URLs, IDs, extracted data, and error messages.
+- Logs include product URLs, IDs, extracted data, error messages, the full hydration data, offers list, all candidate seller_product_url values, and the final url set in the entity.
 - Logs are accessible via the Home Assistant log system.
 
 ---
