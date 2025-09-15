@@ -1,0 +1,23 @@
+{
+  "props": {
+    "pageProps": {
+      "hydration": {
+        "product": {
+          "id": "123456",
+          "name": "Motorola Moto G75 5G 256GB Grey with Buds",
+          "brand": "Motorola",
+          "image": "https://cdn.buywisely.com/images/123456.jpg",
+          "offers": [
+            {
+              "price": 299.99,
+              "currency": "USD",
+              "seller": "BestSeller Inc.",
+              "availability": "in_stock"
+            }
+          ],
+          "description": "Latest model with 5G and bundled buds."
+        }
+      }
+    }
+  }
+}
