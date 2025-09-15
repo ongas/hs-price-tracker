@@ -1,9 +1,0 @@
-{
-  "props": {
-    "pageProps": {
-      "hydration": {
-        "product": "MALFORMED DATA"
-      }
-    }
-  }
-}
