@@ -75,33 +75,39 @@ summary=""
 # - Use 'ha-dev' for all direct 'docker' commands (this is the container_name in docker-compose.yml)
 echo "INFO: docker-compose service name is 'homeassistant', container name is 'ha-dev'"
 
+
 step "1. Stopping Home Assistant container (service: homeassistant, container: ha-dev)"
 cd "$DOCKER_DIR"
-# Use service name for docker compose
-docker compose stop homeassistant && summary+="Stopped Home Assistant container (service: homeassistant, container: ha-dev).\n"
+# Check if the container is running before trying to stop it
+CONTAINER_STATUS=$(docker inspect --format '{{.State.Status}}' ha-dev 2>/dev/null)
+if [ "$CONTAINER_STATUS" = "running" ]; then
+  docker compose stop homeassistant && summary+="Stopped Home Assistant container (service: homeassistant, container: ha-dev).\n"
 
-# Wait for the container to be fully stopped (max 60s)
-step "1a. Waiting for ha-dev container to fully stop"
-WAIT_TIMEOUT=60
-WAIT_INTERVAL=2
-WAIT_ELAPSED=0
-while true; do
-  # Use container name for direct docker commands
-  STATUS=$(docker inspect --format '{{.State.Status}}' ha-dev 2>/dev/null)
-  if [ "$STATUS" = "exited" ] || [ -z "$STATUS" ]; then
-    echo "ha-dev container is fully stopped."
-    summary+="ha-dev container fully stopped.\n"
-    break
-  fi
-  if [ $WAIT_ELAPSED -ge $WAIT_TIMEOUT ]; then
-    echo "ERROR: ha-dev container did not stop within $WAIT_TIMEOUT seconds." >&2
-    echo "ERROR: ha-dev container did not stop within $WAIT_TIMEOUT seconds." >> "$HA_LOG" 2>/dev/null
-    exit 1
-  fi
-  echo "Waiting for ha-dev container to stop... ($WAIT_ELAPSED/$WAIT_TIMEOUT s)"
-  sleep $WAIT_INTERVAL
-  WAIT_ELAPSED=$((WAIT_ELAPSED + WAIT_INTERVAL))
-done
+  # Wait for the container to be fully stopped (max 60s)
+  step "1a. Waiting for ha-dev container to fully stop"
+  WAIT_TIMEOUT=60
+  WAIT_INTERVAL=2
+  WAIT_ELAPSED=0
+  while true; do
+    STATUS=$(docker inspect --format '{{.State.Status}}' ha-dev 2>/dev/null)
+    if [ "$STATUS" = "exited" ] || [ -z "$STATUS" ]; then
+      echo "ha-dev container is fully stopped."
+      summary+="ha-dev container fully stopped.\n"
+      break
+    fi
+    if [ $WAIT_ELAPSED -ge $WAIT_TIMEOUT ]; then
+      echo "ERROR: ha-dev container did not stop within $WAIT_TIMEOUT seconds." >&2
+      echo "ERROR: ha-dev container did not stop within $WAIT_TIMEOUT seconds." >> "$HA_LOG" 2>/dev/null
+      exit 1
+    fi
+    echo "Waiting for ha-dev container to stop... ($WAIT_ELAPSED/$WAIT_TIMEOUT s)"
+    sleep $WAIT_INTERVAL
+    WAIT_ELAPSED=$((WAIT_ELAPSED + WAIT_INTERVAL))
+  done
+else
+  echo "ha-dev container is not running. Skipping stop."
+  summary+="ha-dev container was not running. Skipped stop.\n"
+fi
 
 
 step "2. Deleting Home Assistant log file"
@@ -199,5 +205,5 @@ echo "Deployment complete. Home Assistant is restarting with the latest code."
 
 # Show live Home Assistant log tail after deployment
 echo -e "\n========== Tailing Home Assistant log (Ctrl+C to exit) =========="
-tail -n 100 "$HA_LOG"
+tail -n 50 "$HA_LOG"
 

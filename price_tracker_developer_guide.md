@@ -203,6 +203,10 @@ Replace `entity_id` with the correct sensor/entity for your product. This button
 - `services/buywisely/parser.py`: Contains `parse_product` for HTML parsing using `nextjs_hydration_parser` and `BeautifulSoup`.
 - `components/buywisely/setup.py`: Integrates BuyWisely with Home Assistant’s config entry system.
 
+**Seller URL Extraction (IMPORTANT):**
+- The seller URL for each product is always extracted from the offers list (`seller_product_url` field of the lowest-priced offer). The hydration data's `product['seller']['url']` is almost always missing or empty and should not be used.
+- If no valid `seller_product_url` is found in the offers, the seller URL will be empty.
+
 **Web Scraping Considerations:**
 - Susceptible to BuyWisely website HTML changes.
 - Parsing logic may break if the site layout changes.

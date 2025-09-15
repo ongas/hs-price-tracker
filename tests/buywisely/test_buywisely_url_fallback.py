@@ -1,6 +1,6 @@
 from custom_components.price_tracker.services.buywisely.data_transformer import transform_raw_product_data
 
-def test_url_fallback_to_seller_product_url():
+def test_url_no_fallback_to_seller_product_url():
     # Simulate product data with no main url, but valid seller_product_url in offers
     product_id = "test-fallback-seller-url"
     item_url = "http://example.com/fallback-item-url"
@@ -17,7 +17,7 @@ def test_url_fallback_to_seller_product_url():
     }
     result = transform_raw_product_data(raw_data, product_id, item_url)
     assert hasattr(result, "url"), "Result missing url attribute"
-    assert result.url == seller_url, f"Expected url to fallback to seller_product_url, got {result.url}"
+    assert result.url == seller_url, f"Expected url to be the seller_product_url from the lowest-priced offer, got {result.url}"
     assert result.name == "Test Product Seller URL Fallback"
     assert result.price.price == 99.99
     assert result.price.currency == "AUD"

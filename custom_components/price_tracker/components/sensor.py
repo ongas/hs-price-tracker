@@ -209,23 +209,24 @@ class PriceTrackerSensor(RestoreEntity):
         force = kwargs.get("force", False)
         _LOGGER.debug(f"[DIAG][sensor.py] async_update called for {self.entity_id} with force={force}")
         # Check last updated at, unless forced
-        if not force:
-            if (
-                self._engine_status
-                and self._updated_at is not None
-                and self._attr_available is True
-            ):
-                if (
-                    self._updated_at is not None
-                    and (self._updated_at + timedelta(minutes=self._refresh_period))
-                    > datetime.now()
-                ):
-                    _LOGGER.debug(
-                        "Skip update cause refresh period. {} -({} / {}).".format(
-                            self._attr_unique_id, self._updated_at, self._refresh_period
-                        )
-                    )
-                    return True
+        # BYPASS: Always run update logic for diagnostics
+        # if not force:
+        #     if (
+        #         self._engine_status
+        #         and self._updated_at is not None
+        #         and self._attr_available is True
+        #     ):
+        #         if (
+        #             self._updated_at is not None
+        #             and (self._updated_at + timedelta(minutes=self._refresh_period))
+        #             > datetime.now()
+        #         ):
+        #             _LOGGER.debug(
+        #                 "Skip update cause refresh period. {} -({} / {}).".format(
+        #                     self._attr_unique_id, self._updated_at, self._refresh_period
+        #                 )
+        #             )
+        #             return True
 
         _LOGGER.debug(
             "Update sensor: %s (%s) - %s",

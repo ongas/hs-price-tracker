@@ -30,6 +30,12 @@ def extract_product_data_from_html(html: str) -> dict:
     try:
         _LOGGER.info(f"[DIAG] Raw HTML length: {len(html)}")
         parsed_data = extractor.parse(html)
+        # Deep diagnostics: log the entire parsed_data (hydration data)
+        try:
+            import json as _json
+            _LOGGER.info(f"[DIAG][html_extractor] Full parsed_data (hydration): { _json.dumps(parsed_data, default=str)[:10000] }")
+        except Exception as e:
+            _LOGGER.error(f"[DIAG][html_extractor] Exception logging full parsed_data: {e}")
         _LOGGER.info(f"[DIAG] Parsed data from nextjs_hydration_parser: {parsed_data}")
 
         # If parsed_data is empty or not as expected, fallback to manual extraction
@@ -45,26 +51,31 @@ def extract_product_data_from_html(html: str) -> dict:
                     _LOGGER.error(f"[DIAG] Failed to parse __NEXT_DATA__ JSON: {e}")
                     parsed_data = {}
 
-        # If parsed_data is a dict and has 'props'->'pageProps'->'product', use that (as in test HTML)
+        # Robustly traverse hydration data to find the product dict with offers
         product_data = None
+        def find_product_with_offers(data):
+            """Recursively search for a dict with an 'offers' key containing a list of dicts with 'seller_product_url'."""
+            if isinstance(data, dict):
+                if 'offers' in data and isinstance(data['offers'], list) and any(isinstance(o, dict) and 'seller_product_url' in o for o in data['offers']):
+                    return data
+                for v in data.values():
+                    found = find_product_with_offers(v)
+                    if found:
+                        return found
+            elif isinstance(data, list):
+                for item in data:
+                    found = find_product_with_offers(item)
+                    if found:
+                        return found
+            return None
+
+        # Try direct dict path (legacy/test)
         if isinstance(parsed_data, dict):
             product_data = parsed_data.get('props', {}).get('pageProps', {}).get('product')
-        # If not found, try the original specific path for list structure
-        if not product_data and isinstance(parsed_data, list):
-            try:
-                if len(parsed_data) > 0 and \
-                   isinstance(parsed_data[0], dict) and 'extracted_data' in parsed_data[0] and \
-                   isinstance(parsed_data[0]['extracted_data'], list) and len(parsed_data[0]['extracted_data']) > 0 and \
-                   isinstance(parsed_data[0]['extracted_data'][0], dict) and 'data' in parsed_data[0]['extracted_data'][0] and \
-                   isinstance(parsed_data[0]['extracted_data'][0]['data'], list) and len(parsed_data[0]['extracted_data'][0]['data']) > 0 and \
-                   isinstance(parsed_data[0]['extracted_data'][0]['data'][0], list) and len(parsed_data[0]['extracted_data'][0]['data'][0]) > 3 and \
-                   isinstance(parsed_data[0]['extracted_data'][0]['data'][0][3], dict) and 'product' in parsed_data[0]['extracted_data'][0]['data'][0][3]:
-                    product_data = parsed_data[0]['extracted_data'][0]['data'][0][3]['product']
-                    _LOGGER.info("BuyWisely HtmlExtractor: Found product data at specific nested path.")
-            except (IndexError, KeyError, TypeError) as e:
-                _LOGGER.debug(f"BuyWisely HtmlExtractor: Product data not found at specific nested path: {e}")
-                product_data = None
-        # Fallback to recursive search if not found at specific path
+        # If not found or doesn't have offers, search recursively for offers
+        if not (product_data and isinstance(product_data, dict) and 'offers' in product_data and isinstance(product_data['offers'], list) and product_data['offers']):
+            product_data = find_product_with_offers(parsed_data)
+        # Fallback to original recursive search if still not found
         if not product_data:
             product_data = _find_product_data_recursive(parsed_data)
 
@@ -88,8 +99,15 @@ def extract_product_data_from_html(html: str) -> dict:
             brand = title.split(' ')[0] if title else ''
             offers = product_data.get('offers', [])
             offers = offers[:10]
+            # Deep diagnostics: log the full offers list and all candidate seller_product_url values
+            try:
+                all_seller_urls = [offer.get('seller_product_url') for offer in offers if 'seller_product_url' in offer]
+                _LOGGER.info(f"[DIAG][html_extractor] Full offers list: {offers}")
+                _LOGGER.info(f"[DIAG][html_extractor] All candidate seller_product_url values: {all_seller_urls}")
+            except Exception as e:
+                _LOGGER.error(f"[DIAG][html_extractor] Exception logging offers diagnostics: {e}")
 
-            # Find the offer with the lowest price
+            # Always use the seller_product_url from the lowest-priced offer
             def is_valid_seller_url(url):
                 if not url or not isinstance(url, str):
                     return False
@@ -114,13 +132,15 @@ def extract_product_data_from_html(html: str) -> dict:
                             lowest_offer = offer
                     except Exception:
                         continue
-
             main_url = ""
             if lowest_offer and is_valid_seller_url(lowest_offer.get('seller_product_url')):
                 main_url = lowest_offer['seller_product_url']
                 _LOGGER.info(f"[DIAG][html_extractor] Extracted seller_product_url from lowest-priced offer: {main_url}")
             else:
-                _LOGGER.error("[html_extractor] No valid seller_product_url found in lowest-priced offer. Extraction failure.")
+                _LOGGER.error("[html_extractor] No valid seller URL found in offers. Extraction failure.")
+
+            url_candidates = find_url_candidates(product_data)
+            _LOGGER.info(f"[DIAG][html_extractor] All URL candidates in product_data: {url_candidates}")
 
             raw_data = {
                 'title': title,
