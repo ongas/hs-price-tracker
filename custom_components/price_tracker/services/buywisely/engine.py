@@ -51,14 +51,29 @@ class BuyWiselyEngine(PriceEngine):
     async def load(self) -> ItemData | None:
         self._request = self._request_cls()
         self._request.user_agent(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3')
-        response = await self._request.request(
-            method=SafeRequestMethod.GET,
-            url=self.item_url,
-            post_try_callables=[]
-        )
+        try:
+            response = await self._request.request(
+                method=SafeRequestMethod.GET,
+                url=self.item_url,
+                post_try_callables=[]
+            )
+        except Exception as e:
+            _LOGGER.error(f"Network error for item_url={self.item_url}: {e}. Returning UNAVAILABLE ItemData.")
+            return ItemData(
+                id=self.product_id,
+                name=f"Unavailable {self.product_id}",
+                brand="",
+                url=self.item_url,
+                status=ItemStatus.INACTIVE,
+                price=ItemPriceData(price=0.0, currency=""),
+                image="",
+                category=ItemCategoryData(None),
+            )
 
-        if not response.has:
-            _LOGGER.warning(f"No response data for item_url={self.item_url}. Returning DELETED ItemData.")
+        # Only treat as deleted if is_not_found is explicitly True
+        is_not_found = getattr(response, 'is_not_found', False)
+        if is_not_found is True:
+            _LOGGER.warning(f"404/410 Not Found for item_url={self.item_url}. Returning DELETED ItemData.")
             return ItemData(
                 id=self.product_id,
                 name=f"Deleted {self.product_id}",
@@ -70,9 +85,35 @@ class BuyWiselyEngine(PriceEngine):
                 category=ItemCategoryData(None),
             )
 
+        if not response.has:
+            _LOGGER.warning(f"No response data for item_url={self.item_url}. Returning UNAVAILABLE ItemData.")
+            return ItemData(
+                id=self.product_id,
+                name=f"Unavailable {self.product_id}",
+                brand="",
+                url=self.item_url,
+                status=ItemStatus.INACTIVE,
+                price=ItemPriceData(price=0.0, currency=""),
+                image="",
+                category=ItemCategoryData(None),
+            )
+
         html = response.text if response.text else ""
         product_details = parse_product(html, product_id=self.product_id, item_url=self.item_url)
-        
+        # Ensure return type is always ItemData
+        if isinstance(product_details, dict):
+            # Defensive: fallback if parse_product returns dict (shouldn't in prod)
+            from custom_components.price_tracker.datas.item import ItemData as _ItemData, ItemStatus as _ItemStatus
+            return _ItemData(
+                id=product_details.get('id', self.product_id),
+                name=product_details.get('name', 'UNKNOWN'),
+                brand=product_details.get('brand', ''),
+                url=product_details.get('url', self.item_url),
+                status=product_details.get('status', _ItemStatus.ACTIVE),
+                price=product_details.get('price', ItemPriceData(price=0.0, currency="")),
+                image=product_details.get('image', ''),
+                category=product_details.get('category', ItemCategoryData(None)),
+            )
         return product_details
 
     def id_str(self) -> str:
