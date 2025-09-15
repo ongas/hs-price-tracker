@@ -1,7 +1,7 @@
 import logging
 import re
 import json
-from nextjs_hydration_parser import NextJSHydrationDataExtractor
+from .nextjs_hydration_parser import NextJSHydrationDataExtractor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,35 +68,60 @@ def extract_product_data_from_html(html: str) -> dict:
         if not product_data:
             product_data = _find_product_data_recursive(parsed_data)
 
+        def find_url_candidates(d):
+            """Find all string fields in a dict that look like URLs."""
+            candidates = []
+            if isinstance(d, dict):
+                for k, v in d.items():
+                    if isinstance(v, str) and re.match(r'https?://', v):
+                        candidates.append((k, v))
+                    elif isinstance(v, dict):
+                        candidates.extend(find_url_candidates(v))
+                    elif isinstance(v, list):
+                        for item in v:
+                            candidates.extend(find_url_candidates(item))
+            return candidates
+
         if product_data:
             _LOGGER.info(f"BuyWisely HtmlExtractor: Found product data: {product_data}")
             title = product_data.get('title')
-            slug = product_data.get('slug')
-            extracted_url = product_data.get('url') # Get URL if it exists in product_data
-
-            if extracted_url:
-                vendor_url = extracted_url
-                _LOGGER.info(f"BuyWisely HtmlExtractor: Extracted vendor_url directly: {vendor_url}")
-            elif slug:
-                vendor_url = slug
-                _LOGGER.info(f"BuyWisely HtmlExtractor: Using slug as vendor_url: {vendor_url}")
-            else:
-                vendor_url = None
-                _LOGGER.info("BuyWisely HtmlExtractor: No slug or URL found in product data.")
             brand = title.split(' ')[0] if title else ''
             offers = product_data.get('offers', [])
             offers = offers[:10]
-            # Extract seller_product_url from the lowest price offer if available
-            lowest_offer_url = None
-            if offers:
-                try:
-                    lowest_offer = min(offers, key=lambda o: float(o.get('base_price', float('inf'))))
-                    lowest_offer_url = lowest_offer.get('seller_product_url')
-                except Exception as e:
-                    _LOGGER.warning(f"[DIAG][html_extractor] Failed to extract lowest_offer_url: {e}")
-            # Prefer seller_product_url from lowest offer, fallback to vendor_url
-            main_url = lowest_offer_url or vendor_url
-            _LOGGER.info(f"[DIAG][html_extractor] main_url set to: {main_url}")
+
+            # Find the offer with the lowest price
+            def is_valid_seller_url(url):
+                if not url or not isinstance(url, str):
+                    return False
+                url = url.strip()
+                if re.search(r"\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)(\?|$)", url, re.IGNORECASE):
+                    return False
+                if product_data and url == product_data.get('image'):
+                    return False
+                if re.search(r"buywisely\.com\.au", url, re.IGNORECASE):
+                    return False
+                return url.startswith("http")
+
+            lowest_offer = None
+            lowest_price = None
+            for offer in offers:
+                price = offer.get('base_price')
+                if price is not None:
+                    try:
+                        price_val = float(price)
+                        if lowest_price is None or price_val < lowest_price:
+                            lowest_price = price_val
+                            lowest_offer = offer
+                    except Exception:
+                        continue
+
+            main_url = ""
+            if lowest_offer and is_valid_seller_url(lowest_offer.get('seller_product_url')):
+                main_url = lowest_offer['seller_product_url']
+                _LOGGER.info(f"[DIAG][html_extractor] Extracted seller_product_url from lowest-priced offer: {main_url}")
+            else:
+                _LOGGER.error("[html_extractor] No valid seller_product_url found in lowest-priced offer. Extraction failure.")
+
             raw_data = {
                 'title': title,
                 'price': product_data.get('lowest_price'),

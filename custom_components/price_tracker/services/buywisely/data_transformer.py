@@ -2,7 +2,6 @@ import logging
 from custom_components.price_tracker.datas.item import ItemData, ItemStatus
 from custom_components.price_tracker.datas.price import ItemPriceData
 from custom_components.price_tracker.datas.category import ItemCategoryData
-from urllib.parse import urlparse
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,28 +29,35 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
     status_value = ItemStatus.ACTIVE if raw_data.get('availability') == 'In Stock' else ItemStatus.INACTIVE
 
 
-    # Use the url field directly, or fallback to first valid seller_product_url from offers
+    # Use the url field directly. If not present or invalid, set to empty and log error. No fallback to BuyWisely or item_url.
+    def is_valid_seller_url(url):
+        if not url or not isinstance(url, str):
+            return False
+        url = url.strip()
+        # Exclude image URLs
+        if any(url.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".tiff"]):
+            return False
+        # Exclude BuyWisely URLs
+        if "buywisely.com.au" in url.lower():
+            return False
+        return url.startswith("http")
+
     extracted_url = raw_data.get('url')
     _LOGGER.info(f"[DIAG][data_transformer] extracted_url: {extracted_url}, item_url: {item_url}")
-    product_link = extracted_url
-    if not product_link:
+    product_link = ""
+    if is_valid_seller_url(extracted_url):
+        product_link = extracted_url
+    else:
+        # Fallback: use first valid seller_product_url from offers
         offers = raw_data.get('offers', [])
-        _LOGGER.info(f"[DIAG][data_transformer] offers for fallback: {offers!r}")
         for idx, offer in enumerate(offers):
             offer_url = offer.get('seller_product_url')
-            _LOGGER.info(f"[DIAG][data_transformer] Checking offer #{idx}: {offer!r}")
-            if offer_url and 'buywisely' not in offer_url:
+            if is_valid_seller_url(offer_url):
                 product_link = offer_url
-                _LOGGER.info(f"[DIAG][data_transformer] Using seller_product_url from offer #{idx}: {offer_url}")
+                _LOGGER.info(f"[DIAG][data_transformer] Fallback to seller_product_url from offer #{idx}: {offer_url}")
                 break
-        else:
-            _LOGGER.info(f"[DIAG][data_transformer] No valid seller_product_url found in offers.")
-    if not product_link:
-        product_link = item_url
-        _LOGGER.info(f"[DIAG][data_transformer] Fallback to item_url: {item_url}")
-    if product_link and "buywisely" in product_link:
-        _LOGGER.warning(f"[DataTransformer] Detected BuyWisely URL as product link, indicating extraction failure: {product_link}")
-        product_link = ""
+        if not product_link:
+            _LOGGER.error(f"[data_transformer] No valid seller product URL found for product_id={product_id}. Extraction failure.")
     _LOGGER.info(f"[DIAG][data_transformer] Final url for ItemData: {product_link}")
 
     price = ItemPriceData(price=price_value, currency=currency_value) if price_value is not None and currency_value else ItemPriceData(price=0.0, currency="")

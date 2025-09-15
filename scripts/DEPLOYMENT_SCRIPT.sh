@@ -181,8 +181,23 @@ fi
 
 
 
+
+
+# Add a delay to allow Home Assistant to fully start up
+DELAY_SECONDS=10
+echo "Waiting $DELAY_SECONDS seconds for Home Assistant to fully start up..."
+for ((i=1; i<=DELAY_SECONDS; i++)); do
+  echo "  ... $i second(s) elapsed"
+  sleep 1
+done
+
+
 step "7. Deployment Summary"
 echo -e "\n========== DEPLOYMENT SUMMARY =========="
 echo -e "$summary"
 echo "Deployment complete. Home Assistant is restarting with the latest code."
+
+# Show live Home Assistant log tail after deployment
+echo -e "\n========== Tailing Home Assistant log (Ctrl+C to exit) =========="
+tail -n 100 "$HA_LOG"
 
