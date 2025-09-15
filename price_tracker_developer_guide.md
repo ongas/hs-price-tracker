@@ -149,25 +149,32 @@ The `price_tracker` custom component enables Home Assistant to track product pri
 
 ## 8. Outstanding Issues & Resolved Problems
 
+
 ### Outstanding Issues
-- None currently. Update this section as new issues arise.
+- None currently. The seller_product_url extraction logic is now strict, robust, and fully covered by diagnostics and tests. Update this section as new issues arise.
+
 
 ### Outstanding Test Infrastructure Task
 - In `test_services.py`, ensure `hass.data[DOMAIN]` is initialized as a dict in each test setup to prevent `KeyError` in certain tests.
+- All BuyWisely tests now validate strict seller_product_url extraction, robust offers traversal, and correct diagnostics for missing or malformed data.
+
 
 ### Resolved Issues
 
-#### Manual Update Button and Deployment Workflow (September 2025)
+#### Seller URL Extraction, Offers Traversal, and Diagnostics (September 2025)
 
-- **Issue:** Manual update button did not force an update or refresh the `updated_at` attribute in Home Assistant UI.
-- **Root Cause:** Entity registration and update logic did not guarantee correct entity object was found and updated at service call time. Deployment workflow issues with `__pycache__` permissions caused repeated sync errors.
+- **Issue:** The entity url was empty due to incomplete or non-robust extraction of the offers list and seller_product_url from the hydration data.
+- **Root Cause:** Extraction logic did not robustly traverse the hydration data to find the offers list, and fallback logic or alternative fields were sometimes used, leading to missing or incorrect seller URLs.
 - **Actions Taken:**
-    - Moved entity registration to `async_added_to_hass`.
-    - Added diagnostics and logging.
-    - Updated deployment to exclude `__pycache__` from rsync and handled manual cleanup.
-    - Ensured deployment path matches HA dev container.
-- **Verification:** Manual update now works and deployment is robust.
-- **Status:** Fully resolved.
+    - Extraction logic was rewritten to robustly traverse all nested product dictionaries in the hydration data to find the offers list.
+    - Only the seller_product_url from the lowest-priced offer is used for the url field; no fallback or alternative logic is permitted.
+    - Deep diagnostics were added to log the full hydration data, offers list, all candidate seller_product_url values, and the final url at every stage.
+    - Tests were updated to cover edge cases, missing data, and strict extraction requirements.
+    - Deployment and log review workflow was improved to verify extraction and diagnostics end-to-end.
+- **Verification:** Diagnostics in the Home Assistant log now show the full offers list, all candidate seller_product_url values, and the final url set in the entity. Tests pass for all edge cases.
+- **Status:** Fully resolved. Extraction is now strict, robust, and regression-proof.
+
+#### Manual Update Button and Deployment Workflow (September 2025)
 
 ## 9. Future Improvements
 ## 10. Manual Update via Dashboard
@@ -203,22 +210,30 @@ Replace `entity_id` with the correct sensor/entity for your product. This button
 - `services/buywisely/parser.py`: Contains `parse_product` for HTML parsing using `nextjs_hydration_parser` and `BeautifulSoup`.
 - `components/buywisely/setup.py`: Integrates BuyWisely with Home Assistant’s config entry system.
 
-**Seller URL Extraction (IMPORTANT):**
-- The seller URL for each product is always extracted from the offers list (`seller_product_url` field of the lowest-priced offer). The hydration data's `product['seller']['url']` is almost always missing or empty and should not be used.
-- If no valid `seller_product_url` is found in the offers, the seller URL will be empty.
 
-**Web Scraping Considerations:**
-- Susceptible to BuyWisely website HTML changes.
-- Parsing logic may break if the site layout changes.
+**Seller URL Extraction (CRITICAL):**
+- The seller URL for each product is now strictly and only extracted from the `seller_product_url` field of the lowest-priced offer in the offers list, which is robustly traversed from the hydration data. No fallback or alternative logic is used or permitted.
+- The extraction logic deeply traverses the hydration data to locate the offers list, regardless of its nesting, and logs the full offers list and all candidate seller_product_url values for diagnostics.
+- If no valid `seller_product_url` is found in the offers, the seller URL will be empty and this is logged for diagnostics.
+- The hydration data's `product['seller']['url']` or any other field is never used for the seller URL, as it is almost always missing or empty and is not reliable.
+- Extensive diagnostics are present at every stage: the full hydration data, offers list, all candidate URLs, and the final url set in the entity are logged for traceability and debugging.
+
+
+**Web Scraping & Extraction Considerations:**
+- The extraction logic is robust to changes in the hydration data structure, as it traverses all nested product dictionaries to find the offers list.
+- If the BuyWisely website changes the structure or naming of the offers list, diagnostics will log the full hydration data and extraction failure, making debugging straightforward.
+- Parsing logic may still break if the site layout or hydration data format changes significantly; always check logs for extraction diagnostics.
 
 **Entity Management:**
 
 - Use Home Assistant UI: Developer Tools → States tab → Filter entities by "buywisely" or "price_tracker".
 - For forcing a manual update via the dashboard, see the [Manual Update via Dashboard](#10-manual-update-via-dashboard) section.
 
+
 **Product URLs and Price Line Items:**
 - The input URL is a listing/search page; each line item has a unique product URL.
-- Extraction should focus on the first 10 relevant line items.
+- Extraction of the seller URL is always from the offers list in the hydration data for the specific product page, not from the listing page.
+- Only the first 10 offers are considered for price and seller URL extraction, as per business logic and test coverage.
 
 **Outstanding Issues & Resolved Problems (BuyWisely):**
 - See previous sections for general issues. BuyWisely-specific issues and resolutions are tracked here as needed.
