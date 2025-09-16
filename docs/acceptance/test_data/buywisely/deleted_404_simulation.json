@@ -1,0 +1,8 @@
+{
+  "simulate": "404_not_found",
+  "expected": {
+    "status": "DELETED",
+    "name_prefix": "Deleted ",
+    "ui_state": "deleted"
+  }
+}

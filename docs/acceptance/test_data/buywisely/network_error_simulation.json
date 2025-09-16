@@ -1,0 +1,8 @@
+{
+  "simulate": "network_error",
+  "expected": {
+    "status": "INACTIVE",
+    "name_prefix": "Unavailable ",
+    "ui_state": "unavailable"
+  }
+}

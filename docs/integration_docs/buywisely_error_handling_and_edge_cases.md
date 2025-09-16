@@ -45,11 +45,21 @@ This document catalogs all known error conditions, edge cases, and required diag
   - Log: "Malformed or missing hydration data for product URL: {url}"
   - Set entity `url` to empty.
 
-### 2.6 HTTP/Network Errors
-- **Condition:** HTTP request fails, times out, or returns non-200 status.
+### 2.6 HTTP/Network Errors (Transient/Unavailable)
+- **Condition:** HTTP request fails, times out, or returns a non-200 status that is NOT 404 or 410.
 - **Action:**
-  - Log: "HTTP error {status_code} for product URL: {url}"
-  - Set entity state to unavailable.
+  - Log: "Network error or HTTP error {status_code} for product URL: {url}"
+  - Set entity state to INACTIVE (unavailable).
+  - Set entity name to "Unavailable {product_id}".
+
+### 2.7 Product Page Not Found (Deleted)
+- **Condition:** HTTP request returns 404 or 410 (Not Found or Gone).
+- **Action:**
+  - Log: "404/410 Not Found for product URL: {url}"
+  - Set entity state to DELETED.
+  - Set entity name to "Deleted {product_id}".
+
+### 2.8 Unexpected Data Types
 
 ### 2.7 Unexpected Data Types
 - **Condition:** Fields are present but have unexpected types (e.g., price is string, offers is not a list).
@@ -75,7 +85,8 @@ This document catalogs all known error conditions, edge cases, and required diag
 | Offer missing seller_product_url | empty      | Offer missing seller_product_url for product 123456, offer: {...}|
 | Multiple lowest price            | first      | Multiple offers with same lowest price for product 123456, using first occurrence. |
 | Malformed hydration data         | empty      | Malformed or missing hydration data for product URL: ...         |
-| HTTP/network error               | unavailable| HTTP error 500 for product URL: ...                              |
+| HTTP/network error (transient)   | unavailable (INACTIVE) | Network error or HTTP error 500 for product URL: ...             |
+| 404/410 Not Found (deleted)      | deleted    | 404/410 Not Found for product URL: ...                           |
 | Unexpected data type             | empty      | Unexpected data type for field price in product 123456           |
 
 ---
