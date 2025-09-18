@@ -10,8 +10,6 @@ from custom_components.price_tracker.utilities.list import Lu
 from custom_components.price_tracker.components.lang import Lang
 from .components.error import UnsupportedError
 # Import voluptuous at the top so it is always available
-import voluptuous as vol
-from .components.setup import PriceTrackerSetup
 from .consts.defaults import DOMAIN
 from .services.setup import (
     price_tracker_setup_service,
@@ -33,7 +31,7 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     
     
 
-    async def async_step_reconfigure(self, user_input: dict = None):
+    async def async_step_reconfigure(self, user_input = None):
         pass
 
     async def async_migrate_entry(
@@ -78,11 +76,17 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         dynamic_schema_dict = {}
         if service_type == "buywisely":
-            from .components.setup import PriceTrackerSetup
-            # Add product_url and item_refresh_interval to the schema for BuyWisely
+            # Add product_url and refresh_interval_minutes to the schema for BuyWisely
             dynamic_schema_dict["product_url"] = str
-            # Explicitly set default for refresh interval to 30
-            dynamic_schema_dict[vol.Required(PriceTrackerSetup.conf_item_refresh_interval, default=30)] = int
+            # Use a user-friendly label and show unit for refresh interval by changing the key
+            # For future: use translations for label if needed
+            dynamic_schema_dict[vol.Required(
+                "refresh_interval_minutes",
+                default=30,
+            )] = vol.All(
+                int,
+                vol.Range(min=1),
+            )
 
         data_schema = vol.Schema({
             **dynamic_schema_dict,
@@ -92,29 +96,69 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             combined_input = {**self._data, **user_input}
             try:
-                if step := price_tracker_setup_service(
-                    service_type=price_tracker_setup_service_user_input(combined_input),
-                    config_flow=self,
-                ):
-                    return await step.setup(combined_input)
+                service_type_val = price_tracker_setup_service_user_input(combined_input)
+                if service_type_val is not None:
+                    step = price_tracker_setup_service(
+                        service_type=service_type_val,
+                        config_flow=self,
+                    )
+                    if step:
+                        return await step.setup(combined_input)
             except UnsupportedError:
                 errors["base"] = "unsupported"
             except vol.Invalid as err:
-                if hasattr(err, 'errors'):
-                    for error in err.errors:
-                        if error.path and str(error.path[0]) == "product_url" and service_type == "buywisely":
+                # Try to extract error details if available
+                error_list = getattr(err, 'errors', None)
+                if error_list:
+                    for error in error_list:
+                        if getattr(error, 'path', None) and str(error.path[0]) == "product_url" and service_type == "buywisely":
                             errors["product_url"] = "required"
-                        elif error.path and len(error.path) > 0:
+                        elif getattr(error, 'path', None) and len(error.path) > 0:
                             errors[str(error.path[0])] = "required"
                         else:
                             errors["base"] = "invalid_input"
                 else:
-                    # Handle direct vol.Invalid exceptions (e.g., from setup.py)
-                    errors["base"] = str(err) # Use the exception message directly
+                    errors["base"] = str(err)
                 _LOGGER.debug("Validation error: %s", err)
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
+            if user_input is not None:
+                # Map refresh_interval_minutes to refresh_interval for internal logic
+                mapped_input = dict(user_input)
+                if "refresh_interval_minutes" in mapped_input:
+                    mapped_input["refresh_interval"] = mapped_input["refresh_interval_minutes"]
+                combined_input = {**self._data, **mapped_input}
+                try:
+                    service_type_val = price_tracker_setup_service_user_input(combined_input)
+                    if service_type_val is not None:
+                        step = price_tracker_setup_service(
+                            service_type=service_type_val,
+                            config_flow=self,
+                        )
+                        if step:
+                            return await step.setup(combined_input)
+                except UnsupportedError:
+                    errors["base"] = "unsupported"
+                except vol.Invalid as err:
+                    # Try to extract error details if available
+                    error_list = getattr(err, 'errors', None)
+                    if error_list:
+                        for error in error_list:
+                            if getattr(error, 'path', None) and str(error.path[0]) == "product_url" and service_type == "buywisely":
+                                errors["product_url"] = "required"
+                            elif getattr(error, 'path', None) and str(error.path[0]) == "refresh_interval_minutes" and service_type == "buywisely":
+                                errors["refresh_interval_minutes"] = "required"
+                            elif getattr(error, 'path', None) and len(error.path) > 0:
+                                errors[str(error.path[0])] = "required"
+                            else:
+                                errors["base"] = "invalid_input"
+                    else:
+                        errors["base"] = str(err)
+                    _LOGGER.debug("Validation error: %s", err)
+                except Exception:
+                    _LOGGER.exception("Unexpected exception")
+                    errors["base"] = "unknown"
 
         return self.async_show_form(
             step_id="user",
@@ -122,35 +166,46 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors
         )
 
-    async def async_step_setup(self, user_input=None):
-        if step := price_tracker_setup_service(
-            service_type=price_tracker_setup_service_user_input(user_input),
-            config_flow=self,
-        ):
-            return await step.setup(user_input)
-
+    async def async_step_setup(self, user_input = None):
+        if user_input is None:
+            user_input = {}
+        service_type_val = price_tracker_setup_service_user_input(user_input)
+        if service_type_val is not None:
+            step = price_tracker_setup_service(
+                service_type=service_type_val,
+                config_flow=self,
+            )
+            if step:
+                return await step.setup(user_input)
         raise NotImplementedError("Not implemented (Set up). {}".format(user_input))
 
 
 class PriceTrackerOptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry) -> None:
         self.config_entry = config_entry
-        self.setup: PriceTrackerSetup = price_tracker_setup_option_service(
-            service_type=self.config_entry.data[_SERVICE_TYPE],
-            option_flow=self,
-            config_entry=config_entry,
-        )
+        service_type = self.config_entry.data.get(_SERVICE_TYPE) if self.config_entry and self.config_entry.data else None
+        if service_type is not None:
+            self.setup = price_tracker_setup_option_service(
+                service_type=service_type,
+                option_flow=self,
+                config_entry=config_entry,
+            )
+        else:
+            self.setup = None
+        if self.setup is None:
+            _LOGGER.error("Failed to initialize PriceTrackerSetup in OptionsFlowHandler. service_type: %s", service_type)
+            # Optionally, raise or handle gracefully
 
-    async def async_step_init(self, user_input: dict = None) -> dict:
+    async def async_step_init(self, user_input = None):
         """Delegate step"""
+        if user_input is None:
+            user_input = {}
         return await self.setup.option_setup(user_input)
 
-    async def async_step_setup(self, user_input: dict = None):
+    async def async_step_setup(self, user_input = None):
         """Set-up flows."""
-
-        # Select option (1)
         if user_input is None:
-            return await self.setup.option_setup(user_input)
+            user_input = {}
 
         # Proxy configuration
         if (
