@@ -9,6 +9,8 @@ from homeassistant.core import callback, HomeAssistant
 from custom_components.price_tracker.utilities.list import Lu
 from custom_components.price_tracker.components.lang import Lang
 from .components.error import UnsupportedError
+# Import voluptuous at the top so it is always available
+import voluptuous as vol
 from .components.setup import PriceTrackerSetup
 from .consts.defaults import DOMAIN
 from .services.setup import (
@@ -76,7 +78,11 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         dynamic_schema_dict = {}
         if service_type == "buywisely":
-            dynamic_schema_dict["product_url"] = str # vol.Required will be added when creating the final schema
+            from .components.setup import PriceTrackerSetup
+            # Add product_url and item_refresh_interval to the schema for BuyWisely
+            dynamic_schema_dict["product_url"] = str
+            # Explicitly set default for refresh interval to 30
+            dynamic_schema_dict[vol.Required(PriceTrackerSetup.conf_item_refresh_interval, default=30)] = int
 
         data_schema = vol.Schema({
             **dynamic_schema_dict,

@@ -12,3 +12,8 @@ Feature: Automatically Track the Lowest Price for a BuyWisely Product
     Given a BuyWisely product has no available offers
     When the product is tracked
     Then the product is marked as inactive or deleted
+
+  Scenario: Refresh interval is configurable for BuyWisely
+    Given I am adding a BuyWisely product
+    When I configure the product
+    Then I can set the refresh interval and it is respected by the integration

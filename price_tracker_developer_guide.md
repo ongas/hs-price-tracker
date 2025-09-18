@@ -70,8 +70,15 @@ The `price_tracker` custom component enables Home Assistant to track product pri
      pytest tests/test_config_flow.py tests/test_buywisely_parser.py tests/test_buywisely_engine.py tests/test_buywisely_config.py tests/test_buywisely_api.py
      ```
 
+**Note:** Do not use quiet mode (`-q`) for pytest. Full output is required for diagnostics and debugging.
+
 **Test Infrastructure Note:**
 - In `test_services.py`, initialize `hass.data[DOMAIN]` as a dict in each test setup to prevent `KeyError`.
+- Ensure BuyWisely add flow tests require and validate the refresh interval field.
+
+**Important Testing Update:**
+- Do not use quiet mode for tests; always run with full output.
+- Additions in the add flow now require the refresh interval to be explicitly set and validated.
 
 ## 5. Deployment Workflow
 
@@ -175,6 +182,18 @@ The `price_tracker` custom component enables Home Assistant to track product pri
 - **Status:** Fully resolved. Extraction is now strict, robust, and regression-proof.
 
 #### Manual Update Button and Deployment Workflow (September 2025)
+
+---
+
+#### Recent Fix: BuyWisely Add Flow Now Always Exposes Refresh Interval (September 2025)
+
+- **Background:** Previously, the refresh interval (`item_refresh_interval`) was only configurable when modifying an existing BuyWisely product, not during the initial add flow.
+- **Fix:** The configuration flow for BuyWisely now always includes the refresh interval as a required field when adding a new product. See `config_flow.py` for implementation details.
+- **Impact:** Users can now set the refresh interval for BuyWisely products at creation time, improving consistency and usability.
+- **Acceptance/Test Artefacts:**
+    - Update feature files (e.g., `features/US01_Add_BuyWisely_Product.feature`, `US03_Track_Lowest_Price.feature`) to require and validate the refresh interval in the add flow.
+    - Ensure tests in `tests/test_config_flow.py` and related BuyWisely tests check for this field in the add flow.
+- **Developer Note:** This change is also documented in `DEVELOPMENT_NOTES.md`.
 
 ## 9. Future Improvements
 ## 10. Manual Update via Dashboard
