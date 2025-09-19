@@ -10,7 +10,7 @@ class ItemPriceData:
     def __init__(
         self,
         price: float = None,
-        currency: str = "KRW",
+        currency: str = "",
         original_price: float = None,
         payback_price: float = 0.0,
     ):

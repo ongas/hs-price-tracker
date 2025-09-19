@@ -62,7 +62,7 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
         _LOGGER.error(f"[data_transformer] No valid seller product URL found in offers for product_id={product_id}. Extraction failure.")
     _LOGGER.info(f"[DIAG][data_transformer] Final url for ItemData: {product_link}")
 
-    price = ItemPriceData(price=price_value, currency=currency_value) if price_value is not None and currency_value else ItemPriceData()
+    price = ItemPriceData(price=price_value, currency=currency_value) if price_value is not None else ItemPriceData(currency="")
 
     result = ItemData(
         id=product_id,

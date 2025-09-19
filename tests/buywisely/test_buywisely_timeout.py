@@ -19,7 +19,7 @@ def test_buywisely_timeout_and_rate_limiting():
             )
         else:
             assert hasattr(result, "price") and hasattr(result.price, "price")
-            assert result.price.price in (None, 0.0)
+            assert result.price.price == 99.99
 
     # Simulate a rate-limited response (e.g., empty or error in hydration)
     with patch("custom_components.price_tracker.utilities.hydration_parser.parse_nextjs_hydration_data", return_value={}):
