@@ -9,7 +9,7 @@ from custom_components.price_tracker.utilities.parser import parse_float
 class ItemPriceData:
     def __init__(
         self,
-        price: float = 0.0,
+        price: float = None,
         currency: str = "KRW",
         original_price: float = None,
         payback_price: float = 0.0,

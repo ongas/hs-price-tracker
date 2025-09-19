@@ -1,7 +1,7 @@
 import logging
 import re
 import json
-from .nextjs_hydration_parser import NextJSHydrationDataExtractor
+from custom_components.price_tracker.utilities.hydration_parser import parse_nextjs_hydration_data
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,12 +24,11 @@ def _find_product_data_recursive(data):
 def extract_product_data_from_html(html: str) -> dict:
     """Extracts product data from BuyWisely HTML content."""
     _LOGGER.info("BuyWisely HtmlExtractor: Starting HTML extraction")
-    extractor = NextJSHydrationDataExtractor()
     raw_data = {}
     product_data = None
     try:
         _LOGGER.info(f"[DIAG] Raw HTML length: {len(html)}")
-        parsed_data = extractor.parse(html)
+        parsed_data = parse_nextjs_hydration_data(html)
         # Deep diagnostics: log the entire parsed_data (hydration data)
         try:
             import json as _json
@@ -180,5 +179,5 @@ def extract_product_data_from_html(html: str) -> dict:
             except Exception as e:
                 _LOGGER.error(f"BuyWisely HtmlExtractor: BeautifulSoup fallback failed: {e}")
     except Exception as e:
-        _LOGGER.error(f"BuyWisely HtmlExtractor: Error parsing with nextjs_hydration_parser: {e}")
+        _LOGGER.error(f"BuyWisely HtmlExtractor: Error parsing hydration data: {e}")
     return raw_data

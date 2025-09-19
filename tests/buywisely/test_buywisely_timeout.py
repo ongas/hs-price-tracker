@@ -3,7 +3,7 @@ from custom_components.price_tracker.services.buywisely.parser import parse_prod
 
 def test_buywisely_timeout_and_rate_limiting():
     # Simulate a timeout in the HTML extractor
-    with patch("custom_components.price_tracker.services.buywisely.html_extractor.NextJSHydrationDataExtractor.parse", side_effect=TimeoutError("Simulated timeout")):
+    with patch("custom_components.price_tracker.utilities.hydration_parser.parse_nextjs_hydration_data", side_effect=TimeoutError("Simulated timeout")):
         html = """
         <html><body>
         <script id=\"__NEXT_DATA__\" type=\"application/json\">{"props": {"pageProps": {"product": {"title": "Timeout Product"}}}}</script>
@@ -22,7 +22,7 @@ def test_buywisely_timeout_and_rate_limiting():
             assert result.price.price in (None, 0.0)
 
     # Simulate a rate-limited response (e.g., empty or error in hydration)
-    with patch("custom_components.price_tracker.services.buywisely.html_extractor.NextJSHydrationDataExtractor.parse", return_value={}):
+    with patch("custom_components.price_tracker.utilities.hydration_parser.parse_nextjs_hydration_data", return_value={}):
         html = """
         <html><body>
         <script id=\"__NEXT_DATA__\" type=\"application/json\">{"error": "rate_limited"}</script>

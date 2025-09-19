@@ -28,7 +28,7 @@ The `price_tracker` custom component enables Home Assistant to track product pri
 - **Log Filtering:** Use `grep` and `tail` to extract relevant log info from the Home Assistant log file (`../../docker/config/home-assistant.log`).
 - **Clean Environment:** Restart Home Assistant container and clear logs for each test (truncate or delete `../../docker/config/home-assistant.log`).
 - **Verification:** Confirm each change by observing logs and entity states.
-- **Library Usage:** Use `nextjs-hydration-parser` for Next.js string extraction and `BeautifulSoup` for fallback parsing.
+- **Library Usage:** Use `BeautifulSoup` for HTML parsing and `demjson3` for processing Next.js hydration data.
 
 ### Debugging Workflow
 1. Understand the problem and form a hypothesis.
@@ -93,7 +93,7 @@ The `price_tracker` custom component enables Home Assistant to track product pri
     The prompt must show `homeassistant` as the active environment. If not, troubleshooting and test execution will fail.
 
 **Troubleshooting Missing Dependencies:**
-- If you encounter errors such as `ModuleNotFoundError: No module named 'nextjs_hydration_parser'`, ensure you are in the correct conda environment and all dependencies are installed:
+- If you encounter errors such as `ModuleNotFoundError: No module named \'demjson3\'`, ensure you are in the correct conda environment and all dependencies are installed:
         ```bash
         conda activate homeassistant
         pip install -r requirements.txt
@@ -226,7 +226,7 @@ Replace `entity_id` with the correct sensor/entity for your product. This button
 
 **BuyWisely-specific Architecture & Key Components:**
 - `services/buywisely/engine.py`: Contains `BuyWiselyEngine` for HTTP requests, response handling, and data construction.
-- `services/buywisely/parser.py`: Contains `parse_product` for HTML parsing using `nextjs_hydration_parser` and `BeautifulSoup`.
+- `services/buywisely/parser.py`: Contains `parse_product` for HTML parsing using the custom hydration parser (`utilities/hydration_parser.py`) and `BeautifulSoup`.
 - `components/buywisely/setup.py`: Integrates BuyWisely with Home Assistant’s config entry system.
 
 
