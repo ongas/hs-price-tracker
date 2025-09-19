@@ -153,15 +153,18 @@ if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
     for i, product_url in enumerate(product_urls):
-        filename_html = os.path.join(project_root, f"fetched_html_content_{i}.html")
+        filename_html = os.path.join(script_dir, '..', 'custom_components', 'price_tracker', 'temp_fetched_html.html')
         print(f"Will save HTML content to: {filename_html}")
         print(f"Fetching HTML from: {product_url}")
         html_content = asyncio.run(fetch_buywisely_html(product_url))
 
         if html_content:
             # Save the full HTML content in the parent project directory
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(html_content, 'html.parser')
+            prettified_html = soup.prettify()
             with open(filename_html, 'w', encoding='utf-8') as f:
-                f.write(html_content)
+                f.write(prettified_html)
             print(f"HTML content saved to: {os.path.abspath(filename_html)}")
         else:
             print(f"Failed to fetch HTML content for {product_url}.")

@@ -2,6 +2,7 @@ import logging
 from custom_components.price_tracker.datas.item import ItemData, ItemStatus
 from custom_components.price_tracker.datas.price import ItemPriceData
 from custom_components.price_tracker.datas.category import ItemCategoryData
+from custom_components.price_tracker.datas.delivery import DeliveryData # Import DeliveryData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,7 +30,9 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
         if not seller_product_url:
             _LOGGER.error(f"[DIAG][data_transformer] No seller_product_url found in lowest_offer: {lowest_offer}")
 
-    price_value = lowest_price_value if lowest_price_value is not None else raw_data.get('price')
+    # Use base_price from raw_data for the main price, and delivery_price for delivery
+    price_value = raw_data.get('price') # This is now the base price from html_extractor
+    delivery_price_value = raw_data.get('delivery_price')
     currency_value = lowest_currency_value or raw_data.get('currency') or ''
     brand_value = raw_data.get('brand') or ''
     name_value = raw_data.get('title') or 'UNKNOWN'
@@ -62,7 +65,8 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
         _LOGGER.error(f"[data_transformer] No valid seller product URL found in offers for product_id={product_id}. Extraction failure.")
     _LOGGER.info(f"[DIAG][data_transformer] Final url for ItemData: {product_link}")
 
-    price = ItemPriceData(price=price_value, currency=currency_value) if price_value is not None else ItemPriceData(currency="")
+    price = ItemPriceData(price=price_value, original_price=price_value, currency=currency_value) if price_value is not None else ItemPriceData(currency="")
+    delivery = DeliveryData(price=delivery_price_value) if delivery_price_value is not None else DeliveryData()
 
     result = ItemData(
         id=product_id,
@@ -73,6 +77,7 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
         price=price,
         image=image_value,
         category=ItemCategoryData(None),
+        delivery=delivery,
     )
     _LOGGER.info(f"[DIAG][DataTransformer] Returning ItemData: {result}, as_dict: {getattr(result, 'dict', 'no dict') if hasattr(result, 'dict') else str(result)}")
     return result
