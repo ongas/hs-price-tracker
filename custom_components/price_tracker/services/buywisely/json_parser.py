@@ -1,4 +1,3 @@
-
 import json
 import logging
 import re
@@ -7,80 +6,94 @@ import demjson3
 
 _LOGGER = logging.getLogger(__name__)
 
-def extract_next_data_json_string(html: str) -> str | None:
+def find_product_data_in_html(html_content: str) -> list:
     """
-    Extracts the JSON string from <script id="__NEXT_DATA__"> tag.
+    Parses the HTML to find all occurrences of Next.js hydration data,
+    both from __NEXT_DATA__ and self.__next_f.push().
+    It then searches for a dictionary containing an 'offers' list.
     """
-    soup = BeautifulSoup(html, 'html.parser')
+    _LOGGER.debug("[DIAG][json_parser] Starting to find product data in HTML.")
+    
+    # List to store all found JSON objects
+    all_json_objects = []
+
+    # 1. Extract from <script id="__NEXT_DATA__">
+    soup = BeautifulSoup(html_content, 'html.parser')
     next_data_script = soup.find('script', {'id': '__NEXT_DATA__'})
     if next_data_script and next_data_script.string:
-        return next_data_script.string
-    return None
-
-def extract_next_f_push_json_strings(html: str) -> list[str]:
-    """
-    Extracts JSON strings from self.__next_f.push() calls.
-    """
-    soup = BeautifulSoup(html, 'html.parser')
-    json_strings = []
-    for script in soup.find_all('script'):
-        if script.string and 'self.__next_f.push' in script.string:
-            matches = re.findall(r'self\.__next_f\.push\((.*?)\)', script.string, re.DOTALL)
-            for match in matches:
-                json_strings.append(match)
-    return json_strings
-
-def parse_json_string_robustly(json_str: str) -> dict | list | None:
-    """
-    Parses a JSON string using demjson3 first, then falls back to standard json.
-    """
-    try:
-        data = demjson3.decode(json_str)
-        _LOGGER.debug("Successfully parsed with demjson3.")
-        return data
-    except demjson3.JSONDecodeError as e:
-        _LOGGER.warning(f"demjson3 failed to parse, trying standard json: {e}")
         try:
-            data = json.loads(json_str)
-            _LOGGER.debug("Successfully parsed with standard json.")
-            return data
-        except json.JSONDecodeError as json_err:
-            _LOGGER.error(f"Failed to parse with both demjson3 and json: {json_err}")
-            return None
+            json_obj = json.loads(next_data_script.string)
+            all_json_objects.append(json_obj)
+            _LOGGER.debug("[DIAG][json_parser] Successfully parsed __NEXT_DATA__.")
+        except json.JSONDecodeError as e:
+            _LOGGER.warning(f"[DIAG][json_parser] Failed to parse __NEXT_DATA__: {e}")
+
+    # 2. Extract from self.__next_f.push()
+    push_matches = re.findall(r'self\.__next_f\.push\((.*?)\)', html_content, re.DOTALL)
+    for match in push_matches:
+        try:
+            # demjson3 is used for its ability to handle less strict JSON
+            json_obj = demjson3.decode(match)
+            all_json_objects.append(json_obj)
+            _LOGGER.debug(f"[DIAG][json_parser] Successfully parsed a self.__next_f.push() block.")
+        except demjson3.JSONDecodeError:
+            # If demjson3 fails, try to find JSON-like objects with regex
+            json_like_objects = re.findall(r'(\{.*?\})', match)
+            for obj_str in json_like_objects:
+                try:
+                    json_obj = json.loads(obj_str)
+                    all_json_objects.append(json_obj)
+                    _LOGGER.debug("[DIAG][json_parser] Successfully parsed a JSON-like object from a push block.")
+                except json.JSONDecodeError:
+                    continue
+
+    # 3. Search for the product data with an 'offers' list in all found JSON objects
+    _LOGGER.debug(f"[DIAG][json_parser] Searching for product data in {len(all_json_objects)} found JSON objects.")
+    _LOGGER.debug(f"[DIAG][json_parser] all_json_objects: {all_json_objects}")
+    for obj in all_json_objects:
+        product_data = find_product_with_offers_recursive(obj)
+        if product_data:
+            _LOGGER.debug(f"[DIAG][json_parser] Found product data with offers: {product_data}")
+            return [product_data] # Return as a list to maintain consistency
+
+    _LOGGER.warning("[DIAG][json_parser] Could not find product data with an 'offers' list in any hydration block.")
+    return []
+
+def find_product_with_offers_recursive(data: any) -> dict | None:
+    """
+    Recursively searches for a dictionary that contains an 'offers' key,
+    where 'offers' is a list of dictionaries, each with a 'seller_product_url'.
+    """
+    if isinstance(data, dict):
+        _LOGGER.debug(f"[DIAG][json_parser] Checking dict with keys: {data.keys()}")
+        # Check if the current dictionary contains a valid 'offers' list
+        if 'offers' in data and isinstance(data['offers'], list):
+            # Check if at least one offer has the required 'seller_product_url'
+            if any(isinstance(offer, dict) and 'seller_product_url' in offer for offer in data['offers']):
+                _LOGGER.debug(f"[DIAG][json_parser] Found valid 'offers' list in dictionary: {data}")
+                return data
+        
+        # If not found, recurse into the values of the dictionary
+        for value in data.values():
+            found = find_product_with_offers_recursive(value)
+            if found:
+                return found
+                
+    elif isinstance(data, list):
+        # If the data is a list, iterate over its items
+        for item in data:
+            found = find_product_with_offers_recursive(item)
+            if found:
+                return found
+                
+    return None
 
 def extract_and_parse_all_hydration_data(html: str) -> list:
     """
-    Extracts and parses all Next.js hydration data from HTML.
+    Main function to extract and parse all Next.js hydration data from HTML.
+    This now wraps the new unified find_product_data_in_html function.
     """
-    results = []
-
-    # Handle __NEXT_DATA__
-    next_data_str = extract_next_data_json_string(html)
-    if next_data_str:
-        parsed_data = parse_json_string_robustly(next_data_str)
-        if parsed_data:
-            results.append(parsed_data)
-
-    # Handle self.__next_f.push()
-    next_f_push_strings = extract_next_f_push_json_strings(html)
-    for json_str in next_f_push_strings:
-        # For self.__next_f.push, the match is typically a list-like string, e.g., '[1, "33:{...}"]'
-        # We need to parse this outer list first, then extract the inner JSON string.
-        outer_parsed = parse_json_string_robustly(json_str)
-        if outer_parsed and isinstance(outer_parsed, list) and len(outer_parsed) > 1 and isinstance(outer_parsed[1], str) and ':' in outer_parsed[1]:
-            chunk_id, inner_json_str = outer_parsed[1].split(':', 1)
-            inner_parsed = parse_json_string_robustly(inner_json_str)
-            if inner_parsed:
-                results.append({
-                    'chunk_id': str(outer_parsed[0]),
-                    'extracted_data': [{
-                        'type': 'colon_separated',
-                        'identifier': chunk_id,
-                        'data': inner_parsed
-                    }],
-                })
-        elif outer_parsed: # If it's a valid JSON but not in the expected format, still include it
-            results.append(outer_parsed)
-
-    _LOGGER.info(f"Hydration parser found {len(results)} data object(s).")
+    _LOGGER.debug("[DIAG][json_parser] Starting extraction and parsing of all hydration data.")
+    results = find_product_data_in_html(html)
+    _LOGGER.info(f"[DIAG][json_parser] Hydration parser found {len(results)} data object(s).")
     return results

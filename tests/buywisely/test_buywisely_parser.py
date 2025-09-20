@@ -28,5 +28,5 @@ def test_hydration_parser_extracts_seller_url():
     parsed_data = parse_nextjs_hydration_data(html_content)
     assert isinstance(parsed_data, list)
     assert len(parsed_data) > 0
-    product_data = parsed_data[0].get("props", {}).get("pageProps", {}).get("product", {})
+    product_data = parsed_data[0]
     assert product_data.get("offers", [{}])[0].get("seller_product_url") == "https://seller.example.com/product-page"
