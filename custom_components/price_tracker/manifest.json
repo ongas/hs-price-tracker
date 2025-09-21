@@ -26,7 +26,8 @@
     "opentelemetry-api>=1.28.2",
     "opentelemetry-sdk>=1.28.2",
     "curl-cffi>=0.7.4",
-    "demjson3"
+    "demjson3",
+    "js2py"
   ],
   "version": "1.4.8"
 }

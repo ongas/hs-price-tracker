@@ -7,6 +7,9 @@ from custom_components.price_tracker.datas.delivery import DeliveryData # Import
 _LOGGER = logging.getLogger(__name__)
 
 def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -> ItemData:
+    _LOGGER.debug(f"[DIAG][data_transformer] Input raw_data: {raw_data}")
+    _LOGGER.debug(f"[DIAG][data_transformer] Input product_id: {product_id}")
+    _LOGGER.debug(f"[DIAG][data_transformer] Input item_url: {item_url}")
     offers = raw_data.get('offers', [])
     lowest_price_value = None
     lowest_currency_value = ''
@@ -31,7 +34,7 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
             _LOGGER.error(f"[DIAG][data_transformer] No seller_product_url found in lowest_offer: {lowest_offer}")
 
     # Use base_price from raw_data for the main price, and delivery_price for delivery
-    price_value = raw_data.get('price') # This is now the base price from html_extractor
+    price_value = lowest_price_value if lowest_price_value is not None else raw_data.get('price') # This is now the base price from html_extractor
     delivery_price_value = raw_data.get('delivery_price')
     currency_value = lowest_currency_value or raw_data.get('currency') or ''
     brand_value = raw_data.get('brand') or ''
@@ -60,9 +63,12 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
     _LOGGER.info(f"[DIAG][data_transformer] extracted_url (seller_product_url): {extracted_url}, item_url: {item_url}")
     if is_valid_seller_url(extracted_url):
         product_link = extracted_url
+    elif raw_data.get('url') and is_valid_seller_url(raw_data.get('url')):
+        product_link = raw_data.get('url')
+        _LOGGER.info(f"[DIAG][data_transformer] Using URL from raw_data: {product_link}")
     else:
         product_link = ""
-        _LOGGER.error(f"[data_transformer] No valid seller product URL found in offers for product_id={product_id}. Extraction failure.")
+        _LOGGER.error(f"[data_transformer] No valid seller product URL found in offers or raw_data for product_id={product_id}. Extraction failure.")
     _LOGGER.info(f"[DIAG][data_transformer] Final url for ItemData: {product_link}")
 
     price = ItemPriceData(price=price_value, original_price=price_value, currency=currency_value) if price_value is not None else ItemPriceData(currency="")

@@ -1,29 +1,11 @@
 import logging
 import re
-from custom_components.price_tracker.utilities.hydration_parser import parse_nextjs_hydration_data
+from custom_components.price_tracker.services.buywisely.buywisely_hydration_parser import extract_and_parse_all_hydration_data as parse_nextjs_hydration_data
+from custom_components.price_tracker.services.buywisely.json_parser_utils import is_valid_seller_url
 
 _LOGGER = logging.getLogger(__name__)
 
-def _find_product_data_recursive(data):
-    if isinstance(data, dict):
-        if 'offers' in data and isinstance(data['offers'], list):
-            return data
-        for key, value in data.items():
-            result = _find_product_data_recursive(value)
-            if result:
-                return result
-    elif isinstance(data, list):
-        for item in data:
-            if isinstance(item, list):
-                for sub_item in item:
-                    result = _find_product_data_recursive(sub_item)
-                    if result:
-                        return result
-            else:
-                result = _find_product_data_recursive(item)
-                if result:
-                    return result
-    return None
+
 
 def find_product_with_offers(data):
     _LOGGER.debug(f"[DIAG][find_product_with_offers] Searching data: {data}")
@@ -50,64 +32,21 @@ def extract_product_data_from_html(html: str, parser_func=None) -> dict:
     if parser_func is None:
         parser_func = parse_nextjs_hydration_data
 
-    parsed_data = parser_func(html)
+    parsed_data_list = parser_func(html)
 
     product_data = None
-    if isinstance(parsed_data, list):
-        for item in parsed_data:
-            if isinstance(item, list) and len(item) > 1 and isinstance(item[1], list):
-                for extracted_item in item[1]:
-                    if isinstance(extracted_item, list) and len(extracted_item) > 1:
-                        # The actual data is in extracted_item[1] or extracted_item[2]
-                        # depending on whether it's [type, data] or [type, id, data]
-                        data_candidate = None
-                        if len(extracted_item) == 2 and isinstance(extracted_item[1], dict):
-                            data_candidate = extracted_item[1]
-                        elif len(extracted_item) == 3 and isinstance(extracted_item[2], dict):
-                            data_candidate = extracted_item[2]
+    if parsed_data_list:
+        # The parse_nextjs_hydration_data function already extracts the product data,
+        # so we can directly use the first item from the returned list.
+        product_data = parsed_data_list[0]
 
-                        if data_candidate:
-                            found_recursive = _find_product_data_recursive(data_candidate)
-                            if found_recursive:
-                                product_data = found_recursive
-                                break
-                if product_data:
-                    break
-    elif isinstance(parsed_data, dict):
-        # Original __NEXT_DATA__ format
-        product_data = _find_product_data_recursive(parsed_data)
-
-    # If not found or doesn't have offers, search recursively for offers
-    if not (product_data and isinstance(product_data, dict) and 'offers' in product_data and isinstance(product_data['offers'], list) and product_data['offers']):
-        if isinstance(parsed_data, list):
-            for item in parsed_data:
-                if isinstance(item, dict) and 'extracted_data' in item:
-                    for extracted_item in item['extracted_data']:
-                        if isinstance(extracted_item, dict) and 'data' in extracted_item:
-                            found_recursive = find_product_with_offers(extracted_item['data'])
-                            if found_recursive:
-                                product_data = found_recursive
-                                break
-                    if product_data:
-                        break
-        else:
-            product_data = find_product_with_offers(parsed_data)
-
-    # Fallback to original recursive search if still not found
-    if not product_data:
-        if isinstance(parsed_data, list):
-            for item in parsed_data:
-                found_recursive = _find_product_data_recursive(item)
-                if found_recursive:
-                    product_data = found_recursive
-                    break
-            else:
-                product_data = _find_product_data_recursive(parsed_data)
-
-    _LOGGER.debug(f"[DIAG][html_extractor] parsed_data after initial parsing: {parsed_data}")
-    _LOGGER.debug(f"[DIAG] product_data after all searches: {product_data}")
+    _LOGGER.debug(f"[DIAG][html_extractor] parsed_data_list after initial parsing: {parsed_data_list}")
+    _LOGGER.debug(f"[DIAG][html_extractor] product_data after all searches: {product_data}")
 
     if product_data:
+        _LOGGER.debug(f"[DIAG][html_extractor] Extracted title: {product_data.get('title')}")
+        _LOGGER.debug(f"[DIAG][html_extractor] Extracted image: {product_data.get('image')}")
+        _LOGGER.debug(f"[DIAG][html_extractor] Extracted offers: {product_data.get('offers')}")
         title = product_data.get('title')
         brand = title.split(' ')[0] if title else ''
         offers = product_data.get('offers', [])
@@ -121,17 +60,7 @@ def extract_product_data_from_html(html: str, parser_func=None) -> dict:
             _LOGGER.error(f"[DIAG][html_extractor] Exception logging offers diagnostics: {e}")
 
         # Always use the seller_product_url from the lowest-priced offer
-        def is_valid_seller_url(url):
-            if not url or not isinstance(url, str):
-                return False
-            url = url.strip()
-            if re.search(r"\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)(\?|$)", url, re.IGNORECASE):
-                return False
-            if product_data and url == product_data.get('image'):
-                return False
-            if re.search(r"buywisely\.com\.au", url, re.IGNORECASE):
-                return False
-            return url.startswith("http")
+
 
         lowest_offer = None
         lowest_price = None
@@ -152,8 +81,15 @@ def extract_product_data_from_html(html: str, parser_func=None) -> dict:
                     _LOGGER.warning(f"[DIAG][html_extractor] Could not convert offer price to float: {price}. Error: {e}")
                     continue
         _LOGGER.debug(f"[DIAG][html_extractor] Finished lowest price calculation. Lowest price found: {lowest_price}")
-        if lowest_offer and is_valid_seller_url(lowest_offer.get('seller_product_url')):
-            main_url = lowest_offer['seller_product_url']
+        _LOGGER.debug(f"[DIAG][html_extractor] Lowest offer: {lowest_offer}")
+        if lowest_offer:
+            seller_url_candidate = lowest_offer.get('seller_product_url')
+            _LOGGER.debug(f"[DIAG][html_extractor] Seller URL candidate from lowest offer: {seller_url_candidate}")
+            if is_valid_seller_url(seller_url_candidate):
+                main_url = seller_url_candidate
+                _LOGGER.debug(f"[DIAG][html_extractor] main_url set from seller_url_candidate: {main_url}")
+            else:
+                _LOGGER.debug(f"[DIAG][html_extractor] Seller URL candidate is not valid: {seller_url_candidate}")
 
         raw_data = {
             'title': title,
@@ -229,4 +165,5 @@ def extract_product_data_from_html(html: str, parser_func=None) -> dict:
         except Exception as e:
             _LOGGER.error(f"BuyWisely HtmlExtractor: BeautifulSoup fallback failed: {e}")
             return {}
+    _LOGGER.debug(f"[DIAG][html_extractor] Final product_data before return: {product_data}")
     return {} # Added this line to ensure a return in all cases

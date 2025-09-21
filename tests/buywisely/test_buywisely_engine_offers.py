@@ -8,7 +8,7 @@ from custom_components.price_tracker.datas.item import ItemStatus
 async def test_get_product_details_success(mock_safe_request):
     sample_html = (
         '<html><body><script id="__NEXT_DATA__" type="application/json">'
-        '{"props":{"pageProps":{"product":{"title":"Test Product Title","slug":"test-product","availability":"In Stock","offers":[{"base_price":123.45,"currency":"AUD"}],"image":"http://example.com/test_image.jpg"}}}}'
+        '{"props":{"pageProps":{"product":{"title":"Test Product Title","slug":"test-product","availability":"In Stock","offers":[{"base_price":123.45,"currency":"AUD","seller_product_url":"http://example.com/seller_product_url"}],"image":"http://example.com/test_image.jpg"}}}}'
         '</script></body></html>'
     )
     mock_response = AsyncMock()
@@ -47,8 +47,7 @@ async def test_get_product_details_success(mock_safe_request):
 async def test_get_product_details_no_price(mock_safe_request):
     sample_html = (
         '<html><body><script id="__NEXT_DATA__" type="application/json">'
-        '{"props":{"pageProps":{"product":{"title":"Another Product","slug":"another-product","availability":"Out of Stock","offers":[],"image":"http://example.com/another_image.jpg"}}}}'
-        '</script></body></html>'
+                    '{"props":{"pageProps":{"product":{"title":"Another Product","slug":"another-product","availability":"Out of Stock","offers":[{"seller_product_url":"http://example.com/seller_product_url"}],"image":"http://example.com/another_image.jpg"}}}}'        '</script></body></html>'
     )
     mock_response = AsyncMock()
     mock_response.has = True
@@ -85,7 +84,7 @@ async def test_get_product_details_no_price(mock_safe_request):
 async def test_get_product_details_multiple_prices(mock_safe_request):
     sample_html = (
         '<html><body><script id="__NEXT_DATA__" type="application/json">'
-        '{"props":{"pageProps":{"product":{"title":"Product with Multiple Prices","slug":"multiple-prices","availability":"In Stock","offers":[{"base_price":100.00,"currency":"AUD"},{"base_price":99.50,"currency":"AUD"}],"image":"http://example.com/multiple_prices.jpg"}}}}'
+        '{"props":{"pageProps":{"product":{"title":"Product with Multiple Prices","slug":"multiple-prices","availability":"In Stock","offers":[{"base_price":100.00,"currency":"AUD","seller_product_url":"http://example.com/seller_product_url_1"},{"base_price":99.50,"currency":"AUD","seller_product_url":"http://example.com/seller_product_url_2"}],"image":"http://example.com/multiple_prices.jpg"}}}}'
         '</script></body></html>'
     )
     mock_response = AsyncMock()
@@ -122,7 +121,7 @@ async def test_get_product_details_multiple_prices(mock_safe_request):
 @pytest.mark.asyncio
 @patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
 async def test_lowest_price_selection(mock_safe_request):
-    sample_html = '<html><body><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"product":{"title":"Product with Multiple Prices","slug":"multiple-prices","availability":"In Stock","offers":[{"base_price":100.00,"currency":"AUD"},{"base_price":99.50,"currency":"AUD"},{"base_price":10.00,"currency":"AUD"},{"base_price":150.00,"currency":"AUD"},{"base_price":75.00,"currency":"AUD"},{"base_price":200.00,"currency":"AUD"},{"base_price":5.00,"currency":"AUD"},{"base_price":120.00,"currency":"AUD"},{"base_price":80.00,"currency":"AUD"},{"base_price":110.00,"currency":"AUD"}],"image":"http://example.com/multiple_prices.jpg"}}}}</script></body></html>'
+    sample_html = '<html><body><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"product":{"title":"Product with Multiple Prices","slug":"multiple-prices","availability":"In Stock","offers":[{"base_price":100.00,"currency":"AUD","seller_product_url":"http://example.com/offer1"},{"base_price":99.50,"currency":"AUD","seller_product_url":"http://example.com/offer2"},{"base_price":10.00,"currency":"AUD","seller_product_url":"http://example.com/offer3"},{"base_price":150.00,"currency":"AUD","seller_product_url":"http://example.com/offer4"},{"base_price":75.00,"currency":"AUD","seller_product_url":"http://example.com/offer5"},{"base_price":200.00,"currency":"AUD","seller_product_url":"http://example.com/offer6"},{"base_price":5.00,"currency":"AUD","seller_product_url":"http://example.com/offer7"},{"base_price":120.00,"currency":"AUD","seller_product_url":"http://example.com/offer8"},{"base_price":80.00,"currency":"AUD","seller_product_url":"http://example.com/offer9"},{"base_price":110.00,"currency":"AUD","seller_product_url":"http://example.com/offer10"}],"image":"http://example.com/multiple_prices.jpg"}}}}</script></body></html>'
     mock_response = AsyncMock()
     mock_response.has = True
     mock_response.text = sample_html

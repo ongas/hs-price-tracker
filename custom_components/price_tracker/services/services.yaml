@@ -6,6 +6,6 @@ update_entity:
       name: Entity ID
       description: The entity_id of the price tracker sensor to update.
       required: true
-      selector:
-        entity:
-          domain: sensor
+      # selector:
+      #   entity:
+      #     domain: sensor

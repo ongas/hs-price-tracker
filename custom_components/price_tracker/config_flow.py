@@ -6,8 +6,8 @@ from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback, HomeAssistant
 
-from custom_components.price_tracker.utilities.list import Lu
-from custom_components.price_tracker.components.lang import Lang
+from .utilities.list import Lu
+from .components.lang import Lang
 from .components.error import UnsupportedError
 # Import voluptuous at the top so it is always available
 from .consts.defaults import DOMAIN
