@@ -2,14 +2,10 @@ import logging
 from custom_components.price_tracker.datas.item import ItemData, ItemStatus
 from custom_components.price_tracker.datas.price import ItemPriceData
 from custom_components.price_tracker.datas.category import ItemCategoryData
-from custom_components.price_tracker.datas.delivery import DeliveryData # Import DeliveryData
 
 _LOGGER = logging.getLogger(__name__)
 
 def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -> ItemData:
-    _LOGGER.debug(f"[DIAG][data_transformer] Input raw_data: {raw_data}")
-    _LOGGER.debug(f"[DIAG][data_transformer] Input product_id: {product_id}")
-    _LOGGER.debug(f"[DIAG][data_transformer] Input item_url: {item_url}")
     offers = raw_data.get('offers', [])
     lowest_price_value = None
     lowest_currency_value = ''
@@ -33,14 +29,25 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
         if not seller_product_url:
             _LOGGER.error(f"[DIAG][data_transformer] No seller_product_url found in lowest_offer: {lowest_offer}")
 
-    # Use base_price from raw_data for the main price, and delivery_price for delivery
-    price_value = lowest_price_value if lowest_price_value is not None else raw_data.get('price') # This is now the base price from html_extractor
-    delivery_price_value = raw_data.get('delivery_price')
-    currency_value = lowest_currency_value or raw_data.get('currency') or ''
+    from custom_components.price_tracker.utilities.parser import parse_float
+    price_value = lowest_price_value if lowest_price_value is not None else raw_data.get('price')
+    price_value = parse_float(price_value) if price_value is not None else None
+    # Always default currency to 'AUD' if missing or empty
+    currency_value = (lowest_currency_value or raw_data.get('currency') or 'AUD')
     brand_value = raw_data.get('brand') or ''
-    name_value = raw_data.get('title') or 'UNKNOWN'
+    # Always use title from raw_data if present and non-empty, else 'UNKNOWN', regardless of offers
+    name_raw = raw_data.get('title')
+    if isinstance(name_raw, str) and name_raw.strip():
+        name_value = name_raw.strip()
+    else:
+        name_value = 'UNKNOWN'
     image_value = raw_data.get('image') or ''
-    status_value = ItemStatus.ACTIVE if raw_data.get('availability') == 'In Stock' else ItemStatus.INACTIVE
+    # Set status to INACTIVE if price is None or 0.0, or if not in stock
+    price_val_for_status = price_value if price_value is not None else 0.0
+    if raw_data.get('availability') == 'In Stock' and price_val_for_status not in (None, 0.0):
+        status_value = ItemStatus.ACTIVE
+    else:
+        status_value = ItemStatus.INACTIVE
 
     def is_valid_seller_url(url):
         if not url or not isinstance(url, str):
@@ -63,16 +70,12 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
     _LOGGER.info(f"[DIAG][data_transformer] extracted_url (seller_product_url): {extracted_url}, item_url: {item_url}")
     if is_valid_seller_url(extracted_url):
         product_link = extracted_url
-    elif raw_data.get('url') and is_valid_seller_url(raw_data.get('url')):
-        product_link = raw_data.get('url')
-        _LOGGER.info(f"[DIAG][data_transformer] Using URL from raw_data: {product_link}")
     else:
         product_link = ""
-        _LOGGER.error(f"[data_transformer] No valid seller product URL found in offers or raw_data for product_id={product_id}. Extraction failure.")
+        _LOGGER.error(f"[data_transformer] No valid seller product URL found in offers for product_id={product_id}. Extraction failure.")
     _LOGGER.info(f"[DIAG][data_transformer] Final url for ItemData: {product_link}")
 
-    price = ItemPriceData(price=price_value, original_price=price_value, currency=currency_value) if price_value is not None else ItemPriceData(currency="")
-    delivery = DeliveryData(price=delivery_price_value) if delivery_price_value is not None else DeliveryData()
+    price = ItemPriceData(price=price_value, currency=currency_value) if price_value is not None and currency_value else ItemPriceData(price=0.0, currency="")
 
     result = ItemData(
         id=product_id,
@@ -83,7 +86,6 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
         price=price,
         image=image_value,
         category=ItemCategoryData(None),
-        delivery=delivery,
     )
     _LOGGER.info(f"[DIAG][DataTransformer] Returning ItemData: {result}, as_dict: {getattr(result, 'dict', 'no dict') if hasattr(result, 'dict') else str(result)}")
     return result

@@ -20,8 +20,9 @@ def parse_product(html: str, product_id: str = '', item_url: str = '', context: 
             d = result.dict
             price_val = d.get('price')
             currency_val = d.get('currency', 'AUD')
+            # Always ensure price is float and currency is preserved as-is
             if price_val is not None and not isinstance(price_val, dict):
-                d['price'] = {'price': price_val, 'currency': currency_val}
+                d['price'] = {'price': float(price_val), 'currency': currency_val}
             # Patch status to be ItemStatus enum if possible
             status_val = d.get('status')
             if isinstance(status_val, str):
@@ -34,7 +35,7 @@ def parse_product(html: str, product_id: str = '', item_url: str = '', context: 
             price_val = result.get('price')
             currency_val = result.get('currency', 'AUD')
             if price_val is not None and not isinstance(price_val, dict):
-                result['price'] = {'price': price_val, 'currency': currency_val}
+                result['price'] = {'price': float(price_val), 'currency': currency_val}
             return result
         else:
             return {}

@@ -9,7 +9,7 @@ def extract_next_data_json_string(html: str) -> str | None:
     Extracts the JSON string from <script id="__NEXT_DATA__"> tag.
     """
     soup = BeautifulSoup(html, 'html.parser')
-    next_data_script = soup.find('script', {'id': '__NEXT_DATA__'})
+    next_data_script = soup.find('script', id='__NEXT_DATA__')
     if next_data_script and next_data_script.string:
         return next_data_script.string
     return None
@@ -21,9 +21,11 @@ def extract_next_f_push_json_strings(html: str) -> list[str]:
     soup = BeautifulSoup(html, 'html.parser')
     json_strings = []
     for script in soup.find_all('script'):
-        if script.string and 'self.__next_f.push' in script.string:
-            matches = re.findall(r'self\.__next_f\.push\((.*?)\)', script.string, re.DOTALL)
-            for match in matches:
-                _LOGGER.debug(f"[DIAG][json_parser] Raw self.__next_f.push() match: {match}")
-                json_strings.append(match)
+        if script.string:
+            for line in script.string.splitlines():
+                if 'self.__next_f.push' in line:
+                    matches = re.findall(r'self\.__next_f\.push\((.*)\)', line)
+                    for match in matches:
+                        _LOGGER.debug(f"[DIAG][json_parser] Raw self.__next_f.push() match: {match}")
+                        json_strings.append(match)
     return json_strings

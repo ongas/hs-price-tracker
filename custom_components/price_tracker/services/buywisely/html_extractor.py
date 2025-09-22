@@ -1,52 +1,65 @@
 import logging
 import re
-from custom_components.price_tracker.services.buywisely.buywisely_hydration_parser import extract_and_parse_all_hydration_data as parse_nextjs_hydration_data
-from custom_components.price_tracker.services.buywisely.json_parser_utils import is_valid_seller_url
+import json
+from .hydration_parser import extract_and_parse_all_hydration_data
+from bs4 import BeautifulSoup
 
 _LOGGER = logging.getLogger(__name__)
 
 
-
-def find_product_with_offers(data):
-    _LOGGER.debug(f"[DIAG][find_product_with_offers] Searching data: {data}")
-    """Recursively search for a dict with an 'offers' key containing a list of dicts with 'seller_product_url'."""
+def _find_product_data_recursive(data):
     if isinstance(data, dict):
-        if 'offers' in data and isinstance(data['offers'], list) and any(isinstance(o, dict) and 'seller_product_url' in o for o in data['offers']):
-            _LOGGER.debug(f"[DIAG][find_product_with_offers] Found product with offers: {data}")
-            return data
-        for v in data.values():
-            found = find_product_with_offers(v)
-            if found:
-                return found
+        if 'product' in data and isinstance(data['product'], dict):
+            return data['product']
+        for key, value in data.items():
+            result = _find_product_data_recursive(value)
+            if result:
+                return result
     elif isinstance(data, list):
         for item in data:
-            found = find_product_with_offers(item)
-            if found:
-                return found
-    _LOGGER.debug(f"[DIAG][find_product_with_offers] No product with offers found in: {data}")
+            result = _find_product_data_recursive(item)
+            if result:
+                return result
     return None
 
-def extract_product_data_from_html(html: str, parser_func=None) -> dict:
+
+def extract_product_data_from_html(html: str) -> dict:
     """Extracts product data from BuyWisely HTML content."""
     _LOGGER.info("BuyWisely HtmlExtractor: Starting HTML extraction")
-    if parser_func is None:
-        parser_func = parse_nextjs_hydration_data
+    parsed_data = []
+    try:
+        parsed_data = extract_and_parse_all_hydration_data(html)
+        # Deep diagnostics: log the entire parsed_data (hydration data)
+        try:
+            import json as _json
+            _LOGGER.info(f"[DIAG][html_extractor] Full parsed_data (hydration): { _json.dumps(parsed_data, default=str)[:10000] }")
+        except Exception as e:
+            _LOGGER.error(f"[DIAG][html_extractor] Exception logging full parsed_data: {e}")
+        _LOGGER.info(f"[DIAG] Parsed data from hydration_parser: {parsed_data}")
+    except Exception as e:
+        _LOGGER.error(f"BuyWisely HtmlExtractor: Error parsing with hydration_parser: {e}")
+        parsed_data = []
 
-    parsed_data_list = parser_func(html)
+    # If parsed_data is empty or not as expected, fallback to manual extraction
+    if not parsed_data or (isinstance(parsed_data, list) and not parsed_data):
+        _LOGGER.warning("[DIAG] HydrationDataExtractor returned empty, attempting manual __NEXT_DATA__ extraction.")
+        match = re.search(r'<script[^>]*id=["\"]__NEXT_DATA__["\"][^>]*>(.*?)</script>', html, re.DOTALL)
+        if match:
+            try:
+                next_data_json = match.group(1)
+                parsed_data = json.loads(next_data_json)
+                _LOGGER.info(f"[DIAG] Manually extracted __NEXT_DATA__ JSON: {type(parsed_data)}")
+            except Exception as e:
+                _LOGGER.error(f"[DIAG] Failed to parse __NEXT_DATA__ JSON: {e}")
+                parsed_data = {}
 
+    # Robustly traverse hydration data to find the product dict with offers
     product_data = None
-    if parsed_data_list:
-        # The parse_nextjs_hydration_data function already extracts the product data,
-        # so we can directly use the first item from the returned list.
-        product_data = parsed_data_list[0]
-
-    _LOGGER.debug(f"[DIAG][html_extractor] parsed_data_list after initial parsing: {parsed_data_list}")
-    _LOGGER.debug(f"[DIAG][html_extractor] product_data after all searches: {product_data}")
-
+    if parsed_data: # Changed from 'if product_data:' to 'if parsed_data:'
+        product_data = _find_product_data_recursive(parsed_data) # Find product data from the parsed_data
+    
     if product_data:
-        _LOGGER.debug(f"[DIAG][html_extractor] Extracted title: {product_data.get('title')}")
-        _LOGGER.debug(f"[DIAG][html_extractor] Extracted image: {product_data.get('image')}")
-        _LOGGER.debug(f"[DIAG][html_extractor] Extracted offers: {product_data.get('offers')}")
+        _LOGGER.info(f"BuyWisely HtmlExtractor: Found product data: {product_data}")
         title = product_data.get('title')
         brand = title.split(' ')[0] if title else ''
         offers = product_data.get('offers', [])
@@ -54,116 +67,132 @@ def extract_product_data_from_html(html: str, parser_func=None) -> dict:
         # Deep diagnostics: log the full offers list and all candidate seller_product_url values
         try:
             all_seller_urls = [offer.get('seller_product_url') for offer in offers if 'seller_product_url' in offer]
-            _LOGGER.debug(f"[DIAG][html_extractor] Full offers list: {offers}")
-            _LOGGER.debug(f"[DIAG][html_extractor] All candidate seller_product_url values: {all_seller_urls}")
+            _LOGGER.info(f"[DIAG][html_extractor] Full offers list: {offers}")
+            _LOGGER.info(f"[DIAG][html_extractor] All candidate seller_product_url values: {all_seller_urls}")
         except Exception as e:
             _LOGGER.error(f"[DIAG][html_extractor] Exception logging offers diagnostics: {e}")
 
         # Always use the seller_product_url from the lowest-priced offer
-
+        def is_valid_seller_url(url):
+            if not url or not isinstance(url, str):
+                return False
+            url = url.strip()
+            if re.search(r"\\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)(\\?|$)", url, re.IGNORECASE):
+                return False
+            if product_data and url == product_data.get('image'):
+                return False
+            if re.search(r"buywisely\\.com\\.au", url, re.IGNORECASE):
+                return False
+            return url.startswith("http")
 
         lowest_offer = None
         lowest_price = None
-        main_url = ""
-        _LOGGER.debug(f"[DIAG][html_extractor] Starting lowest price calculation. Offers count: {len(offers)}")
         for offer in offers:
             price = offer.get('base_price')
-            _LOGGER.debug(f"[DIAG][html_extractor] Processing offer: {offer.get('seller_product_url')}, base_price: {price}")
             if price is not None:
                 try:
                     price_val = float(price)
-                    _LOGGER.debug(f"[DIAG][html_extractor] Converted price_val: {price_val}")
                     if lowest_price is None or price_val < lowest_price:
                         lowest_price = price_val
                         lowest_offer = offer
-                        _LOGGER.debug(f"[DIAG][html_extractor] New lowest_price: {lowest_price}")
-                except Exception as e:
-                    _LOGGER.warning(f"[DIAG][html_extractor] Could not convert offer price to float: {price}. Error: {e}")
+                except Exception:
                     continue
-        _LOGGER.debug(f"[DIAG][html_extractor] Finished lowest price calculation. Lowest price found: {lowest_price}")
-        _LOGGER.debug(f"[DIAG][html_extractor] Lowest offer: {lowest_offer}")
-        if lowest_offer:
-            seller_url_candidate = lowest_offer.get('seller_product_url')
-            _LOGGER.debug(f"[DIAG][html_extractor] Seller URL candidate from lowest offer: {seller_url_candidate}")
-            if is_valid_seller_url(seller_url_candidate):
-                main_url = seller_url_candidate
-                _LOGGER.debug(f"[DIAG][html_extractor] main_url set from seller_url_candidate: {main_url}")
-            else:
-                _LOGGER.debug(f"[DIAG][html_extractor] Seller URL candidate is not valid: {seller_url_candidate}")
+        main_url = ""
+        if lowest_offer and is_valid_seller_url(lowest_offer.get('seller_product_url')):
+            main_url = lowest_offer['seller_product_url']
+            _LOGGER.info(f"[DIAG][html_extractor] Extracted seller_product_url from lowest-priced offer: {main_url}")
+        else:
+            _LOGGER.error("[html_extractor] No valid seller URL found in offers. Extraction failure.")
+
+
+        # find_url_candidates is not defined; skipping this diagnostic for now
+
+        # Always set 'title' in raw_data if present in product_data, even if offers is empty or missing
 
         raw_data = {
-            'title': title,
-            'price': lowest_price, # This is the base price
+            'title': title if title else None,
+            'price': product_data.get('lowest_price'),
             'image': product_data.get('image'),
             'currency': product_data.get('currency', 'AUD'),
             'availability': 'In Stock' if offers else 'Out of Stock',
             'brand': brand,
             'url': main_url,
             'offers': offers,
-            'delivery_price': lowest_offer.get('shipping') if lowest_offer else None, # Add delivery price
         }
-        _LOGGER.debug(f"[DIAG][html_extractor] raw_data after hydration extraction: {raw_data}")
-        _LOGGER.debug(f"[DIAG][html_extractor] raw_data[\"url\"] set to: {main_url}")
-        return raw_data
-    else:
-        _LOGGER.debug("BuyWisely HtmlExtractor: Product data not found in any supported hydration format. Trying BeautifulSoup fallback.")
-        try:
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(html, 'html.parser')
-            raw_data = {}
+        _LOGGER.info(f"[DIAG][html_extractor] raw_data['url'] set to: {main_url}")
 
-            # Attempt to extract price from the h2 tag with the specific class
-            price_elem = soup.find('h2', class_="MuiBox-root mui-8t0bjo")
-            _LOGGER.debug(f"[DIAG][html_extractor] price_elem (BeautifulSoup): {price_elem}")
+
+        # Always set 'title' in raw_data if present in product_data, even if offers is empty or missing
+        raw_data = {
+            'title': title if title else None,
+            'price': product_data.get('lowest_price'),
+            'image': product_data.get('image'),
+            'currency': product_data.get('currency', 'AUD'),
+            'availability': 'In Stock' if offers else 'Out of Stock',
+            'brand': brand,
+            'url': main_url,
+            'offers': offers,
+        }
+        _LOGGER.info(f"[DIAG][html_extractor] raw_data['url'] set to: {main_url}")
+    else:
+        _LOGGER.info("BuyWisely HtmlExtractor: Product data not found in any supported hydration format. Trying BeautifulSoup fallback.")
+        try:
+            # from bs4 import BeautifulSoup # Already imported at the top
+            soup = BeautifulSoup(html, 'html.parser')
+            price_val = None
+            currency_val = 'AUD'
+            price_text = None
+            title_val = None
+            # Try to extract title from <title> or <h1> if present
+            title_elem = soup.find('title')
+            if title_elem and title_elem.get_text(strip=True):
+                title_val = title_elem.get_text(strip=True)
+            else:
+                h1_elem = soup.find('h1')
+                if h1_elem and h1_elem.get_text(strip=True):
+                    title_val = h1_elem.get_text(strip=True)
+            # Try .price class first
+            price_elem = soup.find(class_="price")
             if price_elem:
                 price_text = price_elem.get_text(strip=True)
-                _LOGGER.debug(f"[DIAG][html_extractor] price_text (BeautifulSoup): {price_text}")
-                # Extract prices using a more robust regex for ranges like "$391.00 - $499.00"
-                # This regex looks for one or two currency-like numbers
-                prices = re.findall(r'\$?([\d,]+\.?\d*)', price_text)
-                _LOGGER.debug(f"[DIAG][html_extractor] Extracted prices (BeautifulSoup): {prices}")
-                if prices:
+            # If not found, try any element with $ or currency symbol
+            if not price_text:
+                # Look for any text with a currency symbol
+                text_candidates = soup.find_all(string=True)
+                for t in text_candidates:
+                    if re.search(r'\$|AUD|EUR|₩|¥|원|円', t):
+                        price_text = t.strip()
+                        break
+            # Extract price and currency
+            if price_text:
+                # Try to extract currency (always prefer explicit currency, fallback to AUD if $)
+                currency_match = re.search(r'(AUD|EUR|₩|¥|원|円|USD|NZD|GBP|\$)', price_text)
+                if currency_match:
+                    if currency_match.group(1) == '$':
+                        currency_val = 'AUD'
+                    else:
+                        currency_val = currency_match.group(1)
+                # Extract price number (allow comma, dot)
+                price_match = re.search(r'([\d,.]+)', price_text.replace(",", ""))
+                if price_match:
                     try:
-                        # Prioritize the first price found as the main price
-                        raw_data['price'] = float(prices[0].replace(',', ''))
-                        _LOGGER.debug(f"[DIAG][html_extractor] Successfully extracted price via BeautifulSoup: {raw_data['price']}")
-                        if len(prices) > 1:
-                            raw_data['highest_price'] = float(prices[1].replace(',', ''))
-                            _LOGGER.debug(f"[DIAG][html_extractor] Successfully extracted highest_price via BeautifulSoup: {raw_data['highest_price']}")
-                    except ValueError as ve:
-                        _LOGGER.warning(f"Could not convert extracted price(s) to float: {prices}. Error: {ve}")
-
-            # Attempt to extract currency (basic, can be improved if needed)
-            # For now, assume AUD if price is found and no other currency is explicitly found
-            if 'price' in raw_data and 'currency' not in raw_data:
-                raw_data['currency'] = 'AUD'
-                _LOGGER.debug(f"[DIAG][html_extractor] Set currency to AUD. raw_data: {raw_data}")
-            elif 'price' not in raw_data:
-                raw_data['currency'] = None # Set currency to None if no price is found
-                _LOGGER.debug(f"[DIAG][html_extractor] Price not found, setting currency to None. raw_data: {raw_data}")
-
-            # Attempt to extract delivery price
-            delivery_elem = soup.find('p', class_="mui-wn7dhf")
-            _LOGGER.debug(f"[DIAG][html_extractor] delivery_elem (BeautifulSoup): {delivery_elem}")
-            if delivery_elem:
-                delivery_text = delivery_elem.get_text(separator=" ", strip=True) # Use separator to handle comments
-                _LOGGER.debug(f"[DIAG][html_extractor] delivery_text (BeautifulSoup): {delivery_text}")
-                delivery_prices = re.findall(r'\$?([\d,]+\.?\d*)', delivery_text)
-                _LOGGER.debug(f"[DIAG][html_extractor] Extracted delivery_prices (BeautifulSoup): {delivery_prices}")
-                if delivery_prices:
-                    try:
-                        raw_data['delivery_price'] = float(delivery_prices[0].replace(',', ''))
-                        _LOGGER.debug(f"[DIAG][html_extractor] Successfully extracted delivery_price via BeautifulSoup: {raw_data['delivery_price']}")
-                    except ValueError as ve:
-                        _LOGGER.warning(f"Could not convert extracted delivery price to float: {delivery_prices}. Error: {ve}")
-
-            # Set availability based on price presence
-            raw_data['availability'] = 'In Stock' if 'price' in raw_data else 'Out of Stock'
-
-            _LOGGER.debug(f"BuyWisely HtmlExtractor: BeautifulSoup fallback extracted raw_data: {raw_data}")
-            return raw_data
+                        price_val = float(price_match.group(1))
+                    except Exception:
+                        price_val = None
+            raw_data = {}
+            if price_val is not None:
+                raw_data['price'] = price_val
+                raw_data['currency'] = currency_val
+                raw_data['availability'] = 'In Stock'
+                raw_data['brand'] = ''
+                raw_data['offers'] = []
+                if title_val:
+                    raw_data['title'] = title_val
+            else:
+                raw_data['availability'] = 'Out of Stock'
+                if title_val:
+                    raw_data['title'] = title_val
+            _LOGGER.info(f"BuyWisely HtmlExtractor: BeautifulSoup fallback extracted price: {price_val}, currency: {currency_val}, title: {title_val}")
         except Exception as e:
             _LOGGER.error(f"BuyWisely HtmlExtractor: BeautifulSoup fallback failed: {e}")
-            return {}
-    _LOGGER.debug(f"[DIAG][html_extractor] Final product_data before return: {product_data}")
-    return {} # Added this line to ensure a return in all cases
+    return raw_data

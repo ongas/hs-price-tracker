@@ -71,6 +71,32 @@ The `price_tracker` custom component enables Home Assistant to track product pri
      pytest tests/test_config_flow.py tests/test_buywisely_parser.py tests/test_buywisely_engine.py tests/test_buywisely_config.py tests/test_buywisely_api.py
      ```
 
+**Viewing Pytest Output:**
+To avoid hitting processing size limitations with verbose pytest output, you can redirect the output to a file and then view the last few lines.
+
+1. Run pytest and redirect output to a file (e.g., `pytest_output.txt`):
+   ```bash
+   pytest tests/buywisely/test_buywisely_parser.py > pytest_output.txt 2>&1
+   ```
+2. View the last 50 lines of the output file:
+   ```bash
+   tail -n 50 pytest_output.txt
+   ```
+   You can adjust the number of lines (`-n 50`) as needed.
+
+**Viewing Pytest Output:**
+To avoid hitting processing size limitations with verbose pytest output, you can redirect the output to a file and then view the last few lines.
+
+1. Run pytest and redirect output to a file (e.g., `pytest_output.txt`):
+   ```bash
+   pytest tests/buywisely/test_buywisely_parser.py > pytest_output.txt 2>&1
+   ```
+2. View the last 50 lines of the output file:
+   ```bash
+   tail -n 50 pytest_output.txt
+   ```
+   You can adjust the number of lines (`-n 50`) as needed.
+
 **Note:** Do not use quiet mode (`-q`) for pytest. Full output is required for diagnostics and debugging.
 
 **Test Infrastructure Note:**

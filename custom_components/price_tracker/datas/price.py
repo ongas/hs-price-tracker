@@ -9,20 +9,19 @@ from custom_components.price_tracker.utilities.parser import parse_float
 class ItemPriceData:
     def __init__(
         self,
-        price: float = None,
-        currency: str = "",
-        original_price: float = None,
-        payback_price: float = 0.0,
+    price: float | None = None,
+    currency: str = "",
+    original_price: float | None = None,
+    payback_price: float = 0.0,
     ):
+        # Always parse price fields as float, but preserve currency as-is (do not strip symbols)
         self.price = parse_float(price)
-        self.currency = currency
-        self.original_price = parse_float(original_price if original_price else price)
-        self.discount_amount = parse_float(
-            original_price - price if original_price else 0
-        )
-        self.discount_rate = parse_float(
-            self.discount_amount / original_price * 100 if original_price else 0
-        )
+        self.currency = currency if currency is not None else ""
+        self.original_price = parse_float(original_price if original_price is not None else price)
+        price_val = self.price
+        orig_val = self.original_price
+        self.discount_amount = orig_val - price_val if orig_val and price_val else 0.0
+        self.discount_rate = (self.discount_amount / orig_val * 100) if orig_val else 0.0
         self.payback_price = parse_float(payback_price)
 
     @property

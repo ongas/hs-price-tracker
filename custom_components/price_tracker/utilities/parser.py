@@ -27,22 +27,35 @@ def parse_bool(value: any) -> bool:
 
 
 def parse_float(value: any) -> float:
+    if value is None:
+        return 0.0
     if isinstance(value, float):
         return value
-
+    if isinstance(value, int):
+        return float(value)
+    s = str(value)
+    # Remove all currency symbols and whitespace
+    s = (
+        s.replace(",", "")
+        .replace(" ", "")
+        .replace("円", "")
+        .replace("¥", "")
+        .replace("￦", "")
+        .replace("₩", "")
+        .replace("$", "")
+        .replace("\t", "")
+        .replace("원", "")
+        .replace("USD", "")
+        .replace("AUD", "")
+        .replace("EUR", "")
+        .replace("NZD", "")
+        .replace("GBP", "")
+    )
+    # Remove any trailing/leading non-numeric chars
+    import re
+    s = re.sub(r"[^0-9.\-]+", "", s)
     try:
-        return float(
-            str(value)
-            .replace(",", "")
-            .replace(" ", "")
-            .replace("円", "")
-            .replace("¥", "")
-            .replace("￦", "")
-            .replace("₩", "")
-            .replace("$", "")
-            .replace("\t", "")
-            .replace("원", "")
-        )
+        return float(s)
     except (ValueError, TypeError):
         return 0.0
 
