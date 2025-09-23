@@ -1,100 +1,55 @@
-import re
-from demjson3 import decode
-import pprint
+import logging
+import sys
+import os
+import json
 
-def build_ref_map(content):
-    """Builds a reference map from the raw Next.js hydration data."""
-    lines = content.splitlines()
-    payload_chunks = []
-    for line in lines:
-        if line.startswith('self.__next_f.push([1,'):
-            start = line.find('"')
-            end = line.rfind('"')
-            if start != -1 and end != -1 and start != end:
-                payload_chunks.append(line[start+1:end])
+# Add the project root to the Python path to allow importing custom_components
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
 
-    full_payload = '\n'.join(payload_chunks)
-    full_payload = full_payload.replace('\"', '"').replace('\n', '\n')
+from custom_components.price_tracker.services.buywisely.html_extractor import extract_product_data_from_html
+from custom_components.price_tracker.services.buywisely.hydration_parser import extract_and_parse_all_hydration_data
 
-    records = full_payload.splitlines()
-    ref_map = {}
-    record_regex = re.compile(r'^([a-zA-Z0-9]+):(.*)')
+# Configure logging to output to console
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+_LOGGER = logging.getLogger(__name__)
 
-    for record in records:
-        match = record_regex.match(record)
-        if match:
-            ref_map[match.group(1)] = match.group(2)
-    return ref_map
-
-def resolve_recursive(key, ref_map, resolved_cache, level=0):
-    """Recursively resolves a reference key with added debugging."""
-    indent = "  " * level
-    print(f"{indent}Resolving key: {key}")
-
-    if key in resolved_cache:
-        print(f"{indent} -> Found in cache.")
-        return resolved_cache[key]
-    if key not in ref_map:
-        print(f"{indent} -> Not in ref_map. Returning as is.")
-        return f'"${key}"'
-
-    resolved_cache[key] = '"__RECURSION_GUARD__"'
-    value = ref_map[key]
-    print(f"{indent} -> Raw value: {value[:100]}...")
-
-    refs = re.findall(r'"\$([a-zA-Z0-9]+)"', value)
-    for ref_key in set(refs):
-        print(f"{indent}  -> Found ref: ${ref_key}")
-        resolved_value = resolve_recursive(ref_key, ref_map, resolved_cache, level + 1)
-        value = value.replace(f'"${ref_key}"', resolved_value)
+def main():
+    html_file_path = "/mnt/e/source/personal_repos/homeassistant/custom_components/price_tracker/custom_components/price_tracker/temp_manually_saved_html.html"
     
-    print(f"{indent} -> Resolved value: {value[:100]}...")
-    resolved_cache[key] = value
-    return value
-
-def run_parser(content):
-    ref_map = build_ref_map(content)
+    _LOGGER.info(f"Attempting to read HTML from: {html_file_path}")
     
-    if '11' not in ref_map:
-        print("Error: Main product record (key '11') not found.")
-        return
-
-    print("--- Resolving All References ---")
-    resolved_cache = {}
-    # We only need to resolve the main key, the recursion will handle the rest.
-    final_string = resolve_recursive('11', ref_map, resolved_cache)
-
-    # Final cleanup
-    final_string = re.sub(r'"\$D(.*?)"', r'"\1"', final_string)
-    final_string = re.sub(r'T[a-zA-Z0-9]+,', '', final_string)
-    final_string = final_string.replace('"$Sreact.fragment"' , '"react.fragment"')
-    final_string = final_string.replace('"$",', '')
-
-    # Extract the product dictionary
-    dict_match = re.search(r'({\s*"product":\s*{.*}})', final_string, re.DOTALL)
-    if not dict_match:
-        print("Could not extract the product dictionary.")
-        print("\n--- Final String (for debugging) ---")
-        print(final_string)
-        return
-
-    final_json_string = dict_match.group(1)
-
-    print("--- Final Parsed Product Data ---")
     try:
-        final_data = decode(final_json_string)
-        pprint.pprint(final_data)
+        with open(html_file_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        _LOGGER.info(f"Successfully read HTML content. Length: {len(html_content)} characters.")
+    except FileNotFoundError:
+        _LOGGER.error(f"Error: File not found at {html_file_path}")
+        return
     except Exception as e:
-        print(f"Failed to parse final JSON string: {e}")
-        print("\n--- Final JSON String (for debugging) ---")
-        print(final_json_string)
+        _LOGGER.error(f"Error reading file {html_file_path}: {e}")
+        return
+
+    _LOGGER.info("Calling extract_and_parse_all_hydration_data directly...")
+    try:
+        parsed_hydration_data = extract_and_parse_all_hydration_data(html_content)
+        _LOGGER.info(f"Result from extract_and_parse_all_hydration_data: {parsed_hydration_data}")
+        if parsed_hydration_data:
+            _LOGGER.info(f"Extracted product data: {json.dumps(parsed_hydration_data, indent=2)}")
+        else:
+            _LOGGER.warning("No product data extracted from hydration_parser.")
+    except Exception as e:
+        _LOGGER.error(f"Error during hydration parsing: {e}")
+
+    _LOGGER.info("Calling extract_product_data_from_html (full extraction process)...")
+    try:
+        extracted_product_data = extract_product_data_from_html(html_content)
+        _LOGGER.info(f"Result from extract_product_data_from_html: {extracted_product_data}")
+        if extracted_product_data:
+            _LOGGER.info(f"Full extracted product data: {json.dumps(extracted_product_data, indent=2)}")
+        else:
+            _LOGGER.warning("No product data extracted from full HTML extractor.")
+    except Exception as e:
+        _LOGGER.error(f"Error during full HTML extraction: {e}")
 
 if __name__ == "__main__":
-    try:
-        with open('tests/buywisely/fixtures/nextjs_json_string.txt', 'r') as f:
-            content = f.read()
-        run_parser(content)
-    except FileNotFoundError:
-        print("Error: problematic_json_string.txt not found.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    main()

@@ -1,30 +1,30 @@
 import logging
 import re
 import json
+import os
 from typing import Optional
 from bs4 import BeautifulSoup
 from .hydration_parser import extract_and_parse_all_hydration_data
 
 _LOGGER = logging.getLogger(__name__)
 
-
 def _find_product_data_recursive(data, path=""):
-    _LOGGER.debug(f"[DIAG][_find_product_data_recursive] Processing data at path: {path}, type: {type(data)}")
+    _LOGGER.debug("[DIAG][_find_product_data_recursive] Processing data at path: %s, type: %s", path, type(data))
     if isinstance(data, dict):
-        # Check for the new product dict structure (title and offers)
-        if 'title' in data and 'offers' in data and isinstance(data['offers'], list):
-            _LOGGER.debug(f"[DIAG][_find_product_data_recursive] Found product data (title/offers) at path: {path}")
+        # Accept either 'title' or 'name' as the product name field, with 'offers' present
+        if (('title' in data or 'name' in data) and 'offers' in data and isinstance(data['offers'], list)):
+            _LOGGER.debug("[DIAG][_find_product_data_recursive] Found product data (title/name & offers) at path: %s", path)
             return data
         # Legacy: dict with 'product' key
         if 'product' in data and isinstance(data['product'], dict):
-            _LOGGER.debug(f"[DIAG][_find_product_data_recursive] Found product data (legacy 'product' key) at path: {path}")
+            _LOGGER.debug("[DIAG][_find_product_data_recursive] Found product data (legacy 'product' key) at path: %s", path)
             return data['product']
         for key, value in data.items():
             result = _find_product_data_recursive(value, f"{path}.{key}")
             if result:
                 return result
     elif isinstance(data, list):
-        _LOGGER.debug(f"[DIAG][_find_product_data_recursive] Iterating list of length {len(data)} at path: {path}")
+        _LOGGER.debug("[DIAG][_find_product_data_recursive] Iterating list of length %d at path: %s", len(data), path)
         for i, item in enumerate(data):
             result = _find_product_data_recursive(item, f"{path}[{i}]")
             if result:
@@ -32,78 +32,10 @@ def _find_product_data_recursive(data, path=""):
     return None
 
 
-def _is_valid_seller_url(url: str, product_image_url: Optional[str]) -> bool:
-    """Checks if a given URL is a valid seller product URL."""
-    if not url or not isinstance(url, str):
-        _LOGGER.debug(f"[DIAG][is_valid_seller_url] Invalid: URL is None or not a string. URL: {url}")
-        return False
-    url = url.strip()
-    if re.search(r"\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)(\?|$)", url, re.IGNORECASE):
-        _LOGGER.debug(f"[DIAG][is_valid_seller_url] Invalid: URL is an image URL. URL: {url}")
-        return False
-    if product_image_url and url == product_image_url:
-        _LOGGER.debug(f"[DIAG][is_valid_seller_url] Invalid: URL matches product image URL. URL: {url}")
-        return False
-    if re.search(r"buywisely\.com\.au", url, re.IGNORECASE):
-        _LOGGER.debug(f"[DIAG][is_valid_seller_url] Invalid: URL contains buywisely.com.au. URL: {url}")
-        return False
-    if not url.startswith("http"):
-        _LOGGER.debug(f"[DIAG][is_valid_seller_url] Invalid: URL does not start with http. URL: {url}")
-        return False
-    _LOGGER.debug(f"[DIAG][is_valid_seller_url] Valid: URL passed all checks. URL: {url}")
-    return True
 
 
-def _process_product_offers(product_data: dict) -> tuple[list, str]:
-    """Processes product offers to find the main URL and filter offers."""
-    offers = product_data.get('offers', [])
-    if not isinstance(offers, list):
-        offers = []
-    offers = offers[:10]  # Limit to first 10 offers
 
-    all_seller_urls = [
-        offer.get('seller_product_url') for offer in offers
-        if isinstance(offer, dict) and 'seller_product_url' in offer
-    ]
-    _LOGGER.info(f"[DIAG][html_extractor] Full offers list: {offers}")
-    _LOGGER.info(
-        f"[DIAG][html_extractor] All candidate seller_product_url values: "
-        f"{all_seller_urls}"
-    )
 
-    lowest_offer = None
-    lowest_price = None
-    for offer in offers:
-        if not isinstance(offer, dict):
-            continue
-        price = offer.get('base_price')
-        if price is None or price == '' or (isinstance(price, str) and not price.strip()):
-            _LOGGER.warning(f"[DIAG] Offer has missing or empty base_price: {offer}")
-            continue
-        try:
-            price_val = float(price)
-            if lowest_price is None or price_val < lowest_price:
-                lowest_price = price_val
-                lowest_offer = offer
-        except (ValueError, TypeError) as e:
-            _LOGGER.warning(f"[DIAG] Could not parse price {price}: {e}")
-            continue
-
-    main_url = ""
-    url_candidate = lowest_offer.get('seller_product_url') if lowest_offer else ''
-    image_candidate = product_data.get('image') if product_data else ''
-    if lowest_offer and _is_valid_seller_url(str(url_candidate or ''), image_candidate):
-        main_url = str(url_candidate)
-        _LOGGER.info(
-            f"[DIAG][html_extractor] Extracted seller_product_url from "
-            f"lowest-priced offer: {main_url}"
-        )
-    else:
-        _LOGGER.error(
-            "[html_extractor] No valid seller URL found in offers. "
-            "Extraction failure."
-        )
-    return offers, main_url
 
 
 def extract_from_beautifulsoup(html: str) -> dict:
@@ -170,7 +102,7 @@ def extract_from_beautifulsoup(html: str) -> dict:
     )
     return raw_data
 
-
+# Now define extract_product_data_from_html after extract_from_beautifulsoup
 def extract_product_data_from_html(html: str) -> dict:
     """Extracts product data from BuyWisely HTML content."""
     raw_data = {}
@@ -178,15 +110,15 @@ def extract_product_data_from_html(html: str) -> dict:
     parsed_data_list = []
     try:
         parsed_data_list = extract_and_parse_all_hydration_data(html)
-        _LOGGER.debug(f"[DIAG][html_extractor] Raw parsed_data_list from hydration_parser: {parsed_data_list}")
+        _LOGGER.debug("[DIAG][html_extractor] Raw parsed_data_list from hydration_parser: %r", parsed_data_list)
         try:
             import json as _json
-            _LOGGER.info(f"[DIAG][html_extractor] Full parsed_data (hydration): { _json.dumps(parsed_data_list, default=str)[:10000] }")
+            _LOGGER.info("[DIAG][html_extractor] Full parsed_data (hydration): %s", _json.dumps(parsed_data_list, default=str)[:10000])
         except Exception as e:
-            _LOGGER.error(f"[DIAG][html_extractor] Exception logging full parsed_data: {e}")
-        _LOGGER.info(f"[DIAG] Parsed data from hydration_parser: {parsed_data_list}")
+            _LOGGER.error("[DIAG][html_extractor] Exception logging full parsed_data: %s", e)
+        _LOGGER.info("[DIAG] Parsed data from hydration_parser: %r", parsed_data_list)
     except Exception as e:
-        _LOGGER.error(f"BuyWisely HtmlExtractor: Error parsing with hydration_parser: {e}")
+        _LOGGER.error("BuyWisely HtmlExtractor: Error parsing with hydration_parser: %s", e)
         parsed_data_list = []
 
     if not parsed_data_list:
@@ -210,7 +142,7 @@ def extract_product_data_from_html(html: str) -> dict:
         product_data = _find_product_data_recursive(item)
         if product_data:
             break
-    _LOGGER.debug(f"[DIAG][html_extractor] Product data after recursive search: {product_data}")
+    _LOGGER.debug("[DIAG][html_extractor] Product data after recursive search: %r", product_data)
     
     if product_data:
         _LOGGER.info(f"[DIAG][html_extractor] Found product data: {product_data}")
@@ -230,7 +162,6 @@ def extract_product_data_from_html(html: str) -> dict:
             name_value = 'UNKNOWN'
             _LOGGER.warning(f"[DIAG][html_extractor] Product name not found in any of {name_fields}, defaulting to 'UNKNOWN'. product_data keys: {list(product_data.keys())}")
 
-
         raw_data = {
             'title': name_value,
             'price': product_data.get('lowest_price'),
@@ -246,5 +177,97 @@ def extract_product_data_from_html(html: str) -> dict:
     else:
         _LOGGER.info("BuyWisely HtmlExtractor: Product data not found in any supported hydration format. Trying BeautifulSoup fallback.")
         raw_data = extract_from_beautifulsoup(html)
-        _LOGGER.debug(f"[DIAG][html_extractor] raw_data after BeautifulSoup fallback: {raw_data}")
+    _LOGGER.debug("[DIAG][html_extractor] raw_data after BeautifulSoup fallback: %r", raw_data)
     return raw_data
+
+def _debug_local_html_parsing():
+    html_path = os.path.join(os.path.dirname(__file__), '../../temp_manually_saved_html_pretty_print.html')
+    html_path = os.path.abspath(html_path)
+    _LOGGER.info("[DIAG][_debug_local_html_parsing] Loading HTML from: %s", html_path)
+    if not os.path.exists(html_path):
+        _LOGGER.error("[DIAG][_debug_local_html_parsing] File does not exist: %s", html_path)
+    try:
+        with open(html_path, 'r', encoding='utf-8') as f:
+            html = f.read()
+        _LOGGER.info("[DIAG][_debug_local_html_parsing] Read %d bytes from HTML file.", len(html))
+    except Exception as e:
+        _LOGGER.error("[DIAG][_debug_local_html_parsing] Failed to read HTML file: %s", e)
+        return
+    try:
+        result = extract_product_data_from_html(html)
+        _LOGGER.info("[DIAG][_debug_local_html_parsing] Extraction result: %s", json.dumps(result, ensure_ascii=False, indent=2)[:10000])
+        return None
+    except Exception as e:
+        pass
+
+if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.DEBUG, format="%(levelname)s:%(message)s")
+    _debug_local_html_parsing()
+
+def _is_valid_seller_url(url: str, product_image_url: Optional[str]) -> bool:
+    """Checks if a given URL is a valid seller product URL."""
+    if not url or not isinstance(url, str):
+        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL is None or not a string. URL: %r", url)
+        return False
+    url = url.strip()
+    if re.search(r"\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)(\?|$)", url, re.IGNORECASE):
+        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL is an image URL. URL: %r", url)
+        return False
+    if product_image_url and url == product_image_url:
+        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL matches product image URL. URL: %r", url)
+        return False
+    if re.search(r"buywisely\.com\.au", url, re.IGNORECASE):
+        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL contains buywisely.com.au. URL: %r", url)
+        return False
+    if not url.startswith("http"):
+        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL does not start with http. URL: %r", url)
+        return False
+    _LOGGER.debug("[DIAG][is_valid_seller_url] Valid: URL passed all checks. URL: %r", url)
+    return True
+
+
+def _process_product_offers(product_data: dict) -> tuple[list, str]:
+    """Processes product offers to find the main URL and filter offers."""
+    offers = product_data.get('offers', [])
+    if not isinstance(offers, list):
+        offers = []
+    offers = offers[:10]  # Limit to first 10 offers
+
+    all_seller_urls = [
+        offer.get('seller_product_url') for offer in offers
+        if isinstance(offer, dict) and 'seller_product_url' in offer
+    ]
+    _LOGGER.info("[DIAG][html_extractor] Full offers list: %r", offers)
+    _LOGGER.info("[DIAG][html_extractor] All candidate seller_product_url values: %r", all_seller_urls)
+
+    lowest_offer = None
+    lowest_price = None
+    for offer in offers:
+        if not isinstance(offer, dict):
+            continue
+        price = offer.get('base_price')
+        if price is None or price == '' or (isinstance(price, str) and not price.strip()):
+            _LOGGER.warning("[DIAG] Offer has missing or empty base_price: %r", offer)
+            continue
+        try:
+            price_val = float(price)
+            if lowest_price is None or price_val < lowest_price:
+                lowest_price = price_val
+                lowest_offer = offer
+        except (ValueError, TypeError) as e:
+            _LOGGER.warning("[DIAG] Could not parse price %r: %s", price, e)
+            continue
+
+    main_url = ""
+    url_candidate = lowest_offer.get('seller_product_url') if lowest_offer else ''
+    image_candidate = product_data.get('image') if product_data else ''
+    if lowest_offer and _is_valid_seller_url(str(url_candidate or ''), image_candidate):
+        main_url = str(url_candidate)
+        _LOGGER.info("[DIAG][html_extractor] Extracted seller_product_url from lowest-priced offer: %r", main_url)
+    else:
+        _LOGGER.error("[html_extractor] No valid seller URL found in offers. Extraction failure.")
+    return offers, main_url
+
+
+
