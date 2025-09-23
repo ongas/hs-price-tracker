@@ -6,6 +6,7 @@ from custom_components.price_tracker.datas.category import ItemCategoryData
 _LOGGER = logging.getLogger(__name__)
 
 def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -> ItemData:
+    _LOGGER.warning(f"[DIAG][data_transformer] Incoming raw_data: {raw_data}")
     offers = raw_data.get('offers', [])
     lowest_price_value = None
     lowest_currency_value = ''
@@ -16,11 +17,15 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
         for idx, offer in enumerate(offers):
             url_candidate = offer.get('seller_product_url')
             _LOGGER.info(f"[DIAG][data_transformer] Offer {idx} seller_product_url: {url_candidate}")
+        from custom_components.price_tracker.utilities.parser import parse_float
         def get_base_price(offer):
-            try:
-                return float(offer.get('base_price', float('inf')))
-            except ValueError:
+            base_price = offer.get('base_price', float('inf'))
+            # Use parse_float to robustly handle None, empty, or malformed values
+            value = parse_float(base_price)
+            # If parse_float returns 0.0 for a value that was None or empty, treat as inf for min()
+            if base_price is None or (isinstance(base_price, str) and not base_price.strip()):
                 return float('inf')
+            return value
         lowest_offer = min(offers, key=get_base_price)
         lowest_price_value = lowest_offer.get('base_price')
         lowest_currency_value = lowest_offer.get('currency', 'AUD')
@@ -35,12 +40,18 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
     # Always default currency to 'AUD' if missing or empty
     currency_value = (lowest_currency_value or raw_data.get('currency') or 'AUD')
     brand_value = raw_data.get('brand') or ''
-    # Always use title from raw_data if present and non-empty, else 'UNKNOWN', regardless of offers
-    name_raw = raw_data.get('title')
-    if isinstance(name_raw, str) and name_raw.strip():
-        name_value = name_raw.strip()
-    else:
+    # Robustly extract product name from multiple possible fields
+    name_fields = ['title', 'name', 'product']
+    name_value = None
+    for field in name_fields:
+        name_raw = raw_data.get(field)
+        if isinstance(name_raw, str) and name_raw.strip():
+            name_value = name_raw.strip()
+            _LOGGER.info(f"[DIAG][data_transformer] Product name found in field '{field}': {name_value}")
+            break
+    if not name_value:
         name_value = 'UNKNOWN'
+        _LOGGER.warning(f"[DIAG][data_transformer] Product name not found in any of {name_fields}, defaulting to 'UNKNOWN'. raw_data keys: {list(raw_data.keys())}")
     image_value = raw_data.get('image') or ''
     # Set status to INACTIVE if price is None or 0.0, or if not in stock
     price_val_for_status = price_value if price_value is not None else 0.0

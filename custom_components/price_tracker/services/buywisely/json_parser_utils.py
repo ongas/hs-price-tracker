@@ -112,14 +112,14 @@ def find_product_with_offers_recursive(data: any) -> dict | None:
 
 def _find_product_data_recursive(data: any) -> dict | None:
     """
-    Recursively searches for a dictionary that contains a 'product' key within 'props.pageProps'.
-    This is specific to the __NEXT_DATA__ structure.
+    Recursively searches for a dictionary that contains an 'offers' key,
+    where 'offers' is a list of dictionaries, each with a 'seller_product_url'.
     """
     _LOGGER.debug(f"[DIAG][_find_product_data_recursive] Processing data (type: {type(data)}): {str(data)[:100]}...")
     if isinstance(data, dict):
-        if 'props' in data and 'pageProps' in data['props'] and 'product' in data['props']['pageProps']:
-            _LOGGER.debug(f"[DIAG][_find_product_data_recursive] Found product data in props.pageProps: {str(data['props']['pageProps']['product'])[:100]}...")
-            return data['props']['pageProps']['product']
+        if 'offers' in data and isinstance(data['offers'], list) and all(isinstance(o, dict) and 'seller_product_url' in o for o in data['offers']):
+            _LOGGER.debug(f"[DIAG][_find_product_data_recursive] Found product data with offers: {str(data)[:100]}...")
+            return data
         for k, v in data.items():
             _LOGGER.debug(f"[DIAG][_find_product_data_recursive] Recursing into key '{k}'")
             found = _find_product_data_recursive(v)
@@ -133,27 +133,3 @@ def _find_product_data_recursive(data: any) -> dict | None:
             if found:
                 return found
     return None
-
-def is_valid_seller_url(url: str, product_image_url: str | None = None) -> bool:
-    """
-    Checks if a given URL is a valid seller product URL.
-    """
-    _LOGGER.debug(f"[DIAG][is_valid_seller_url] Checking URL validity for: {url}")
-    if not url or not isinstance(url, str):
-        _LOGGER.debug(f"[DIAG][is_valid_seller_url] URL is not valid (None or not string): {url}")
-        return False
-    url = url.strip()
-    if re.search(r"\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)(\?|$)", url, re.IGNORECASE):
-        _LOGGER.debug(f"[DIAG][is_valid_seller_url] URL is not valid (image extension): {url}")
-        return False
-    if product_image_url and url == product_image_url:
-        _LOGGER.debug(f"[DIAG][is_valid_seller_url] URL is not valid (matches product image): {url}")
-        return False
-    if re.search(r"buywisely\\.com\\.au", url, re.IGNORECASE):
-        _LOGGER.debug(f"[DIAG][is_valid_seller_url] URL is not valid (contains buywisely.com.au): {url}")
-        return False
-    if not url.startswith("http"):
-        _LOGGER.debug(f"[DIAG][is_valid_seller_url] URL is not valid (does not start with http): {url}")
-        return False
-    _LOGGER.debug(f"[DIAG][is_valid_seller_url] URL is valid: {url}")
-    return True

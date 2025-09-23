@@ -20,5 +20,10 @@ def robust_identifier_conversion(identifier_str: str):
     try:
         return demjson3.decode(identifier_str)
     except Exception as e:
-        _LOGGER.warning(f"Failed to parse identifier with demjson3: {e}. Returning as string.")
-        return identifier_str
+        _LOGGER.debug(f"First attempt to parse identifier with demjson3 failed: {e}. Trying with quotes.")
+        try:
+            # Attempt to parse by wrapping in quotes, useful for simple string identifiers
+            return demjson3.decode(f'"{identifier_str}"')
+        except Exception as e_quoted:
+            _LOGGER.warning(f"Failed to parse identifier with demjson3 even after quoting: {e_quoted}. Returning original string.")
+            return identifier_str
