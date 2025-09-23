@@ -184,8 +184,15 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 ## 8. Outstanding Issues & Resolved Problems
 
 
+
 ### Outstanding Issues
-- None currently. The seller_product_url extraction logic is now strict, robust, and fully covered by diagnostics and tests. Update this section as new issues arise.
+- **CRITICAL REGRESSION (2025-09-23):**
+    - Entity extraction for BuyWisely is currently broken after the last set of changes. The Home Assistant entity now shows `name: UNKNOWN`, `price: 0.0`, and an empty URL, even though the data and site structure have NOT changed and this was working previously.
+    - The last set of changes were intended to augment the entity attribute data with `seller_product_url`, but have instead caused a regression that prevents all entity data from being correctly populated.
+    - Hydration data extraction is failing to find product data, and the fallback to BeautifulSoup is not extracting a price or product details, resulting in default/fallback values.
+    - This is NOT a data or site change issue. The regression is due to recent code changes, not external factors.
+    - Diagnostics confirm that the hydration and fallback logic are being triggered, but no valid product or offer data is being extracted.
+    - **Next Steps:** Review and revert or fix the recent changes that broke entity data extraction. Ensure that augmenting the entity with `seller_product_url` does not interfere with the extraction of all other entity fields. Add regression tests to prevent this in the future.
 
 
 ### Outstanding Test Infrastructure Task
@@ -258,12 +265,13 @@ Replace `entity_id` with the correct sensor/entity for your product. This button
 - `components/buywisely/setup.py`: Integrates BuyWisely with Home Assistant’s config entry system.
 
 
-**Seller URL Extraction (CRITICAL):**
-- The seller URL for each product is now strictly and only extracted from the `seller_product_url` field of the lowest-priced offer in the offers list, which is robustly traversed from the hydration data. No fallback or alternative logic is used or permitted.
-- The extraction logic deeply traverses the hydration data to locate the offers list, regardless of its nesting, and logs the full offers list and all candidate seller_product_url values for diagnostics.
-- If no valid `seller_product_url` is found in the offers, the seller URL will be empty and this is logged for diagnostics.
-- The hydration data's `product['seller']['url']` or any other field is never used for the seller URL, as it is almost always missing or empty and is not reliable.
-- Extensive diagnostics are present at every stage: the full hydration data, offers list, all candidate URLs, and the final url set in the entity are logged for traceability and debugging.
+
+**Seller URL Extraction (CRITICAL & REGRESSION WARNING):**
+- The seller URL for each product is intended to be strictly and only extracted from the `seller_product_url` field of the lowest-priced offer in the offers list, which is robustly traversed from the hydration data. No fallback or alternative logic is used or permitted.
+- However, as of 2025-09-23, a regression has occurred: the extraction logic is now failing to find product data in the hydration data, and the fallback to BeautifulSoup is not extracting a price or product details, resulting in default/fallback values for all entity fields.
+- This is NOT due to a data or site change. The regression is due to recent code changes that were intended to augment the entity with `seller_product_url` but have instead broken the extraction of all entity data.
+- Diagnostics confirm that the hydration and fallback logic are being triggered, but no valid product or offer data is being extracted.
+- **Action Required:** Review and fix or revert the recent changes to restore correct entity extraction. Ensure that adding `seller_product_url` as an attribute does not interfere with the extraction of all other entity fields. Add regression tests to prevent recurrence.
 
 
 **Web Scraping & Extraction Considerations:**
