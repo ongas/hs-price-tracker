@@ -61,5 +61,5 @@ def test_hydration_parser_offer_fields():
     assert offers is not None and len(offers) > 0, 'No offers found.'
     offer = offers[0]
     assert isinstance(offer, dict), f'First offer is not a dict: {type(offer)}'
-    assert 'base_price' in offer, 'Offer missing base_price.'
+    assert 'price' in offer, 'Offer missing price.'
     assert 'seller_product_url' in offer, 'Offer missing seller_product_url.'

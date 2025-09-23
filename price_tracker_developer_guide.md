@@ -120,7 +120,7 @@ To avoid hitting processing size limitations with verbose pytest output, you can
     The prompt must show `homeassistant` as the active environment. If not, troubleshooting and test execution will fail.
 
 **Troubleshooting Missing Dependencies:**
-- If you encounter errors such as `ModuleNotFoundError: No module named \'demjson3\'`, ensure you are in the correct conda environment and all dependencies are installed:
+- If you encounter errors such as `ModuleNotFoundError: No module named 'demjson3'`, ensure you are in the correct conda environment and all dependencies are installed:
         ```bash
         conda activate homeassistant
         pip install -r requirements.txt
@@ -186,14 +186,6 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 
 
 ### Outstanding Issues
-- **CRITICAL REGRESSION (2025-09-23):**
-    - Entity extraction for BuyWisely is currently broken after the last set of changes. The Home Assistant entity now shows `name: UNKNOWN`, `price: 0.0`, and an empty URL, even though the data and site structure have NOT changed and this was working previously.
-    - The last set of changes were intended to augment the entity attribute data with `seller_product_url`, but have instead caused a regression that prevents all entity data from being correctly populated.
-    - Hydration data extraction is failing to find product data, and the fallback to BeautifulSoup is not extracting a price or product details, resulting in default/fallback values.
-    - This is NOT a data or site change issue. The regression is due to recent code changes, not external factors.
-    - Diagnostics confirm that the hydration and fallback logic are being triggered, but no valid product or offer data is being extracted.
-    - **Next Steps:** Review and revert or fix the recent changes that broke entity data extraction. Ensure that augmenting the entity with `seller_product_url` does not interfere with the extraction of all other entity fields. Add regression tests to prevent this in the future.
-
 
 ### Outstanding Test Infrastructure Task
 - In `test_services.py`, ensure `hass.data[DOMAIN]` is initialized as a dict in each test setup to prevent `KeyError` in certain tests.
@@ -201,6 +193,21 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 
 
 ### Resolved Issues
+
+#### Critical Regression: BuyWisely Entity Extraction (September 2025)
+
+- **Issue:** Entity extraction for BuyWisely was broken, resulting in `name: UNKNOWN`, `price: 0.0`, and an empty URL for Home Assistant entities. This was a regression caused by recent code changes, not external factors like data or site structure changes. Hydration data extraction was failing, and the BeautifulSoup fallback was not extracting correct price or product details.
+- **Root Cause:**
+    - Initial `SyntaxError` in `html_extractor.py` prevented proper parsing.
+    - After fixing the `SyntaxError`, `html_extractor.py` was incorrectly processing a list returned by `hydration_parser.py` as a single object, leading to further parsing errors.
+    - `NameError` issues in the BeautifulSoup fallback (`currency_match`, `price_match`) due to unchecked `re.search` results.
+- **Actions Taken:**
+    - `SyntaxError` in `html_extractor.py` was resolved.
+    - `html_extractor.py` was updated to correctly handle the list output from `hydration_parser.py`.
+    - `NameError` issues in the BeautifulSoup fallback (for `currency_match` and `price_match`) were resolved by adding checks for `None` before accessing `group(1)`.
+    - Temporary logging was added to `html_extractor.py` and `data_transformer.py` to diagnose the issue, and subsequently removed.
+- **Verification:** All relevant BuyWisely tests are now passing (excluding the expected timeout test). Diagnostics confirm that `name`, `price`, and `seller_product_url` are correctly extracted and populated.
+- **Status:** Fully resolved. The regression has been fixed, and entity data is now extracted as expected.
 
 #### Seller URL Extraction, Offers Traversal, and Diagnostics (September 2025)
 

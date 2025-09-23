@@ -1,7 +1,7 @@
 import time
 import json
 from custom_components.price_tracker.utilities.hydration_parser import parse_nextjs_hydration_data as new_parser
-from nextjs_hydration_parser import NextJSHydrationDataExtractor
+from hydration_parser import NextJSHydrationDataExtractor
 from custom_components.price_tracker.services.buywisely.html_extractor import extract_product_data_from_html
 
 import logging

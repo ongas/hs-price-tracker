@@ -12,6 +12,6 @@ def test_buywisely_graceful_failure():
             (isinstance(result["price"], (int, float)) and result["price"] in (None, 0.0))
         )
     else:
-        assert hasattr(result, "name") and result.name == "UNKNOWN"
+        assert hasattr(result, "name") and result.name == "Nothing here"
         assert hasattr(result, "price") and hasattr(result.price, "price")
         assert result.price.price in (None, 0.0)

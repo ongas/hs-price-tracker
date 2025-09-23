@@ -3,82 +3,55 @@ import re
 import json
 from typing import Optional
 from bs4 import BeautifulSoup
-from .nextjs_hydration_parser import NextJSHydrationDataExtractor
+from .hydration_parser import extract_and_parse_all_hydration_data
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _find_product_data_recursive(data):
-    """Recursively finds product data within a nested dictionary or list.
-    Recognizes dicts with 'title' and 'offers' keys as product data, not just under 'product'."""
+def _find_product_data_recursive(data, path=""):
+    _LOGGER.debug(f"[DIAG][_find_product_data_recursive] Processing data at path: {path}, type: {type(data)}")
     if isinstance(data, dict):
-        # Recognize a product dict by the presence of 'title' and 'offers' keys
-        if (
-            'title' in data and 'offers' in data and isinstance(data['offers'], list)
-        ):
+        # Check for the new product dict structure (title and offers)
+        if 'title' in data and 'offers' in data and isinstance(data['offers'], list):
+            _LOGGER.debug(f"[DIAG][_find_product_data_recursive] Found product data (title/offers) at path: {path}")
             return data
         # Legacy: dict with 'product' key
         if 'product' in data and isinstance(data['product'], dict):
+            _LOGGER.debug(f"[DIAG][_find_product_data_recursive] Found product data (legacy 'product' key) at path: {path}")
             return data['product']
-        for value in data.values():
-            result = _find_product_data_recursive(value)
+        for key, value in data.items():
+            result = _find_product_data_recursive(value, f"{path}.{key}")
             if result:
                 return result
     elif isinstance(data, list):
-        for item in data:
-            result = _find_product_data_recursive(item)
+        _LOGGER.debug(f"[DIAG][_find_product_data_recursive] Iterating list of length {len(data)} at path: {path}")
+        for i, item in enumerate(data):
+            result = _find_product_data_recursive(item, f"{path}[{i}]")
             if result:
                 return result
     return None
 
 
-def _extract_hydration_data(html: str) -> dict:
-    """Extracts and parses __NEXT_DATA__ from HTML, with manual fallback."""
-    extractor = NextJSHydrationDataExtractor()
-    parsed_data = extractor.parse(html)
-
-    _LOGGER.info(
-        f"[DIAG] Full parsed_data (hydration): "
-        f"{json.dumps(parsed_data, default=str)[:10000]}"
-    )
-    _LOGGER.info(f"[DIAG] Parsed data from nextjs_hydration_parser: {parsed_data}")
-
-    if not parsed_data or (isinstance(parsed_data, list) and not parsed_data):
-        _LOGGER.warning(
-            "[DIAG] NextJSHydrationDataExtractor returned empty, "
-            "attempting manual __NEXT_DATA__ extraction."
-        )
-        match = re.search(
-            r'<script[^>]*id=["\\]?__NEXT_DATA__["\\]?[^>]*>(.*?)</script>',
-            html, re.DOTALL
-        )
-        if match:
-            next_data_json = match.group(1)
-            try:
-                parsed_data = json.loads(next_data_json)
-                _LOGGER.info(
-                    f"[DIAG] Manually extracted __NEXT_DATA__ JSON: "
-                    f"{type(parsed_data)}"
-                )
-            except json.JSONDecodeError as e:
-                _LOGGER.error(f"[DIAG] Failed to parse __NEXT_DATA__ JSON: {e}")
-                parsed_data = {}
-    return parsed_data
-
-
 def _is_valid_seller_url(url: str, product_image_url: Optional[str]) -> bool:
     """Checks if a given URL is a valid seller product URL."""
     if not url or not isinstance(url, str):
+        _LOGGER.debug(f"[DIAG][is_valid_seller_url] Invalid: URL is None or not a string. URL: {url}")
         return False
     url = url.strip()
-    if re.search(r"\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)(\?|$)", url,
-                   re.IGNORECASE):
+    if re.search(r"\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)(\?|$)", url, re.IGNORECASE):
+        _LOGGER.debug(f"[DIAG][is_valid_seller_url] Invalid: URL is an image URL. URL: {url}")
         return False
     if product_image_url and url == product_image_url:
+        _LOGGER.debug(f"[DIAG][is_valid_seller_url] Invalid: URL matches product image URL. URL: {url}")
         return False
     if re.search(r"buywisely\.com\.au", url, re.IGNORECASE):
+        _LOGGER.debug(f"[DIAG][is_valid_seller_url] Invalid: URL contains buywisely.com.au. URL: {url}")
         return False
-    return url.startswith("http")
+    if not url.startswith("http"):
+        _LOGGER.debug(f"[DIAG][is_valid_seller_url] Invalid: URL does not start with http. URL: {url}")
+        return False
+    _LOGGER.debug(f"[DIAG][is_valid_seller_url] Valid: URL passed all checks. URL: {url}")
+    return True
 
 
 def _process_product_offers(product_data: dict) -> tuple[list, str]:
@@ -165,12 +138,18 @@ def extract_from_beautifulsoup(html: str) -> dict:
                 currency_val = 'AUD'
             else:
                 currency_val = currency_match.group(1)
-        price_match = re.search(r'([\d,.]+)', price_text.replace(",", ""))
+        else:
+            currency_val = 'AUD'
+
+        price_match = re.search(r"([\d,.]+)", price_text.replace(",", ""))
         if price_match:
             try:
                 price_val = float(price_match.group(1))
             except Exception:
                 price_val = None
+        else:
+            price_val = None
+
     raw_data = {}
     if price_val is not None:
         raw_data['price'] = price_val
@@ -183,6 +162,8 @@ def extract_from_beautifulsoup(html: str) -> dict:
     else:
         raw_data['availability'] = 'Out of Stock'
         _LOGGER.debug("[DIAG][_extract_from_beautifulsoup] Price is None, setting availability to Out of Stock.")
+        if title_val:
+            raw_data['title'] = title_val
     _LOGGER.info(
         f"BuyWisely HtmlExtractor: BeautifulSoup fallback extracted "
         f"price: {price_val}, currency: {currency_val}, title: {title_val}"
@@ -192,37 +173,78 @@ def extract_from_beautifulsoup(html: str) -> dict:
 
 def extract_product_data_from_html(html: str) -> dict:
     """Extracts product data from BuyWisely HTML content."""
-    _LOGGER.info("BuyWisely HtmlExtractor: Starting HTML extraction")
     raw_data = {}
+    _LOGGER.info("BuyWisely HtmlExtractor: Starting HTML extraction")
+    parsed_data_list = []
     try:
-        parsed_data = _extract_hydration_data(html)
-        product_data = _find_product_data_recursive(parsed_data)
-
-        if product_data:
-            offers, main_url = _process_product_offers(product_data)
-            title = product_data.get('title')
-            brand = title.split(' ')[0] if title else ''
-
-            raw_data = {
-                'title': title,
-                'name': product_data.get('name') or title,
-                'product': product_data.get('product') or title,
-                'price': product_data.get('lowest_price'),
-                'image': product_data.get('image'),
-                'currency': product_data.get('currency', 'AUD'),
-                'availability': 'In Stock' if offers else 'Out of Stock',
-                'brand': brand,
-                'url': main_url,
-                'offers': offers,
-            }
-            _LOGGER.info(f"[DIAG][html_extractor] raw_data['url'] set to: {main_url}")
-        else:
-            _LOGGER.info(
-                "BuyWisely HtmlExtractor: Product data not found in any "
-                "supported hydration format. Trying BeautifulSoup fallback."
-            )
-            raw_data = extract_from_beautifulsoup(html)
-
+        parsed_data_list = extract_and_parse_all_hydration_data(html)
+        _LOGGER.debug(f"[DIAG][html_extractor] Raw parsed_data_list from hydration_parser: {parsed_data_list}")
+        try:
+            import json as _json
+            _LOGGER.info(f"[DIAG][html_extractor] Full parsed_data (hydration): { _json.dumps(parsed_data_list, default=str)[:10000] }")
+        except Exception as e:
+            _LOGGER.error(f"[DIAG][html_extractor] Exception logging full parsed_data: {e}")
+        _LOGGER.info(f"[DIAG] Parsed data from hydration_parser: {parsed_data_list}")
     except Exception as e:
-        _LOGGER.error(f"BuyWisely HtmlExtractor: Error parsing HTML: {e}")
+        _LOGGER.error(f"BuyWisely HtmlExtractor: Error parsing with hydration_parser: {e}")
+        parsed_data_list = []
+
+    if not parsed_data_list:
+        _LOGGER.warning("[DIAG] HydrationDataExtractor returned empty, attempting manual __NEXT_DATA__ extraction.")
+        match = re.search(r'<script[^>]*id=["__NEXT_DATA__"][^>]*>(.*?)</script>', html, re.DOTALL)
+        if match:
+            try:
+                next_data_json = match.group(1)
+                parsed_data_manual = json.loads(next_data_json)
+                _LOGGER.info(f"[DIAG] Manually extracted __NEXT_DATA__ JSON: {type(parsed_data_manual)}")
+                if isinstance(parsed_data_manual, list):
+                    parsed_data_list.extend(parsed_data_manual)
+                else:
+                    parsed_data_list.append(parsed_data_manual)
+            except Exception as e:
+                _LOGGER.error(f"[DIAG] Failed to parse __NEXT_DATA__ JSON: {e}")
+                parsed_data_list = []
+
+    product_data = None
+    for item in parsed_data_list:
+        product_data = _find_product_data_recursive(item)
+        if product_data:
+            break
+    _LOGGER.debug(f"[DIAG][html_extractor] Product data after recursive search: {product_data}")
+    
+    if product_data:
+        _LOGGER.info(f"[DIAG][html_extractor] Found product data: {product_data}")
+        title = product_data.get('title')
+        brand = title.split(' ')[0] if title else ''
+        offers, main_url = _process_product_offers(product_data)
+
+        name_fields = ['title', 'name', 'product']
+        name_value = None
+        for field in name_fields:
+            name_raw = product_data.get(field)
+            if isinstance(name_raw, str) and name_raw.strip():
+                name_value = name_raw.strip()
+                _LOGGER.info(f"[DIAG][html_extractor] Product name found in field '{field}': {name_value}")
+                break
+        if not name_value:
+            name_value = 'UNKNOWN'
+            _LOGGER.warning(f"[DIAG][html_extractor] Product name not found in any of {name_fields}, defaulting to 'UNKNOWN'. product_data keys: {list(product_data.keys())}")
+
+
+        raw_data = {
+            'title': name_value,
+            'price': product_data.get('lowest_price'),
+            'image': product_data.get('image'),
+            'currency': product_data.get('currency', 'AUD'),
+            'availability': 'In Stock' if offers else 'Out of Stock',
+            'brand': brand,
+            'url': main_url,
+            'offers': offers,
+        }
+        _LOGGER.info(f"[DIAG][html_extractor] raw_data before return: {raw_data}")
+        return raw_data
+    else:
+        _LOGGER.info("BuyWisely HtmlExtractor: Product data not found in any supported hydration format. Trying BeautifulSoup fallback.")
+        raw_data = extract_from_beautifulsoup(html)
+        _LOGGER.debug(f"[DIAG][html_extractor] raw_data after BeautifulSoup fallback: {raw_data}")
     return raw_data

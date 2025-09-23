@@ -1,5 +1,5 @@
 import logging
-from custom_components.price_tracker.services.buywisely.nextjs_hydration_parser import extract_and_parse_all_hydration_data
+from custom_components.price_tracker.services.buywisely.hydration_parser import extract_and_parse_all_hydration_data
 
 _LOGGER = logging.getLogger(__name__)
 
