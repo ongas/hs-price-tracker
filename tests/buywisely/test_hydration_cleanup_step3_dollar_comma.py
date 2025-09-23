@@ -2,13 +2,13 @@ from custom_components.price_tracker.services.buywisely.hydration_parser import 
 
 def test_clean_dollar_comma_literal_basic():
     """Test cleaning of a single "$," literal."""
-    input_string = '{"value": "$", "currency": "USD"}'
+    input_string = '{"value": "$,", "currency": "USD"}'
     expected_string = '{"value": "", "currency": "USD"}'
     assert _clean_dollar_comma_literal(input_string) == expected_string
 
 def test_clean_dollar_comma_literal_multiple():
     """Test cleaning of multiple "$," literals."""
-    input_string = '{"item1": "$", "item2": "$", "price": "$",}'
+    input_string = '{"item1": "$,", "item2": "$,", "price": "$,",}'
     expected_string = '{"item1": "", "item2": "", "price": "",}'
     assert _clean_dollar_comma_literal(input_string) == expected_string
 

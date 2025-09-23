@@ -3,7 +3,7 @@ from custom_components.price_tracker.services.buywisely.parser import parse_prod
 
 def test_buywisely_timeout_and_rate_limiting():
     # Simulate a timeout in the HTML extractor
-    with patch("custom_components.price_tracker.services.buywisely.hydration_parser.extract_and_parse_all_hydration_data", side_effect=TimeoutError("Simulated timeout")):
+    with patch("custom_components.price_tracker.services.buywisely.parser.extract_product_data_from_html", side_effect=TimeoutError("Simulated timeout")):
         html = """
         <html><body>
         <script id=\"__NEXT_DATA__\" type=\"application/json\">{"props": {"pageProps": {"product": {"title": "Timeout Product"}}}}</script>
