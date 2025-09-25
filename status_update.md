@@ -1,27 +1,32 @@
-# Status Update - BuyWisely Entity Extraction Regression (2025-09-23)
+# Status Update: BuyWisely Hydration Parser Extraction Regression
+**Date:** 2025-09-25
 
-## Current Focus
-- The `SyntaxError` in `html_extractor.py` has been fixed.
-- `html_extractor.py` has been updated to correctly process the list of parsed data returned by `hydration_parser.py`.
-- All parsing-related errors in `html_extractor.py` and `data_transformer.py` have been resolved.
+## Summary
+- The previous regex-based cleaning logic for the BuyWisely parser was identified as brittle and the root cause of the parsing failures.
+- A new, robust, state-aware parser (`robust_stateful_cleaner`) was designed and implemented in the diagnostic script (`test_buywisely_pushblock_parser.py`).
+- The new parser successfully cleans the push block data, allowing `demjson3` to parse the product information without errors.
+- The parsing issue is now resolved within the diagnostic script.
 
-## Diagnosis
-- The previous diagnosis of `name: UNKNOWN`, `price: 0.0`, and an empty URL was correct, but the immediate cause of the entity being `unavailable` was a `SyntaxError` in `html_extractor.py`.
-- After fixing the `SyntaxError`, the logs revealed that `html_extractor.py` was incorrectly trying to process a list returned by `extract_and_parse_all_hydration_data` as a single object, leading to further parsing errors and fallback to BeautifulSoup, which only extracted the title.
-- Further investigation revealed additional `NameError` issues in the BeautifulSoup fallback related to `currency_match` and `price_match` not being defined in all scenarios. These have also been addressed.
+## Key Actions Taken
+- Replaced the fragile chain of `re.sub` and `.replace` calls with a single, state-aware cleaning function.
+- The new function programmatically iterates through the data, correctly handling string literals, escape sequences, and custom data formats.
+- Successfully executed the updated diagnostic script, which confirmed that the data is now parsed correctly.
+- Created a new git branch `fix/robust-parser-logic` containing the updated script.
+- Pushed the new branch to the remote repository.
 
-## Status
-- `SyntaxError` resolved.
-- `html_extractor.py` updated to correctly handle list output from `hydration_parser.py`.
-- `NameError` issues in BeautifulSoup fallback (`currency_match`, `price_match`) resolved.
-- The component should now load without syntax errors and correctly extract product data.
-- **Resolution:** The regression causing `name: UNKNOWN`, `price: 0.0`, and an empty URL for BuyWisely entities has been fully resolved. All relevant tests are passing (excluding the expected timeout test).
+## Latest Diagnostic Results (2025-09-25)
+- The `test_buywisely_pushblock_parser.py` script now runs successfully.
+- The `robust_stateful_cleaner` function correctly cleans the raw data.
+- The `demjson3` library successfully parses the cleaned data into a Python object.
+- The final parsed object contains the complete and correct product information.
 
 ## Next Steps
-- Deploy the latest changes.
-- Trigger Home Assistant to process the entity (e.g., by running `python call_ha_api.py`).
-- Analyze the Home Assistant logs for `[DIAG]` messages to verify if `name`, `price`, and `seller_product_url` are now correctly extracted. (This step has been completed and verified during the debugging process).
+- Create a pull request for the `fix/robust-parser-logic` branch to merge the improved diagnostic script.
+- Integrate the new `robust_stateful_cleaner` logic from the diagnostic script into the main `price_tracker` component's BuyWisely parser.
+- Run integration tests to ensure the new parsing logic works correctly within Home Assistant.
 
-## Notes
-- The data and site structure have NOT changed. This was a code regression and an incorrect handling of the `hydration_parser` output.
-- All BuyWisely tests may pass locally, but real entity extraction was broken after deployment due to the `SyntaxError` and subsequent logic error.
+## Current Status
+- **Resolved.** The core data parsing issue is resolved. The robust cleaning logic developed in the diagnostic script is ready for integration into the production code.
+
+---
+*This file is updated automatically as part of the BuyWisely extraction regression workflow.*
