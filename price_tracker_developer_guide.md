@@ -1,3 +1,47 @@
+# Reference Documentation & Artefacts
+
+This project maintains comprehensive reference documentation, specifications, user stories, BDD features, test data, and traceability artefacts to ensure all requirements, edge cases, and test artefacts are explicit, up-to-date, and regression-proof. All developers **must** consult and update these resources for any change, bugfix, or feature:
+
+- **User Stories & Acceptance Criteria:**
+    - `docs/acceptance/userstories/US01_Add_BuyWisely_Product.md` (add product)
+    - `docs/acceptance/userstories/US02_View_BuyWisely_Product_Details.md` (view details)
+    - `docs/acceptance/userstories/US03_Track_Lowest_Price.md` (track lowest price)
+    - `docs/acceptance/userstories/US04_Handle_Unavailable_Products.md` (handle unavailable/deleted)
+    - `docs/acceptance/userstories/US05_Parse_Display_Product_Info.md` (parse/display info)
+    - `docs/acceptance/userstories/US06_Support_Multiple_Offers.md` (multiple offers)
+    - `docs/acceptance/userstories/US07_Validate_Product_URLs.md` (URL validation)
+    - `docs/acceptance/userstories/US08_Diagnostic_Logging.md` (diagnostic logging)
+
+- **BDD Features:**
+    - `docs/acceptance/features/US01_Add_BuyWisely_Product.feature`
+    - `docs/acceptance/features/US02_View_BuyWisely_Product_Details.feature`
+    - `docs/acceptance/features/US03_Track_Lowest_Price.feature`
+    - `docs/acceptance/features/US04_Handle_Unavailable_Products.feature`
+    - `docs/acceptance/features/US05_Parse_Display_Product_Info.feature`
+    - `docs/acceptance/features/US06_Support_Multiple_Offers.feature`
+    - `docs/acceptance/features/US07_Validate_Product_URLs.feature`
+    - `docs/acceptance/features/US08_Diagnostic_Logging.feature`
+
+- **Test Data & Fixtures:**
+    - `docs/acceptance/test_data/buywisely/valid_multiple_offers.json` (multiple offers)
+    - `docs/acceptance/test_data/buywisely/multiple_offers_same_price.json` (same price edge case)
+    - `docs/acceptance/test_data/buywisely/all_offers_missing_seller_product_url.json` (missing URL)
+    - `tests/buywisely/fixtures/real_buywisely_product.html` (real HTML fixture)
+
+- **Integration & Implementation Specs:**
+    - `docs/integration_docs/buywisely_product_api_contract.md` (API/data contract)
+    - `docs/integration_docs/buywisely_error_handling_and_edge_cases.md` (error/edge case catalog)
+    - `docs/integration_docs/buywisely_implementation_checklist.md` (implementation checklist)
+    - `docs/integration_docs/buywisely_deployment_verification_guide.md` (deployment/verification)
+    - `docs/integration_docs/buywisely_traceability_matrix.md` (traceability matrix)
+
+- **Traceability:**
+    - All requirements, edge cases, and test artefacts are mapped in the traceability matrix for full coverage.
+
+**Important:**
+- Any change to extraction logic, requirements, or test coverage **must** be reflected in all relevant artefacts above.
+- Always validate against the real BuyWisely product page and update fixtures and test data to match the current lowest price and seller URL.
+
 ---
 # Price Tracker Developer Guide
 
@@ -12,8 +56,8 @@ The `price_tracker` custom component enables Home Assistant to track product pri
 **Core Files:**
 - `config_flow.py`: Handles Home Assistant configuration flow for new product trackers.
 - `components/`: Core logic for entity, sensor, and integration management.
-- `services/`: Contains service-specific engines, parsers, and data transformers (e.g., `services/buywisely/json_parser.py` for JSON extraction and parsing, see Services section).
-- `utilities/hydration_parser.py`: Now acts as a wrapper, delegating complex JSON extraction and parsing to `services/buywisely/json_parser.py`.
+- `services/`: Contains service-specific engines, parsers, and data transformers.
+- `services/buywisely/hydration_parser.py`: Contains the `robust_stateful_cleaner` for parsing Next.js hydration data from BuyWisely pages.
 
 **Home Assistant Configuration:**
 - Main config: `configuration.yaml` (e.g., `docker/config/configuration.yaml`).
@@ -120,7 +164,7 @@ To avoid hitting processing size limitations with verbose pytest output, you can
     The prompt must show `homeassistant` as the active environment. If not, troubleshooting and test execution will fail.
 
 **Troubleshooting Missing Dependencies:**
-- If you encounter errors such as `ModuleNotFoundError: No module named 'demjson3'`, ensure you are in the correct conda environment and all dependencies are installed:
+- If you encounter errors such as `ModuleNotFoundError: No module named \'\'\'demjson3\'\'\'`, ensure you are in the correct conda environment and all dependencies are installed:
         ```bash
         conda activate homeassistant
         pip install -r requirements.txt
@@ -151,7 +195,7 @@ To avoid hitting processing size limitations with verbose pytest output, you can
     curl -X POST \
         -H "Authorization: Bearer YOUR_LONG_LIVED_ACCESS_TOKEN" \
         -H "Content-Type: application/json" \
-        -d '{"entity_id": "sensor.buywisely_price_tracker"}' \
+        -d \'\'\'{"entity_id": "sensor.buywisely_price_tracker"}\'\'\' \
         http://YOUR_HA_IP:8123/api/services/homeassistant/turn_on
     ```
 
@@ -193,6 +237,17 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 
 
 ### Resolved Issues
+
+#### Robust Parsing for BuyWisely Hydration Data (September 2025)
+- **Issue:** The previous regex-based cleaning logic for the BuyWisely parser was brittle and prone to failure when the structure of the hydration data changed.
+- **Root Cause:** The use of multiple, independent `re.sub` and `.replace` calls was not robust enough to handle the complexity of the nested and sometimes malformed JSON-like data in the `self.__next_f.push()` blocks.
+- **Actions Taken:**
+    - A new `robust_stateful_cleaner` function was implemented in `custom_components/price_tracker/services/buywisely/hydration_parser.py`.
+    - This function uses a state-aware approach to iterate through the data, correctly handling string literals, escape sequences, and custom data formats (e.g., `$D` for dates, `<$L_...>` for React fragments).
+    - The old, brittle cleaning functions were removed from `hydration_parser.py`.
+    - The `_normalize_and_parse_push_block` function was updated to use the new `robust_stateful_cleaner`.
+- **Verification:** The new parser correctly cleans the push block data, allowing `demjson3` to parse the product information without errors. This has been verified with real-world data that previously caused failures.
+- **Status:** Fully resolved. The parsing logic is now significantly more robust and resilient to changes in the source data.
 
 #### Critical Regression: BuyWisely Entity Extraction (September 2025)
 
@@ -268,17 +323,26 @@ Replace `entity_id` with the correct sensor/entity for your product. This button
 
 **BuyWisely-specific Architecture & Key Components:**
 - `services/buywisely/engine.py`: Contains `BuyWiselyEngine` for HTTP requests, response handling, and data construction.
-- `services/buywisely/parser.py`: Contains `parse_product` for HTML parsing using the custom hydration parser (`utilities/hydration_parser.py`) and `BeautifulSoup`.
+- `services/buywisely/hydration_parser.py`: Contains the `robust_stateful_cleaner` for parsing Next.js hydration data from BuyWisely pages.
+- `services/buywisely/parser.py`: Contains `parse_product` for HTML parsing using the custom hydration parser (`services/buywisely/hydration_parser.py`) and `BeautifulSoup`.
 - `components/buywisely/setup.py`: Integrates BuyWisely with Home Assistant’s config entry system.
 
 
 
-**Seller URL Extraction (CRITICAL & REGRESSION WARNING):**
-- The seller URL for each product is intended to be strictly and only extracted from the `seller_product_url` field of the lowest-priced offer in the offers list, which is robustly traversed from the hydration data. No fallback or alternative logic is used or permitted.
-- However, as of 2025-09-23, a regression has occurred: the extraction logic is now failing to find product data in the hydration data, and the fallback to BeautifulSoup is not extracting a price or product details, resulting in default/fallback values for all entity fields.
-- This is NOT due to a data or site change. The regression is due to recent code changes that were intended to augment the entity with `seller_product_url` but have instead broken the extraction of all entity data.
-- Diagnostics confirm that the hydration and fallback logic are being triggered, but no valid product or offer data is being extracted.
-- **Action Required:** Review and fix or revert the recent changes to restore correct entity extraction. Ensure that adding `seller_product_url` as an attribute does not interfere with the extraction of all other entity fields. Add regression tests to prevent recurrence.
+
+**Seller URL and Lowest Price Extraction (CRITICAL REQUIREMENT):**
+- The seller URL for each product **must** be strictly and only extracted from the `seller_product_url` field of the lowest-priced offer in the first 10 offers in the offers list, as found in the hydration data. No fallback or alternative logic is permitted.
+- The lowest price must be the minimum of the `price` (or `base_price`) fields among the first 10 offers. Delivery cost, if present, should be included in the total price calculation if business logic requires it.
+- **Example (as of 2025-09-23):**
+        - The current lowest price listed for the Motorola Moto G75 5G 256GB Grey with Buds is **$391** with **$13 delivery** (as of 2025-09-23).
+        - The correct `seller_product_url` is:
+            `https://vtechindustries.com.au/products/motorola-g75-5g-256gb-with-moto-buds-charcoal-grey-au-stock-6-8-full-hd-120hz-8gb-256gb-dual-sim-50mp-16mp-water-protection-5000mah-2year-warranty-pb3y0024au?variant=50641766383904&utm_source=buywisely`
+        - This real-world example must be reflected in all test data, fixtures, and acceptance artefacts until the live BuyWisely data changes.
+- Extraction logic and tests **must** always verify that the entity\'s price and URL match the lowest-priced offer (including delivery if required) among the first 10 offers on the BuyWisely product page.
+- If this requirement is not met, it is a regression and must be fixed immediately. This is a standing requirement and must not be omitted from future development or code reviews.
+
+- If the BuyWisely website changes the structure or naming of the offers list, diagnostics will log the full hydration data and extraction failure, making debugging straightforward.
+- Parsing logic may still break if the site layout or hydration data format changes significantly; always check logs for extraction diagnostics.
 
 
 **Web Scraping & Extraction Considerations:**

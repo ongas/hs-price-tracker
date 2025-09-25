@@ -4,7 +4,7 @@ import json
 import os
 from typing import Optional
 from bs4 import BeautifulSoup
-from .hydration_parser import extract_and_parse_all_hydration_data
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -148,7 +148,7 @@ def extract_product_data_from_html(html: str) -> dict:
         _LOGGER.info(f"[DIAG][html_extractor] Found product data: {product_data}")
         title = product_data.get('title')
         brand = title.split(' ')[0] if title else ''
-        offers, main_url = _process_product_offers(product_data)
+        offers, main_url, lowest_total, lowest_offer = _process_product_offers(product_data, return_lowest_details=True)
 
         name_fields = ['title', 'name', 'product']
         name_value = None
@@ -162,11 +162,15 @@ def extract_product_data_from_html(html: str) -> dict:
             name_value = 'UNKNOWN'
             _LOGGER.warning(f"[DIAG][html_extractor] Product name not found in any of {name_fields}, defaulting to 'UNKNOWN'. product_data keys: {list(product_data.keys())}")
 
+        # Set price to the lowest total (price + delivery) found
+        price_val = lowest_total if lowest_total is not None else None
+        currency_val = lowest_offer.get('currency') if lowest_offer else product_data.get('currency', 'AUD')
+
         raw_data = {
             'title': name_value,
-            'price': product_data.get('lowest_price'),
+            'price': price_val,
             'image': product_data.get('image'),
-            'currency': product_data.get('currency', 'AUD'),
+            'currency': currency_val,
             'availability': 'In Stock' if offers else 'Out of Stock',
             'brand': brand,
             'url': main_url,
@@ -197,7 +201,7 @@ def _debug_local_html_parsing():
         result = extract_product_data_from_html(html)
         _LOGGER.info("[DIAG][_debug_local_html_parsing] Extraction result: %s", json.dumps(result, ensure_ascii=False, indent=2)[:10000])
         return None
-    except Exception as e:
+    except Exception:
         pass
 
 if __name__ == "__main__":
@@ -227,8 +231,8 @@ def _is_valid_seller_url(url: str, product_image_url: Optional[str]) -> bool:
     return True
 
 
-def _process_product_offers(product_data: dict) -> tuple[list, str]:
-    """Processes product offers to find the main URL and filter offers."""
+def _process_product_offers(product_data: dict, return_lowest_details: bool = False) -> tuple:
+    """Processes product offers to find the main URL and filter offers. Optionally returns lowest price and offer."""
     offers = product_data.get('offers', [])
     if not isinstance(offers, list):
         offers = []
@@ -242,22 +246,36 @@ def _process_product_offers(product_data: dict) -> tuple[list, str]:
     _LOGGER.info("[DIAG][html_extractor] All candidate seller_product_url values: %r", all_seller_urls)
 
     lowest_offer = None
-    lowest_price = None
+    lowest_total = None
     for offer in offers:
         if not isinstance(offer, dict):
             continue
-        price = offer.get('base_price')
+        # Use price, fallback to base_price
+        price = offer.get('price')
+        if price is None:
+            price = offer.get('base_price')
         if price is None or price == '' or (isinstance(price, str) and not price.strip()):
-            _LOGGER.warning("[DIAG] Offer has missing or empty base_price: %r", offer)
+            _LOGGER.warning("[DIAG] Offer has missing or empty price/base_price: %r", offer)
             continue
         try:
             price_val = float(price)
-            if lowest_price is None or price_val < lowest_price:
-                lowest_price = price_val
-                lowest_offer = offer
         except (ValueError, TypeError) as e:
             _LOGGER.warning("[DIAG] Could not parse price %r: %s", price, e)
             continue
+        # Add delivery if present and numeric
+        delivery = offer.get('delivery')
+        delivery_val = 0.0
+        if delivery is not None:
+            try:
+                delivery_val = float(delivery)
+            except (ValueError, TypeError):
+                _LOGGER.warning("[DIAG] Could not parse delivery %r for offer: %r", delivery, offer)
+                delivery_val = 0.0
+        total = price_val + delivery_val
+        _LOGGER.info("[DIAG][html_extractor] Offer: %r, price: %r, delivery: %r, total: %r", offer, price_val, delivery_val, total)
+        if lowest_total is None or total < lowest_total:
+            lowest_total = total
+            lowest_offer = offer
 
     main_url = ""
     url_candidate = lowest_offer.get('seller_product_url') if lowest_offer else ''
@@ -267,6 +285,8 @@ def _process_product_offers(product_data: dict) -> tuple[list, str]:
         _LOGGER.info("[DIAG][html_extractor] Extracted seller_product_url from lowest-priced offer: %r", main_url)
     else:
         _LOGGER.error("[html_extractor] No valid seller URL found in offers. Extraction failure.")
+    if return_lowest_details:
+        return offers, main_url, lowest_total, lowest_offer
     return offers, main_url
 
 

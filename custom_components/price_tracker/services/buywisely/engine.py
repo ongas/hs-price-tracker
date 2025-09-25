@@ -99,6 +99,11 @@ class BuyWiselyEngine(PriceEngine):
             )
 
         html = response.text if response.text else ""
+        # Diagnostic: Log the first 2000 characters of the fetched HTML for runtime verification
+        if html:
+            _LOGGER.info(f"[DIAG][BuyWiselyEngine.load] First 2000 chars of fetched HTML for {self.item_url}:\n{html[:2000]}")
+        else:
+            _LOGGER.warning(f"[DIAG][BuyWiselyEngine.load] No HTML content fetched for {self.item_url}")
         product_details = parse_product(html, product_id=self.product_id, item_url=self.item_url)
         # Ensure return type is always ItemData
         if isinstance(product_details, dict):
