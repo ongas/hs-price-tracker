@@ -20,8 +20,9 @@ This checklist ensures a fool-proof, step-by-step process for implementing the B
 
 4. **Parser Implementation**
    - [ ] Extract hydration JSON from HTML.
+   - [ ] Use the robust, state-aware parser for all BuyWisely product data extraction.
    - [ ] Parse product and offers data robustly.
-   - [ ] Handle all edge cases and malformed data.
+   - [ ] Handle all edge cases and malformed data (see error/edge case catalog).
    - [ ] Log full hydration data and extraction steps.
 
 5. **Data Transformer Implementation**

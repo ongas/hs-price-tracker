@@ -5,9 +5,9 @@
 **so that** I can see all relevant details for the products I am tracking.
 
 ## Acceptance Criteria
-- The system parses product HTML and JSON data from BuyWisely pages.
+- The system uses a robust, state-aware parser to extract product HTML and JSON data from BuyWisely pages, handling all known edge cases (see error/edge case catalog).
 - Product details such as name, brand, image, price, and offers are extracted and shown to the user.
 - The seller URL is always extracted from the offers list (never from fallback or hydration fields).
-- If parsing fails, the user is notified.
+- If parsing fails, the user is notified with a clear diagnostic message.
 
 ---

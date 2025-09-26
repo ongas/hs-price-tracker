@@ -1,5 +1,8 @@
 # BuyWisely Error Handling & Edge Case Catalog
 
+
+All error conditions and edge cases listed here are now handled by the robust, state-aware BuyWisely parser integrated in the price tracker component (see developer guide and user story 5).
+
 This document catalogs all known error conditions, edge cases, and required diagnostics for the BuyWisely service integration. It is intended to ensure fool-proof, predictable, and diagnosable behavior.
 
 ---
