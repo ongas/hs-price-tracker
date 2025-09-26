@@ -1,0 +1,23 @@
+# Service definitions for Home Assistant custom component
+
+# This file is required for registering custom services.update_entity:
+
+	name: Update Entity
+
+# Example service definition (update as needed):	description: Manually triggers an update for a price tracker entity.
+
+update_entity:	fields:
+
+  name: Update Entity		entity_id:
+
+  description: Force an update for a price tracker entity.			name: Entity ID
+
+  fields:			description: The entity_id of the price tracker sensor to update.
+
+    entity_id:			required: true
+
+      description: The entity_id of the price tracker sensor to update			selector:
+
+      example: sensor.price_buywisely_type_motorola_moto_g75_5g_256gb_grey_with_buds				entity:
+
+					domain: sensor
