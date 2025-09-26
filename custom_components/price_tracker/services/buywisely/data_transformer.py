@@ -18,19 +18,37 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
             url_candidate = offer.get('seller_product_url')
             _LOGGER.info(f"[DIAG][data_transformer] Offer {idx} seller_product_url: {url_candidate}")
         from custom_components.price_tracker.utilities.parser import parse_float
-        def get_base_price(offer):
+        def get_total_price(offer):
             base_price = offer.get('base_price', float('inf'))
-            # Use parse_float to robustly handle None, empty, or malformed values
-            value = parse_float(base_price)
-            # If parse_float returns 0.0 for a value that was None or empty, treat as inf for min()
+            delivery = offer.get('delivery')
+            shipping = offer.get('shipping')
+            delivery_val = None
+            for val in (delivery, shipping):
+                try:
+                    delivery_val = float(val) if val is not None else 0.0
+                except (ValueError, TypeError):
+                    delivery_val = 0.0
+                if delivery_val is not None:
+                    break
+            base_val = parse_float(base_price)
             if base_price is None or (isinstance(base_price, str) and not base_price.strip()):
-                return float('inf')
-            return value
-        lowest_offer = min(offers, key=get_base_price)
+                base_val = float('inf')
+            return base_val + (delivery_val if delivery_val is not None else 0.0)
+        lowest_offer = min(offers, key=get_total_price)
         lowest_price_value = lowest_offer.get('base_price')
         lowest_currency_value = lowest_offer.get('currency', 'AUD')
-        # Always use the seller_product_url from the lowest-priced offer
         seller_product_url = lowest_offer.get('seller_product_url')
+        # Extract delivery price for the selected offer
+        selected_delivery = None
+        for key in ('delivery', 'shipping'):
+            val = lowest_offer.get(key)
+            try:
+                selected_delivery = float(val) if val is not None else None
+            except (ValueError, TypeError):
+                selected_delivery = None
+            if selected_delivery is not None:
+                break
+        raw_data['delivery_price'] = selected_delivery
         if not seller_product_url:
             _LOGGER.error(f"[DIAG][data_transformer] No seller_product_url found in lowest_offer: {lowest_offer}")
 
@@ -88,6 +106,22 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
 
     price = ItemPriceData(price=price_value, currency=currency_value) if price_value is not None and currency_value else ItemPriceData(price=0.0, currency="")
 
+    # Propagate delivery_price from raw_data to DeliveryData
+    delivery_price = raw_data.get('delivery_price')
+    if delivery_price is not None:
+        try:
+            delivery_price = float(delivery_price)
+        except (ValueError, TypeError):
+            _LOGGER.warning(f"[DIAG][data_transformer] delivery_price in raw_data is not a float: {delivery_price}")
+            delivery_price = None
+    else:
+        _LOGGER.info(f"[DIAG][data_transformer] delivery_price not found in raw_data, keys: {list(raw_data.keys())}")
+
+    from custom_components.price_tracker.datas.delivery import DeliveryData
+    delivery = DeliveryData(price=delivery_price) if delivery_price is not None else DeliveryData()
+
+    _LOGGER.info(f"[DIAG][data_transformer] Using delivery_price: {delivery_price} for DeliveryData")
+
     result = ItemData(
         id=product_id,
         name=name_value,
@@ -97,6 +131,7 @@ def transform_raw_product_data(raw_data: dict, product_id: str, item_url: str) -
         price=price,
         image=image_value,
         category=ItemCategoryData(None),
+        delivery=delivery,
     )
     _LOGGER.info(f"[DIAG][DataTransformer] Returning ItemData: {result}, as_dict: {getattr(result, 'dict', 'no dict') if hasattr(result, 'dict') else str(result)}")
     return result

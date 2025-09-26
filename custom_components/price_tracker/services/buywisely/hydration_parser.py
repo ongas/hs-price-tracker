@@ -3,7 +3,7 @@ import logging
 import json
 import demjson3
 from bs4 import BeautifulSoup
-from .json_parser_utils import find_product_with_offers_recursive, _find_product_data_recursive, extract_js_literal_from_push_string, remove_js_prefix, unescape_json_string
+from .json_parser_utils import find_product_with_offers_recursive, _find_product_data_recursive
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -17,6 +17,11 @@ def _extract_next_data_json(html: str) -> list[dict]:
     # This function is currently unused in extract_and_parse_all_hydration_data,
     # but keeping it for completeness. The logic below will be more robust.
     soup = BeautifulSoup(html, 'html.parser')
+    # Diagnostic: print all script tags and their ids
+    script_tags = soup.find_all('script')
+    _LOGGER.info(f"[DIAG][NEXT_DATA] Found {len(script_tags)} <script> tags. IDs: {[tag.get('id') for tag in script_tags]}")
+    for idx, tag in enumerate(script_tags):
+        _LOGGER.info(f"[DIAG][NEXT_DATA] Script tag {idx}: id={tag.get('id')}, type={tag.get('type')}, first 100 chars: {str(tag)[:100]}")
     script = soup.find('script', id='__NEXT_DATA__')
     if script and script.string:
         try:
@@ -30,179 +35,201 @@ def _extract_next_data_json(html: str) -> list[dict]:
     return []
 
 
-def robust_stateful_cleaner(data_string: str) -> str:
+
+# --- Robust stateful cleaner for push block normalization ---
+def robust_stateful_cleaner(s: str) -> str:
     """
-    A state-aware parser to robustly clean the JSON-like data from BuyWisely.
-    This approach is more resilient to changes in string content than regex replacements.
+    Cleans a JSON-like string from a Next.js hydration push block using a state-aware approach.
+    Handles string literals, escape sequences, $D date placeholders, and other quirks.
     """
-    in_string = False
-    is_escaped = False
-    result = []
-    
+    out = []
     i = 0
-    while i < len(data_string):
-        char = data_string[i]
-        
-        if in_string:
-            if is_escaped:
-                # The previous character was a backslash, so append this character literally
-                result.append(char)
-                is_escaped = False
-            elif char == '\\':
-                # This is an escape character, note it for the next iteration
-                is_escaped = True
-                result.append(char)
-            elif char == '"':
-                # We are leaving a string
-                in_string = False
-                result.append(char)
-            else:
-                # A regular character inside a string
-                result.append(char)
-        else:  # We are not in a string
-            if char == '"':
-                # We are entering a string
-                in_string = True
-                result.append(char)
-            # Handle custom formats only when not in a string
-            elif char == '$' and data_string[i:i+2] == '$D':
-                # Match and wrap custom date objects like "$D2024-..." in quotes
-                date_match = re.match(r'(\$D[\dTZ:.-]+)', data_string[i:])
-                if date_match:
-                    date_str = date_match.group(1)
-                    result.append(f'"{date_str}"')
-                    i += len(date_str) - 1  # Skip ahead
-                else:
-                    result.append(char)
-            elif char == '<' and data_string[i:i+4] == '<$':
-                # Match and replace React fragments like "<$L_..." with null
-                fragment_match = re.match(r'(<\$L_[\w./]+>)', data_string[i:])
-                if fragment_match:
-                    fragment_str = fragment_match.group(1)
-                    result.append('null')
-                    i += len(fragment_str) - 1  # Skip ahead
-                else:
-                    result.append(char)
-            else:
-                # A regular character outside a string
-                result.append(char)
+    in_str = False
+    escape = False
+    while i < len(s):
+        c = s[i]
+        if escape:
+            out.append(c)
+            escape = False
+        elif c == '\\':
+            out.append(c)
+            escape = True
+        elif c == '"':
+            out.append(c)
+            in_str = not in_str
+        elif not in_str and s[i:i+2] == ':"' and s[i+2:i+4] == '$,':
+            # Remove ": "$," patterns
+            out.append(': ""')
+            i += 3
+        elif not in_str and s[i:i+3] == '"$D':
+            # Replace "$D..." with "..."
+            j = i+3
+            while j < len(s) and s[j] != '"':
+                j += 1
+            out.append('"')
+            out.append(s[i+3:j])
+            out.append('"')
+            i = j
+        elif in_str and s[i:i+15] == '$Sreact.fragment':
+            out.append('react.fragment')
+            i += 14
+        else:
+            out.append(c)
         i += 1
+    return ''.join(out)
+
+
+def _find_balanced_json(s: str) -> str | None:
+    """Finds a balanced JSON object string, ignoring braces within strings."""
+    start_index = s.find('{')
+    if start_index == -1:
+        return None
+    
+    brace_count = 0
+    in_string = False
+    escape = False
+    for i, char in enumerate(s[start_index:]):
+        if escape:
+            escape = False
+            continue
         
-    return "".join(result)
+        if char == '\\':
+            escape = True
+            continue
+
+        if char == '"':
+            in_string = not in_string
+
+        if not in_string:
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+        
+        if brace_count == 0:
+            return s[start_index : start_index + i + 1]
+    return None
 
 
-def _normalize_and_parse_push_block(block_content: str) -> dict | None:
+def _recursively_unescape_backslashes(s: str) -> str:
     """
-    Parses the content of a self.__next_f.push() call, which is a JS array literal.
-    It decodes the array, extracts the data string if it contains product data,
-    cleans it, and parses it.
+    Recursively replaces double backslashes with single backslashes until no more double backslashes are found.
+    This is to handle cases of over-escaping.
     """
-    _LOGGER.debug(f"[DIAG][hydration_parser] Processing push block (first 200): {block_content[:200]}")
+    while '\\\\' in s:
+        s = s.replace('\\\\' , '\\')
+    return s
 
-    try:
-        parsed_array = demjson3.decode(block_content)
-    except demjson3.JSONDecodeError:
-        try:
-            cleaned_block = robust_stateful_cleaner(block_content)
-            parsed_array = demjson3.decode(cleaned_block)
-        except demjson3.JSONDecodeError as e:
-            _LOGGER.warning(f"[DIAG][hydration_parser] Failed to decode push block after cleaning: {e}. Content: {block_content[:200]}")
-            return None
 
-    if not (isinstance(parsed_array, list) and len(parsed_array) > 1 and isinstance(parsed_array[1], str)):
-        _LOGGER.debug("[DIAG][hydration_parser] Push block does not match expected [number, string] format.")
+from typing import Any
+def _normalize_and_parse_push_block(block_content: str) -> Any | None:
+    """
+    Normalizes and parses a single push block content using robust_stateful_cleaner.
+    """
+    _LOGGER.debug(f"[DIAG][hydration_parser] Normalizing block content (first 500): {block_content[:500]}")
+
+    # Extract the main string payload from the push block
+    match = re.search(r'"\d+:(.*)"', block_content)
+    if not match:
+        _LOGGER.debug("[DIAG][hydration_parser] Could not find string literal with JSON in push block.")
+        return None
+    json_like_payload = match.group(1)
+    _LOGGER.debug(f"[DIAG][hydration_parser] Extracted payload (first 500): {json_like_payload[:500]}")
+
+    # Apply recursive unescaping for backslashes
+    json_like_payload = _recursively_unescape_backslashes(json_like_payload)
+
+    # Unescape quotes (only once, after recursive backslash unescaping)
+    json_like_payload = json_like_payload.replace('\\\"', '"')
+
+    _LOGGER.debug(f"[DIAG][hydration_parser] Unescaped payload (first 500): {json_like_payload[:500]}")
+
+    # Use robust stateful cleaner
+    cleaned_payload = robust_stateful_cleaner(json_like_payload)
+
+    # Find the balanced JSON object within the payload
+    json_object_string = _find_balanced_json(cleaned_payload)
+
+    if not json_object_string:
+        _LOGGER.warning("[DIAG][hydration_parser] No balanced JSON object found in payload.")
         return None
 
-    data_string = parsed_array[1]
-
-    if '"product"' not in data_string and '"offers"' not in data_string:
-        _LOGGER.debug("[DIAG][hydration_parser] Skipping block without product/offers data.")
-        return None
-
-    _LOGGER.debug(f"[DIAG][hydration_parser] Found potential product data string (first 200): {data_string[:200]}")
-
-    data_string = remove_js_prefix(data_string)
-    cleaned_payload = robust_stateful_cleaner(data_string)
-
-    _LOGGER.debug(f"[DIAG][hydration_parser] Cleaned payload (first 200): {cleaned_payload[:200]}")
+    _LOGGER.debug(f"[DIAG][hydration_parser] Found balanced JSON object string (first 500): {json_object_string[:500]}")
 
     try:
-        parsed_data = demjson3.decode(cleaned_payload)
+        # Parse the object string using demjson3 for non-strict JSON
+        parsed_data = demjson3.decode(json_object_string)
         return parsed_data
     except demjson3.JSONDecodeError as e:
-        _LOGGER.error(f"[DIAG][hydration_parser] Failed to parse product data payload: {e}")
-        _LOGGER.error(f"[DIAG][hydration_parser] Problematic product payload (first 1000): {cleaned_payload[:1000]}")
+        _LOGGER.error(f"[DIAG][hydration_parser] Failed to parse with demjson3: {e}")
+        _LOGGER.error(f"[DIAG][hydration_parser] Problematic payload (first 1000): {json_object_string[:1000]}")
         return None
 
 
 def extract_and_parse_all_hydration_data(html: str) -> list:
     """
     Extracts and parses all Next.js hydration data from HTML.
-    This version targets `self.__next_f.push()` calls and uses a robust
-    manual parser to find the matching parentheses of the push() call.
+    This version targets `self.__next_f.push()` calls.
     """
     _LOGGER.debug("[DIAG][hydration_parser] Starting extract_and_parse_all_hydration_data")
 
-    soup = BeautifulSoup(html, 'html.parser')
-    scripts = soup.find_all('script')
-    
-    start_str = 'self.__next_f.push('
+    # 1. Try to extract from <script id='__NEXT_DATA__'> (legacy/SSR Next.js)
+    results = []
+    all_offers = []
+    # 1. Extract from <script id='__NEXT_DATA__'> (legacy/SSR Next.js)
+    next_data_objs = _extract_next_data_json(html)
+    for obj in next_data_objs:
+        product_data = find_product_with_offers_recursive(obj)
+        if product_data:
+            offers = product_data.get('offers')
+            if isinstance(offers, list):
+                for offer in offers:
+                    if isinstance(offer, dict) and 'base_price' in offer and 'price' not in offer:
+                        offer['price'] = offer['base_price']
+                all_offers.extend(offers)
+            _LOGGER.info("[DIAG][hydration_parser] Found product data with offers in <script id='__NEXT_DATA__'> block.")
+            results.append(product_data)
 
-    for script in scripts:
-        if not script.string:
-            continue
+    # 2. Extract from self.__next_f.push hydration blocks (modern Next.js)
+    push_block_pattern = re.compile(r'self\.__next_f\.push\((\[.*\])\)')
+    matches = push_block_pattern.findall(html)
 
-        content = script.string
-        current_pos = 0
-        
-        while True:
-            start_index = content.find(start_str, current_pos)
-            if start_index == -1:
+    _LOGGER.debug(f"[DIAG][hydration_parser] Found {len(matches)} push blocks.")
+
+    for match in matches:
+        _LOGGER.debug(f"[DIAG][hydration_parser] Processing push block (first 500 chars): {match[:500]}")
+        parsed_data = _normalize_and_parse_push_block(match)
+        if parsed_data:
+            _LOGGER.debug("[DIAG][hydration_parser] Successfully parsed push block.")
+            product_data = find_product_with_offers_recursive(parsed_data)
+            if product_data:
+                offers = product_data.get('offers')
+                if isinstance(offers, list):
+                    for offer in offers:
+                        if isinstance(offer, dict) and 'base_price' in offer and 'price' not in offer:
+                            offer['price'] = offer['base_price']
+                    all_offers.extend(offers)
+                _LOGGER.info("[DIAG][hydration_parser] Found product data with offers in push block.")
+                results.append(product_data)
+
+    # Aggregate all offers into a single product dict if any offers found
+    if all_offers:
+        import pprint
+        _LOGGER.info("[DIAG][hydration_parser] Aggregated offers (count=%d):\n%s", len(all_offers), pprint.pformat(all_offers))
+        offers_with_price = [o for o in all_offers if isinstance(o, dict) and 'price' in o]
+        # Try to merge product metadata from the first product_data found (if any)
+        product_metadata = {}
+        for pd in results:
+            if isinstance(pd, dict):
+                # Copy all fields except 'offers'
+                for k, v in pd.items():
+                    if k != 'offers':
+                        product_metadata[k] = v
                 break
-
-            i = start_index + len(start_str)
-            open_parens = 1
-            in_string = False
-            is_escaped = False
-
-            while i < len(content) and open_parens > 0:
-                char = content[i]
-                
-                if in_string:
-                    if is_escaped:
-                        is_escaped = False
-                    elif char == '\\':
-                        is_escaped = True
-                    elif char == '"':
-                        in_string = False
-                else:
-                    if char == '"':
-                        in_string = True
-                    elif char == '(':
-                        open_parens += 1
-                    elif char == ')':
-                        open_parens -= 1
-                i += 1
-            
-            if open_parens == 0:
-                # The end of the push() call is at i-1. The content is between start_index + len(start_str) and i-1.
-                block_content = content[start_index + len(start_str) : i - 1]
-                _LOGGER.debug(f"[DIAG][hydration_parser] Found push block with balanced parens (length {len(block_content)}).")
-                
-                parsed_data = _normalize_and_parse_push_block(block_content)
-                if parsed_data:
-                    product_data = find_product_with_offers_recursive(parsed_data)
-                    if product_data:
-                        _LOGGER.info("[DIAG][hydration_parser] Found product data with offers in push block.")
-                        # Normalize the 'title' key to 'name' to match the expected output format.
-                        if 'title' in product_data:
-                            product_data['name'] = product_data.pop('title')
-                        return [product_data]
-                
-                current_pos = i
-            else:
-                _LOGGER.warning("[DIAG][hydration_parser] Could not find matching parenthesis for a push call, moving to next script.")
-                break # Move to the next script tag
-    
-    _LOGGER.debug("[DIAG][hydration_parser] No product data found in any push blocks.")
-    return []
+        merged = dict(product_metadata)  # shallow copy
+        merged['offers'] = offers_with_price if offers_with_price else all_offers
+        _LOGGER.info(f"[DIAG][hydration_parser] Aggregated merged product: {merged}")
+        return [merged]
+    if not results:
+        _LOGGER.debug("[DIAG][hydration_parser] No product data found in any supported hydration blocks.")
+    return results

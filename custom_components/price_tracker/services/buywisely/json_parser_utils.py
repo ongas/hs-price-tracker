@@ -86,14 +86,17 @@ def parse_js_array_literal(js_str):
             _LOGGER.error(f"Failed to parse JS array literal with demjson3: {de}. Original string: {js_str[:200]}...")
             return None
 
-def find_product_with_offers_recursive(data: any) -> dict | None:
+from typing import Any, Dict, Optional
+def find_product_with_offers_recursive(data: Any) -> Optional[Dict]:
     """
     Recursively searches for a dictionary that contains an 'offers' key,
-    where 'offers' is a list of dictionaries, each with a 'seller_product_url'.
+    where 'offers' is a non-empty list (relaxed: does not require 'seller_product_url' in every offer).
+    Returns the first such dict found, or None.
     """
     _LOGGER.debug(f"[DIAG][find_product_with_offers_recursive] Processing data (type: {type(data)}): {str(data)[:100]}...")
     if isinstance(data, dict):
-        if 'offers' in data and isinstance(data['offers'], list) and any(isinstance(o, dict) and 'seller_product_url' in o for o in data['offers']):
+        # Accept any dict with a non-empty 'offers' list
+        if 'offers' in data and isinstance(data['offers'], list) and len(data['offers']) > 0:
             _LOGGER.debug(f"[DIAG][find_product_with_offers_recursive] Found product data with offers: {str(data)[:100]}...")
             return data
         for k, v in data.items():
@@ -110,10 +113,11 @@ def find_product_with_offers_recursive(data: any) -> dict | None:
                 return found
     return None
 
-def _find_product_data_recursive(data: any) -> dict | None:
+def _find_product_data_recursive(data: Any) -> Optional[Dict]:
     """
     Recursively searches for a dictionary that contains an 'offers' key,
-    where 'offers' is a list of dictionaries, each with a 'seller_product_url'.
+    where 'offers' is a non-empty list (relaxed: does not require 'seller_product_url' in every offer).
+    Returns the first such dict found, or None.
     """
     _LOGGER.debug(f"[DIAG][_find_product_data_recursive] Processing data (type: {type(data)}): {str(data)[:100]}...")
     if isinstance(data, dict):

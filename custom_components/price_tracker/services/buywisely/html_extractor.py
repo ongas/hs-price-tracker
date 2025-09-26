@@ -10,28 +10,27 @@ from .hydration_parser import extract_and_parse_all_hydration_data
 
 _LOGGER = logging.getLogger(__name__)
 
-def _find_product_data_recursive(data, path=""):
+def _find_product_data_recursive(data, path="", candidates=None):
+    if candidates is None:
+        candidates = []
+
     _LOGGER.debug("[DIAG][_find_product_data_recursive] Processing data at path: %s, type: %s", path, type(data))
     if isinstance(data, dict):
         # Accept either 'title' or 'name' as the product name field, with 'offers' present
         if (('title' in data or 'name' in data) and 'offers' in data and isinstance(data['offers'], list)):
             _LOGGER.debug("[DIAG][_find_product_data_recursive] Found product data (title/name & offers) at path: %s", path)
-            return data
+            candidates.append(data)
         # Legacy: dict with 'product' key
         if 'product' in data and isinstance(data['product'], dict):
             _LOGGER.debug("[DIAG][_find_product_data_recursive] Found product data (legacy 'product' key) at path: %s", path)
-            return data['product']
+            candidates.append(data['product'])
         for key, value in data.items():
-            result = _find_product_data_recursive(value, f"{path}.{key}")
-            if result:
-                return result
+            _find_product_data_recursive(value, f"{path}.{key}", candidates)
     elif isinstance(data, list):
         _LOGGER.debug("[DIAG][_find_product_data_recursive] Iterating list of length %d at path: %s", len(data), path)
         for i, item in enumerate(data):
-            result = _find_product_data_recursive(item, f"{path}[{i}]")
-            if result:
-                return result
-    return None
+            _find_product_data_recursive(item, f"{path}[{i}]", candidates)
+    return candidates
 
 
 
@@ -139,18 +138,59 @@ def extract_product_data_from_html(html: str) -> dict:
                 _LOGGER.error(f"[DIAG] Failed to parse __NEXT_DATA__ JSON: {e}")
                 parsed_data_list = []
 
-    product_data = None
+    product_data_candidates = []
     for item in parsed_data_list:
-        product_data = _find_product_data_recursive(item)
-        if product_data:
+        _find_product_data_recursive(item, candidates=product_data_candidates)
+
+    product_data = None
+    # Prioritize candidates with 'title'/'name', 'offers', and 'seller_product_url' in offers
+    for candidate in product_data_candidates:
+        if (('title' in candidate or 'name' in candidate) and
+                'offers' in candidate and isinstance(candidate['offers'], list) and
+                any('seller_product_url' in offer and offer['seller_product_url'] for offer in candidate['offers'] if isinstance(offer, dict))):
+            product_data = candidate
             break
-    _LOGGER.debug("[DIAG][html_extractor] Product data after recursive search: %r", product_data)
     
+    # Fallback to any candidate with 'title'/'name' and 'offers'
+    if not product_data:
+        for candidate in product_data_candidates:
+            if (('title' in candidate or 'name' in candidate) and
+                    'offers' in candidate and isinstance(candidate['offers'], list)):
+                product_data = candidate
+                break
+
+    # Fallback to any candidate with 'offers'
+    if not product_data:
+        for candidate in product_data_candidates:
+            if 'offers' in candidate and isinstance(candidate['offers'], list):
+                product_data = candidate
+                break
+
+    _LOGGER.debug("[DIAG][html_extractor] Product data after recursive search: %r", product_data)
+
+    # Patch: If product_data is missing 'title' and 'name', but has a nested 'product' dict, use that dict
+    if product_data and not any(k in product_data for k in ('title', 'name')) and 'product' in product_data and isinstance(product_data['product'], dict):
+        _LOGGER.info("[DIAG][html_extractor] Switching to nested 'product' dict for extraction.")
+        product_data = product_data['product']
+
     if product_data:
         _LOGGER.info(f"[DIAG][html_extractor] Found product data: {product_data}")
         title = product_data.get('title')
         brand = title.split(' ')[0] if title else ''
         offers, main_url, lowest_total, lowest_offer = _process_product_offers(product_data, return_lowest_details=True)
+
+        # Set delivery_price to the shipping/delivery value of the selected (lowest-price) offer
+        selected_delivery = None
+        if lowest_offer and isinstance(lowest_offer, dict):
+            for key in ('delivery', 'shipping'):
+                val = lowest_offer.get(key)
+                try:
+                    selected_delivery = float(val) if val is not None else None
+                except (ValueError, TypeError):
+                    selected_delivery = None
+                if selected_delivery is not None:
+                    break
+        _LOGGER.info(f"[DIAG][html_extractor] Delivery price for selected offer: {selected_delivery}")
 
         name_fields = ['title', 'name', 'product']
         name_value = None
@@ -177,6 +217,7 @@ def extract_product_data_from_html(html: str) -> dict:
             'brand': brand,
             'url': main_url,
             'offers': offers,
+            'delivery_price': selected_delivery,
         }
         _LOGGER.info(f"[DIAG][html_extractor] raw_data before return: {raw_data}")
         return raw_data
@@ -259,6 +300,8 @@ def _process_product_offers(product_data: dict, return_lowest_details: bool = Fa
         if price is None or price == '' or (isinstance(price, str) and not price.strip()):
             _LOGGER.warning("[DIAG] Offer has missing or empty price/base_price: %r", offer)
             continue
+        if isinstance(price, str):
+            price = price.replace(",", "")
         try:
             price_val = float(price)
         except (ValueError, TypeError) as e:
