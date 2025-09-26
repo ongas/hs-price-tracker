@@ -26,7 +26,7 @@ This project maintains comprehensive reference documentation, specifications, us
     - `docs/acceptance/test_data/buywisely/valid_multiple_offers.json` (multiple offers)
     - `docs/acceptance/test_data/buywisely/multiple_offers_same_price.json` (same price edge case)
     - `docs/acceptance/test_data/buywisely/all_offers_missing_seller_product_url.json` (missing URL)
-    - `tests/buywisely/fixtures/real_buywisely_product.html` (real HTML fixture)
+    - `tests/buywisely/fixtures/real_buywisely_product.html` (real HTML fixture, always kept in sync with the latest real-world BuyWisely product page and push block format)
 
 - **Integration & Implementation Specs:**
     - `docs/integration_docs/buywisely_product_api_contract.md` (API/data contract)
@@ -40,7 +40,9 @@ This project maintains comprehensive reference documentation, specifications, us
 
 **Important:**
 - Any change to extraction logic, requirements, or test coverage **must** be reflected in all relevant artefacts above.
-- Always validate against the real BuyWisely product page and update fixtures and test data to match the current lowest price and seller URL.
+- The `real_buywisely_product.html` fixture **must** always be updated to match the real BuyWisely product page and the exact push block format found in production HTML. If the product page changes, update the fixture and all related test data immediately.
+- The push block in the fixture must use the `[1, "1:{...}"]` format as found in real Next.js hydration data.
+- Always validate against the real BuyWisely product page and update fixtures and test data to match the current lowest price, delivery, and seller URL.
 
 ---
 # Price Tracker Developer Guide
@@ -182,7 +184,13 @@ To avoid hitting processing size limitations with verbose pytest output, you can
      cd ../../docker
      docker compose restart homeassistant
      ```
-6. **Verification:** Use the `scripts/call_ha_api.py` script to verify entity data after restart.
+6. **Verification:**
+    - Use the `scripts/call_ha_api.py` script to verify entity data after restart. This utility queries the Home Assistant API and prints the full entity state, including all attributes such as `delivery_price`. Example usage:
+        ```bash
+        python3 scripts/call_ha_api.py | tee /tmp/call_ha_api_output.log
+        cat /tmp/call_ha_api_output.log | grep -i delivery_price
+        ```
+    - Always check that `delivery_price` is present and correct in the output. If it is `null`, review extraction and transformation logic as described in the Outstanding Issues section.
 
 **Git Operations:**
 - Perform all Git operations from `custom_components/price_tracker/`.
@@ -233,10 +241,19 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 
 ### Outstanding Test Infrastructure Task
 - In `test_services.py`, ensure `hass.data[DOMAIN]` is initialized as a dict in each test setup to prevent `KeyError` in certain tests.
-- All BuyWisely tests now validate strict seller_product_url extraction, robust offers traversal, and correct diagnostics for missing or malformed data.
+- All BuyWisely tests now validate strict seller_product_url extraction, robust offers traversal, correct diagnostics for missing or malformed data, and that the test fixture matches the real-world HTML and push block format.
 
 
 ### Resolved Issues
+
+#### Aggregation Logic: Merging Product Metadata (September 2025)
+- **Issue:** The BuyWisely hydration parser previously returned only the offers list, omitting top-level product metadata (such as title, image, and availability), which caused test failures and incomplete entity extraction.
+- **Root Cause:** Aggregation logic did not merge product metadata into the final result, so only offers were present in the output.
+- **Actions Taken:**
+    - The aggregation logic in `hydration_parser.py` was updated to merge all relevant product metadata (e.g., title, image, availability) into the aggregated result alongside the offers list.
+    - This ensures the extracted product data always contains all expected fields, matching both test and production requirements.
+- **Verification:** All BuyWisely engine and parser tests now pass, and extracted entities contain complete product information.
+- **Status:** Fully resolved. The extraction logic is now robust, regression-proof, and test-aligned.
 
 #### Robust Parsing for BuyWisely Hydration Data (September 2025)
 - **Issue:** The previous regex-based cleaning logic for the BuyWisely parser was brittle and prone to failure when the structure of the hydration data changed.
@@ -264,16 +281,17 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 - **Verification:** All relevant BuyWisely tests are now passing (excluding the expected timeout test). Diagnostics confirm that `name`, `price`, and `seller_product_url` are correctly extracted and populated.
 - **Status:** Fully resolved. The regression has been fixed, and entity data is now extracted as expected.
 
-#### Seller URL Extraction, Offers Traversal, and Diagnostics (September 2025)
+#### Seller URL Extraction, Offers Traversal, Delivery Price, and Diagnostics (September 2025)
 
 - **Issue:** The entity url was empty due to incomplete or non-robust extraction of the offers list and seller_product_url from the hydration data.
 - **Root Cause:** Extraction logic did not robustly traverse the hydration data to find the offers list, and fallback logic or alternative fields were sometimes used, leading to missing or incorrect seller URLs.
 - **Actions Taken:**
     - Extraction logic was rewritten to robustly traverse all nested product dictionaries in the hydration data to find the offers list.
     - Only the seller_product_url from the lowest-priced offer is used for the url field; no fallback or alternative logic is permitted.
-    - Deep diagnostics were added to log the full hydration data, offers list, all candidate seller_product_url values, and the final url at every stage.
-    - Tests were updated to cover edge cases, missing data, and strict extraction requirements.
-    - Deployment and log review workflow was improved to verify extraction and diagnostics end-to-end.
+    - Deep diagnostics were added to log the full hydration data, offers list, all candidate seller_product_url values, the lowest delivery price, and the final url at every stage.
+    - Delivery price extraction now checks both `delivery` and `shipping` fields in all offers, and always sets `delivery_price` in the entity if present (including zero/free shipping).
+    - Tests and fixtures were updated to cover delivery price extraction, edge cases, and strict requirements for both price and delivery fields.
+    - Deployment, log review, and API verification workflow was improved to verify extraction and diagnostics end-to-end, including explicit use of the Python API utility for post-deployment checks.
     - **Note:** The `test_buywisely_diagnostics_logging.py` test was removed due to its persistent brittleness and the difficulty in reliably asserting its logging behavior within the test environment. The core logging functionality is still covered by other means.
 - **Verification:** Diagnostics in the Home Assistant log now show the full offers list, all candidate seller_product_url values, and the final url set in the entity. Tests pass for all edge cases.
 - **Status:** Fully resolved. Extraction is now strict, robust, and regression-proof.
