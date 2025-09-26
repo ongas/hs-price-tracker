@@ -1,3 +1,4 @@
+// This fixture is validated against the robust, state-aware BuyWisely parser (see user story 5 and error/edge case catalog)
 {
   "props": {
     "pageProps": {

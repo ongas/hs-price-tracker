@@ -123,11 +123,16 @@ async def fetch_buywisely_html(item_url: str):
         method=SafeRequestMethod.GET,
         url=item_url,
     )
-    
+
+    body_len = len(response.data) if response.data else 0
+    body_sample = response.data[:200] if response.data else ''
     if response.has:
+        print(f"[DIAG] Fetched {item_url} with status {response.status_code}, body length: {body_len}")
+        print(f"[DIAG] Body sample: {body_sample}")
         return response.text # Return the HTML content
     else:
-        print(f"Failed to fetch HTML for {item_url}. Response was empty or error occurred.")
+        print(f"[DIAG] Failed to fetch HTML for {item_url}. Status: {response.status_code}, Data length: {body_len}")
+        print(f"[DIAG] Body sample: {body_sample}")
         return None
 
 if __name__ == "__main__":
@@ -152,14 +157,21 @@ if __name__ == "__main__":
     # Determine the parent project directory (three levels up from this script)
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.abspath(os.path.join(script_dir, '..', '..', '..'))
+    # Always resolve fixtures_dir relative to this script's parent directory (custom_components/price_tracker)
+    price_tracker_dir = os.path.abspath(os.path.join(script_dir, '..'))
+    fixtures_dir = os.path.join(price_tracker_dir, 'tests', 'buywisely', 'fixtures')
+    os.makedirs(fixtures_dir, exist_ok=True)
     for i, product_url in enumerate(product_urls):
-        filename_html = os.path.join(script_dir, '..', 'custom_components', 'price_tracker', 'temp_fetched_html.html')
+        # Use a unique, URL-derived filename (e.g., last non-empty path segment or product id)
+        from urllib.parse import urlparse
+        parsed = urlparse(product_url)
+        slug = parsed.path.rstrip('/').split('/')[-1] or f'product_{i+1}'
+        filename_html = os.path.join(fixtures_dir, f'real_buywisely_{slug}.html')
         print(f"Will save HTML content to: {filename_html}")
         print(f"Fetching HTML from: {product_url}")
         html_content = asyncio.run(fetch_buywisely_html(product_url))
 
         if html_content:
-            # Save the full HTML content in the parent project directory
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(html_content, 'html.parser')
             prettified_html = soup.prettify()

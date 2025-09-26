@@ -11,22 +11,25 @@ from .hydration_parser import extract_and_parse_all_hydration_data
 _LOGGER = logging.getLogger(__name__)
 
 def _find_product_data_recursive(data, path=""):
-    _LOGGER.debug("[DIAG][_find_product_data_recursive] Processing data at path: %s, type: %s", path, type(data))
+    _LOGGER.debug("[DIAG][_find_product_data_recursive] path: %s, type: %s", path, type(data))
     if isinstance(data, dict):
         # Accept either 'title' or 'name' as the product name field, with 'offers' present
         if (('title' in data or 'name' in data) and 'offers' in data and isinstance(data['offers'], list)):
-            _LOGGER.debug("[DIAG][_find_product_data_recursive] Found product data (title/name & offers) at path: %s", path)
+            _LOGGER.debug("[DIAG][_find_product_data_recursive] Found product data at path: %s", path)
             return data
         # Legacy: dict with 'product' key
         if 'product' in data and isinstance(data['product'], dict):
-            _LOGGER.debug("[DIAG][_find_product_data_recursive] Found product data (legacy 'product' key) at path: %s", path)
+            _LOGGER.debug("[DIAG][_find_product_data_recursive] Found legacy product data at path: %s", path)
             return data['product']
         for key, value in data.items():
             result = _find_product_data_recursive(value, f"{path}.{key}")
             if result:
                 return result
     elif isinstance(data, list):
-        _LOGGER.debug("[DIAG][_find_product_data_recursive] Iterating list of length %d at path: %s", len(data), path)
+        if len(data) < 5:
+            _LOGGER.debug("[DIAG][_find_product_data_recursive] Iterating list at path: %s, len=%d", path, len(data))
+        else:
+            _LOGGER.debug("[DIAG][_find_product_data_recursive] Iterating list at path: %s, len=%d (truncated)", path, len(data))
         for i, item in enumerate(data):
             result = _find_product_data_recursive(item, f"{path}[{i}]")
             if result:
@@ -95,7 +98,7 @@ def extract_from_beautifulsoup(html: str) -> dict:
             raw_data['title'] = title_val
     else:
         raw_data['availability'] = 'Out of Stock'
-        _LOGGER.debug("[DIAG][_extract_from_beautifulsoup] Price is None, setting availability to Out of Stock.")
+        _LOGGER.debug("[DIAG][_extract_from_beautifulsoup] Price is None, Out of Stock.")
         if title_val:
             raw_data['title'] = title_val
     _LOGGER.info(
@@ -112,7 +115,7 @@ def extract_product_data_from_html(html: str) -> dict:
     parsed_data_list = []
     try:
         parsed_data_list = extract_and_parse_all_hydration_data(html)
-        _LOGGER.debug("[DIAG][html_extractor] Raw parsed_data_list from hydration_parser: %r", parsed_data_list)
+        _LOGGER.debug("[DIAG][html_extractor] Parsed_data_list count: %d", len(parsed_data_list) if parsed_data_list else 0)
         try:
             import json as _json
             _LOGGER.info("[DIAG][html_extractor] Full parsed_data (hydration): %s", _json.dumps(parsed_data_list, default=str)[:10000])
@@ -144,13 +147,52 @@ def extract_product_data_from_html(html: str) -> dict:
         product_data = _find_product_data_recursive(item)
         if product_data:
             break
-    _LOGGER.debug("[DIAG][html_extractor] Product data after recursive search: %r", product_data)
-    
+    if product_data:
+        _LOGGER.debug("[DIAG][html_extractor] Product data keys: %s", list(product_data.keys()))
+    else:
+        _LOGGER.debug("[DIAG][html_extractor] Product data is None")
+
+    # If recursive search failed but top-level dict has 'offers', try to extract product fields from offers
+    if not product_data:
+        for item in parsed_data_list:
+            if isinstance(item, dict) and 'offers' in item:
+                _LOGGER.warning("[DIAG][html_extractor] No product data found by recursive search, but 'offers' present at top level. Using top-level dict as product_data.")
+                product_data = item
+                # If no title/name, try to extract from the first offer
+                if not any(k in product_data for k in ('title', 'name')):
+                    offers = product_data.get('offers', [])
+                    if offers and isinstance(offers, list) and isinstance(offers[0], dict):
+                        # Try to extract 'title' or 'name' from the first offer
+                        for field in ('title', 'name', 'product'):
+                            if field in offers[0] and isinstance(offers[0][field], str):
+                                product_data[field] = offers[0][field]
+                                _LOGGER.info(f"[DIAG][html_extractor] Extracted '{field}' from first offer: {offers[0][field]}")
+                                break
+                break
+
+    # Patch: If product_data is missing 'title' and 'name', but has a nested 'product' dict, use that dict
+    if product_data and not any(k in product_data for k in ('title', 'name')) and 'product' in product_data and isinstance(product_data['product'], dict):
+        _LOGGER.info("[DIAG][html_extractor] Switching to nested 'product' dict for extraction.")
+        product_data = product_data['product']
+
     if product_data:
         _LOGGER.info(f"[DIAG][html_extractor] Found product data: {product_data}")
         title = product_data.get('title')
         brand = title.split(' ')[0] if title else ''
         offers, main_url, lowest_total, lowest_offer = _process_product_offers(product_data, return_lowest_details=True)
+
+        # Set delivery_price to the shipping/delivery value of the selected (lowest-price) offer
+        selected_delivery = None
+        if lowest_offer and isinstance(lowest_offer, dict):
+            for key in ('delivery', 'shipping'):
+                val = lowest_offer.get(key)
+                try:
+                    selected_delivery = float(val) if val is not None else None
+                except (ValueError, TypeError):
+                    selected_delivery = None
+                if selected_delivery is not None:
+                    break
+        _LOGGER.info(f"[DIAG][html_extractor] Delivery price for selected offer: {selected_delivery}")
 
         name_fields = ['title', 'name', 'product']
         name_value = None
@@ -177,13 +219,17 @@ def extract_product_data_from_html(html: str) -> dict:
             'brand': brand,
             'url': main_url,
             'offers': offers,
+            'delivery_price': selected_delivery,
         }
         _LOGGER.info(f"[DIAG][html_extractor] raw_data before return: {raw_data}")
         return raw_data
     else:
         _LOGGER.info("BuyWisely HtmlExtractor: Product data not found in any supported hydration format. Trying BeautifulSoup fallback.")
         raw_data = extract_from_beautifulsoup(html)
-    _LOGGER.debug("[DIAG][html_extractor] raw_data after BeautifulSoup fallback: %r", raw_data)
+    if raw_data:
+        _LOGGER.debug("[DIAG][html_extractor] raw_data keys after fallback: %s", list(raw_data.keys()))
+    else:
+        _LOGGER.debug("[DIAG][html_extractor] raw_data is None after fallback")
     return raw_data
 
 def _debug_local_html_parsing():
@@ -214,22 +260,22 @@ if __name__ == "__main__":
 def _is_valid_seller_url(url: str, product_image_url: Optional[str]) -> bool:
     """Checks if a given URL is a valid seller product URL."""
     if not url or not isinstance(url, str):
-        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL is None or not a string. URL: %r", url)
+        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL is None or not a string.")
         return False
     url = url.strip()
     if re.search(r"\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)(\?|$)", url, re.IGNORECASE):
-        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL is an image URL. URL: %r", url)
+        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL is an image URL.")
         return False
     if product_image_url and url == product_image_url:
-        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL matches product image URL. URL: %r", url)
+        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL matches product image URL.")
         return False
     if re.search(r"buywisely\.com\.au", url, re.IGNORECASE):
-        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL contains buywisely.com.au. URL: %r", url)
+        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL contains buywisely.com.au.")
         return False
     if not url.startswith("http"):
-        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL does not start with http. URL: %r", url)
+        _LOGGER.debug("[DIAG][is_valid_seller_url] Invalid: URL does not start with http.")
         return False
-    _LOGGER.debug("[DIAG][is_valid_seller_url] Valid: URL passed all checks. URL: %r", url)
+    _LOGGER.debug("[DIAG][is_valid_seller_url] Valid: URL passed all checks.")
     return True
 
 
