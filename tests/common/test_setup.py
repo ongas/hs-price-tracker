@@ -17,5 +17,13 @@ def test_setup_config_data_with_target():
 
 def test_async_set_unique_id():
     setup = PriceTrackerSetup()
-    user_input = {"service_type": "buywisely"}
-    assert setup._async_set_unique_id(user_input) == "price-tracker-buywisely"
+
+    # Test with a non-buywisely service type
+    user_input_other = {"service_type": "other_service"}
+    assert setup._async_set_unique_id(user_input_other) == "price-tracker-other_service"
+
+    # Test with the buywisely service type
+    product_url = "http://example.com/product"
+    user_input_buywisely = {"service_type": "buywisely", "product_url": product_url}
+    expected_id = f"price-tracker-buywisely-{product_url}"
+    assert setup._async_set_unique_id(user_input_buywisely) == expected_id

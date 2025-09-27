@@ -32,7 +32,7 @@
 - Updated the developer guide to reflect the new architecture.
 
 ## Latest Diagnostic Results (2025-09-25)
-- The `test_buywisely_pushblock_parser.py` script now runs successfully.
+- The `diagnose_buywisely_pushblock_parser.py` script now runs successfully.
 - The `robust_stateful_cleaner` function correctly cleans the raw data.
 - The `demjson3` library successfully parses the cleaned data into a Python object.
 - The final parsed object contains the complete and correct product information.

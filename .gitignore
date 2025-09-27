@@ -1,48 +1,33 @@
 # Ignore technical notes
 DEVELOPMENT_NOTES.md
-# artifacts
-__pycache__
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
 .pytest*
-/.pytest_cache/
-*.egg-info
-*/build/*
-*/dist/*
-venv
-# artifacts
-__pycache__
-.pytest*
-/pytest_cache/
-*.egg-info
-/build/*
-/dist/*
-venv
+build/
+dist/
+venv/
 
-# misc
+# Test artifacts
 .coverage
-.vscode
 coverage.xml
-.ruff_cache
-.ruff_cache/
-.idea
+pytest_output.log
 
-
-# Home Assistant configuration
-.test/config/*
-!.test/configuration.yaml
-
-DEPLOYMENT_CONFIG.sh
-
-# misc
-.coverage
-.vscode
-coverage.xml
-.ruff_cache
-.ruff_cache/
-.idea
-
-# Home Assistant configuration
-.test/config/*
-!.test/configuration.yaml
-
-# macOS
+# IDEs and editors
+.vscode/
+.idea/
 .DS_Store
+
+# Caches
+.ruff_cache/
+
+# Home Assistant configuration
+.test/config/*
+!.test/configuration.yaml
+
+# Deployment
+DEPLOYMENT_CONFIG.sh
