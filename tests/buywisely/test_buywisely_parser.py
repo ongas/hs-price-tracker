@@ -1,6 +1,8 @@
 def test_hydration_parser_with_g85_product():
     """Test that the parser can extract data from the Motorola Moto G85 HTML payload."""
-    with open('tests/buywisely/fixtures/real_buywisely_motorola-moto-g85-5g-128gb-urban-grey-.html', 'r', encoding='utf-8') as f:
+    import os
+    fixture_path = os.path.join(os.path.dirname(__file__), 'fixtures', 'real_buywisely_motorola-moto-g85-5g-128gb-urban-grey-.html')
+    with open(fixture_path, 'r', encoding='utf-8') as f:
         html_content = f.read()
 
     parsed_data = extract_and_parse_all_hydration_data(html_content)
@@ -19,7 +21,9 @@ from custom_components.price_tracker.services.buywisely.hydration_parser import 
 
 def test_hydration_parser_with_real_data():
     """Test that the new hydration parser can extract data from a real BuyWisely HTML fixture."""
-    with open('tests/buywisely/fixtures/real_buywisely_product.html', 'r') as f:
+    import os
+    fixture_path = os.path.join(os.path.dirname(__file__), 'fixtures', 'real_buywisely_product.html')
+    with open(fixture_path, 'r', encoding='utf-8') as f:
         html_content = f.read()
 
     parsed_data = extract_and_parse_all_hydration_data(html_content)

@@ -1,7 +1,8 @@
 import os
 from custom_components.price_tracker.services.buywisely.hydration_parser import extract_and_parse_all_hydration_data
 
-FIXTURE_PATH = 'tests/buywisely/fixtures/real_buywisely_product.html'
+import os
+FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'fixtures', 'real_buywisely_product.html')
 
 
 def test_fixture_file_exists_and_nonempty():
@@ -18,9 +19,10 @@ def test_hydration_parser_raw_parse():
     with open(FIXTURE_PATH, 'r') as f:
         html = f.read()
     parsed = extract_and_parse_all_hydration_data(html)
+    print("[DIAG][test_hydration_parser_raw_parse] parsed:", parsed)
     assert parsed is not None, 'Parser returned None.'
     assert isinstance(parsed, list), f'Parser did not return a list: {type(parsed)}'
-    assert len(parsed) > 0, 'Parser returned empty list.'
+    assert len(parsed) > 0, f'Parser returned empty list. Parsed: {parsed}'
 
 
 def test_hydration_parser_find_product():
@@ -28,11 +30,12 @@ def test_hydration_parser_find_product():
         html = f.read()
     parsed = extract_and_parse_all_hydration_data(html)
     product = None
+    print("[DIAG][test_hydration_parser_find_product] parsed:", parsed)
     for obj in parsed:
         if isinstance(obj, dict) and 'offers' in obj:
             product = obj
             break
-    assert product is not None, 'No product dict with offers found.'
+    assert product is not None, f'No product dict with offers found. Parsed: {parsed}'
 
 
 def test_hydration_parser_find_offers():
