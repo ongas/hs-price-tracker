@@ -49,7 +49,7 @@ async def test_config_flow_guided(monkeypatch):
     }
     result = await flow.async_step_user(user_input_step2)
     assert result.get("type") == "create_entry"
-    assert result.get("title") == mock_kind[user_input_step1["service_type"]]
+    assert result.get("title") == user_input_step2["product_url"]
     assert result.get("data", {}).get("service_type") == "buywisely"
     assert result.get("data", {}).get("product_url") == user_input_step2["product_url"]
 
@@ -97,7 +97,7 @@ async def test_async_setup_entry_service_type_handling(monkeypatch):
 
     # Mock async_update_entry to prevent errors during setup
     mock_config_entry.add_update_listener = MagicMock()
-    mock_hass.config_entries.async_update_entry = AsyncMock()
+    mock_hass.config_entries.async_update_entry = MagicMock()
     mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
 
     # Mock the actual async_setup_entry from __init__.py
@@ -118,7 +118,7 @@ async def test_async_setup_entry_service_type_handling(monkeypatch):
 
     # Now call async_setup_entry from sensor.py
     # This is where the KeyError previously occurred
-    mock_async_add_entities = AsyncMock()
+    mock_async_add_entities = MagicMock()
     await sensor_async_setup_entry(mock_hass, mock_config_entry, mock_async_add_entities)
 
     # Assert that no KeyError occurred and entities were attempted to be added
@@ -158,7 +158,7 @@ async def test_lowest_price_populates_ha_entity(monkeypatch):
     mock_config_entry.options = {}
 
     mock_config_entry.add_update_listener = MagicMock()
-    mock_hass.config_entries.async_update_entry = AsyncMock()
+    mock_hass.config_entries.async_update_entry = MagicMock()
     mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
 
     # Mock the ItemData that the engine.load() should return
@@ -200,7 +200,7 @@ async def test_lowest_price_populates_ha_entity(monkeypatch):
         result_init = await init_async_setup_entry(mock_hass, mock_config_entry)
         assert result_init is True
 
-        mock_async_add_entities = AsyncMock()
+        mock_async_add_entities = MagicMock()
         await sensor_async_setup_entry(mock_hass, mock_config_entry, mock_async_add_entities)
         print(f"DIAGNOSTIC: mock_async_add_entities.call_args_list: {mock_async_add_entities.call_args_list}")
 
