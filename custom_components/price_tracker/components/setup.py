@@ -89,15 +89,21 @@ class PriceTrackerSetup:
         await self._config_flow.async_set_unique_id(
             self._async_set_unique_id(user_input)
         )
-        # @ignore
-        self._config_flow._abort_if_unique_id_configured(
-            updates={
-                CONF_TARGET: user_input["service_type"],
-            }
-        )  # Ignore the warning
+
+        if service_type != "buywisely":
+            # @ignore
+            self._config_flow._abort_if_unique_id_configured(
+                updates={
+                    CONF_TARGET: user_input["service_type"],
+                }
+            )  # Ignore the warning
+
+        title = self.setup_name()
+        if service_type == "buywisely":
+            title = user_input.get("product_url")
 
         return self._config_flow.async_create_entry(
-            title=self.setup_name(), data={**self.setup_config_data(user_input)}
+            title=title, data={**self.setup_config_data(user_input)}
         )
 
     async def option_setup(self, user_input: dict = None):
@@ -666,6 +672,8 @@ class PriceTrackerSetup:
         )
 
     def _async_set_unique_id(self, user_input: dict) -> str:
+        if user_input["service_type"] == "buywisely":
+            return "price-tracker-buywisely-{}".format(user_input["product_url"])
         return "price-tracker-{}".format(user_input["service_type"])
 
     def _schema_user_input_service_type(self, user_input: dict = None):

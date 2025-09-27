@@ -238,6 +238,15 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 
 ### Resolved Issues
 
+#### BuyWisely Multi-Product Configuration Support (September 2025)
+- **Issue:** The system previously did not support adding more than one BuyWisely product due to a limitation in how configuration uniqueness was determined. Adding a second product resulted in an `AbortFlow: already_configured` error.
+- **Root Cause:** The unique ID for configuration entries was based solely on the `service_type` ('buywisely'). This meant that all BuyWisely configurations were treated as duplicates of the first one.
+- **Actions Taken:**
+    - The `_async_set_unique_id` method in `custom_components/price_tracker/components/setup.py` was modified to include the `product_url` in the unique ID for BuyWisely products.
+    - The `setup` method in the same file was updated to prevent the `_abort_if_unique_id_configured` check from running for the 'buywisely' service.
+    - The configuration entry `title` for BuyWisely products is now set to the `product_url` for better identification in the UI.
+- **Status:** Fully resolved. Multiple BuyWisely products can now be added and tracked independently.
+
 #### Robust Parsing for BuyWisely Hydration Data (September 2025)
 - **Issue:** The previous regex-based cleaning logic for the BuyWisely parser was brittle and prone to failure when the structure of the hydration data changed.
 - **Root Cause:** The use of multiple, independent `re.sub` and `.replace` calls was not robust enough to handle the complexity of the nested and sometimes malformed JSON-like data in the `self.__next_f.push()` blocks.

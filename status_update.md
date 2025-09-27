@@ -1,3 +1,20 @@
+# Status Update: BuyWisely Multi-Product Support
+**Date:** 2025-09-27
+
+## Summary
+- A bug was fixed that prevented adding more than one 'buywisely' product.
+- The root cause was an incorrect unique ID generation for configuration entries.
+- The fix involves creating a unique ID based on the product URL for each 'buywisely' entry.
+
+## Key Actions Taken
+- Modified `custom_components/price_tracker/components/setup.py` to change unique ID generation.
+- Updated `price_tracker_developer_guide.md` to document the fix.
+
+## Current Status
+- **Resolved.** The issue is fixed, and multiple 'buywisely' products can be configured.
+
+---
+
 # Status Update: BuyWisely Hydration Parser Extraction Regression
 **Date:** 2025-09-25
 
