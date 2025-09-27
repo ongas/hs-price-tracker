@@ -9,5 +9,6 @@
 - The system validates the URL and extracts the product ID.
 - The product is added to the tracked items list with its current price, name, brand, image, and the seller_product_url from the lowest-priced offer (never from any fallback or hydration field).
 - If the product is not found or the URL is invalid, the user receives an error message.
+- The user can add multiple BuyWisely products, and each is tracked as a separate entity.
 
 ---

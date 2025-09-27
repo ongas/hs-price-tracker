@@ -49,6 +49,7 @@ This guide provides step-by-step instructions for deploying and verifying the Bu
     - Error/edge case logs (if applicable)
 - [ ] Use provided test data to simulate all core and edge cases.
 - [ ] Validate that all acceptance criteria and BDD scenarios are met.
+- [ ] Verify that multiple BuyWisely products can be added as separate entities.
 
 ---
 

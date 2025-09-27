@@ -32,6 +32,7 @@ This checklist ensures a fool-proof, step-by-step process for implementing the B
 
 6. **Integration with Home Assistant**
    - [ ] Register service in `setup.py`.
+   - [ ] Ensure unique ID generation for each product to support multiple entities.
    - [ ] Ensure entity state and attributes update correctly.
 
 7. **Diagnostics & Logging**

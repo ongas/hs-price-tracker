@@ -15,6 +15,7 @@ This matrix maps each requirement, user story, BDD scenario, and edge case to it
 | Entity state/attributes update                         | data_transformer.py, setup.py  | All above                                              | Entity state logs                      | Data contract, checklist                     |
 | Diagnostics at every step                              | all modules                   | All above                                              | All required logs                      | Error catalog, checklist, deployment guide   |
 | Deployment & verification                              | N/A                           | All above                                              | N/A                                    | Deployment guide, checklist                 |
+| Support multiple BuyWisely products | `config_flow.py`, `components/setup.py` | `test_config_flow.py` | Config flow logs | `US01_Add_BuyWisely_Product.md`, `US01_Add_BuyWisely_Product.feature` |
 
 ---
 

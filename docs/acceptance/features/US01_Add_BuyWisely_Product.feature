@@ -15,3 +15,9 @@ Feature: Add a BuyWisely Product for Price Tracking
     Given I have an invalid BuyWisely product URL
     When I try to add the product to the price tracker
     Then I receive an error message indicating the URL is invalid
+
+  Scenario: Add a second valid BuyWisely product URL
+    Given I have already added a valid BuyWisely product
+    When I add a second, different valid BuyWisely product
+    Then the second product is also added to the tracked items list
+    And I have two tracked BuyWisely products
