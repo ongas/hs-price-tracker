@@ -155,8 +155,8 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 
 
 **Conda Environment Activation (MANDATORY):**
-- You must **only** use the `homeassistant` conda environment for all development, testing, and deployment. **Never create or use a Python virtualenv, venv, or pipenv.**
-- To activate:
+You must **only** use the `homeassistant` conda environment for all development, testing, and deployment. **Never create or use a Python virtualenv, venv, or pipenv.**
+To activate:
         ```bash
         conda activate homeassistant
         echo $CONDA_DEFAULT_ENV
@@ -164,7 +164,7 @@ To avoid hitting processing size limitations with verbose pytest output, you can
     The prompt must show `homeassistant` as the active environment. If not, troubleshooting and test execution will fail.
 
 **Troubleshooting Missing Dependencies:**
-- If you encounter errors such as `ModuleNotFoundError: No module named \'\'\'demjson3\'\'\'`, ensure you are in the correct conda environment and all dependencies are installed:
+If you encounter errors such as `ModuleNotFoundError: No module named 'demjson3'`, ensure you are in the correct conda environment and all dependencies are installed:
         ```bash
         conda activate homeassistant
         pip install -r requirements.txt
@@ -177,15 +177,11 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 2. **Local Testing:** Run tests with `pytest`.
 3. **Code Quality:** Use `ruff check --fix .` for linting and formatting.
 4. **Deployment:** Use the deployment script in `custom_components/price_tracker/scripts/` (`./DEPLOYMENT_SCRIPT.sh`).
-5. **Restart Home Assistant:**
-     ```bash
-     cd ../../docker
-     docker compose restart homeassistant
-     ```
-6. **Verification:** Use the `scripts/call_ha_api.py` script to verify entity data after restart.
+    - **Note:** The deployment script automatically restarts the Home Assistant container after deploying the code. **You do not need to manually restart Home Assistant.**
+5. **Verification:** Use the `scripts/call_ha_api.py` script to verify entity data after deployment.
 
 **Git Operations:**
-- Perform all Git operations from `custom_components/price_tracker/`.
+Perform all Git operations from `custom_components/price_tracker/`.
 
 ## 6. API Usage & Entity Management
 
