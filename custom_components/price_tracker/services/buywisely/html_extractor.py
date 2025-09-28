@@ -286,7 +286,7 @@ def _process_product_offers(product_data: dict, return_lowest_details: bool = Fa
     offers = product_data.get('offers', [])
     if not isinstance(offers, list):
         offers = []
-    offers = offers[:10]  # Limit to first 10 offers
+
 
     all_seller_urls = [
         offer.get('seller_product_url') for offer in offers
