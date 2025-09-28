@@ -76,4 +76,19 @@
 - **Resolved.** All `ModuleNotFoundError` issues have been fixed, and all 57 tests are now passing.
 
 ---
+
+# Status Update: Zero Price Indicates Extraction Bug
+**Date:** 2025-09-28
+
+## Summary
+- Clarified that a product offer with a zero price (`0.0`) is considered an invalid state and indicates a bug in the extraction logic.
+- This realization is crucial for debugging and ensuring the integrity of extracted price data.
+
+## Key Actions Taken
+- Updated `price_tracker_developer_guide.md` to explicitly document this principle under the "Best Practices" section.
+
+## Current Status
+- **Documented.** The understanding that zero price signifies an extraction bug has been formally documented.
+
+---
 *This file is updated automatically as part of the BuyWisely extraction regression workflow.*

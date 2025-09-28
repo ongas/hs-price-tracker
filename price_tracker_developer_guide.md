@@ -222,6 +222,7 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 
 ## 7. Best Practices
 
+- **Zero Price Indicates Extraction Bug:** A product offer with a zero price (`0.0`) is considered an invalid state and indicates a bug in the extraction logic. It should not be treated as a valid product price. The system should aim to extract a non-zero price for active offers.
 - Confirm access before assuming file or service availability.
 - Use targeted log review (tail, grep) instead of reviewing entire logs.
 - Adhere to project conventions for formatting and code style.
@@ -366,8 +367,8 @@ Replace `entity_id` with the correct sensor/entity for your product. This button
 
 
 **Seller URL and Lowest Price Extraction (CRITICAL REQUIREMENT):**
-- The seller URL for each product **must** be strictly and only extracted from the `seller_product_url` field of the lowest-priced offer in the first 10 offers in the offers list, as found in the hydration data. No fallback or alternative logic is permitted.
-- The lowest price must be the minimum of the `price` (or `base_price`) fields among the first 10 offers. Delivery cost, if present, should be included in the total price calculation if business logic requires it.
+- The seller URL for each product **must** be strictly and only extracted from the `seller_product_url` field of the lowest-priced offer in the *current* offers list, as found in the hydration data. The 'current' offers are those visible on the product page before any 'See n more history offers' or similar expansion. No fallback or alternative logic is permitted.
+- The lowest price must be the minimum of the `price` (or `base_price`) fields among the *current* offers. Delivery cost, if present, should be included in the total price calculation if business logic requires it.
 - **Example (as of 2025-09-23):**
         - The current lowest price listed for the Motorola Moto G75 5G 256GB Grey with Buds is **$391** with **$13 delivery** (as of 2025-09-23).
         - The correct `seller_product_url` is:
@@ -394,7 +395,7 @@ Replace `entity_id` with the correct sensor/entity for your product. This button
 **Product URLs and Price Line Items:**
 - The input URL is a listing/search page; each line item has a unique product URL.
 - Extraction of the seller URL is always from the offers list in the hydration data for the specific product page, not from the listing page.
-- Only the first 10 offers are considered for price and seller URL extraction, as per business logic and test coverage.
+- Only the *current* offers are considered for price and seller URL extraction, as per business logic and test coverage.
 
 **Outstanding Issues & Resolved Problems (BuyWisely):**
 - See previous sections for general issues. BuyWisely-specific issues and resolutions are tracked here as needed.
