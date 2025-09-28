@@ -62,20 +62,24 @@ This document catalogs all known error conditions, edge cases, and required diag
   - Set entity state to DELETED.
   - Set entity name to "Deleted {product_id}".
 
-### 2.9 Zero-Priced Offers
+### 2.8 Zero-Priced Offers
 - **Condition:** An offer has a `price` or `base_price` of 0.0.
 - **Action:**
   - Log: "Zero-priced offer found for product {product.id}, offer: {offer}. Ignoring this offer."
   - Ignore this offer when determining the lowest price.
   - If, after ignoring zero-priced offers, no valid offers remain, raise an exception (e.g., `ValueError`) to signal an extraction bug.
 
-### 2.8 Unexpected Data Types
-
-### 2.7 Unexpected Data Types
+### 2.9 Unexpected Data Types
 - **Condition:** Fields are present but have unexpected types (e.g., price is string, offers is not a list).
 - **Action:**
   - Log: "Unexpected data type for field {field} in product {product.id}"
   - Attempt to coerce if safe, else set entity `url` to empty.
+
+### 2.10 Seller Page Price Mismatch
+- **Condition:** The price displayed on the seller's product page does not match BuyWisely's stated price for the lowest offer.
+- **Action:**
+  - Log: "Price mismatch detected for product {product.id} at seller page {seller_product_url}. BuyWisely price: {bw_price}, Seller page price: {seller_price}"
+  - Mark product as 'price mismatch' in entity state/attributes.
 
 ---
 
@@ -100,6 +104,7 @@ This document catalogs all known error conditions, edge cases, and required diag
 | HTTP/network error (transient)   | unavailable (INACTIVE) | Network error or HTTP error 500 for product URL: ...             |
 | 404/410 Not Found (deleted)      | deleted    | 404/410 Not Found for product URL: ...                           |
 | Unexpected data type             | empty      | Unexpected data type for field price in product 123456           |
+| Seller page price mismatch       | price mismatch | Price mismatch detected for product 123456 at seller page https://... BuyWisely price: 299.99, Seller page price: 319.99 |
 
 ---
 

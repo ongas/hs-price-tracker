@@ -8,6 +8,12 @@ Feature: Automatically Track the Lowest Price for a BuyWisely Product
     When the product is tracked
     Then the lowest price (which must be greater than 0.0) and its corresponding seller_product_url are selected and displayed (no fallback logic). Zero-priced offers must be ignored during this selection. If all current offers are zero-priced, it indicates an extraction bug and the product should be marked as inactive or an exception should be raised.
 
+  Scenario: Validate price on seller's product page after selecting lowest offer
+    Given the lowest-priced offer and its seller_product_url have been selected
+    When the system fetches the seller's product page
+    Then the price displayed on the seller's page must match BuyWisely's stated price
+    And if there is a mismatch, a diagnostic error is logged and the product is marked as 'price mismatch'
+
   Scenario: Product has only zero-priced offers
     Given a BuyWisely product has only current offers with a price of 0.0
     When the product is tracked

@@ -58,6 +58,7 @@ This document defines the expected structure and sample payloads for BuyWisely p
 - The `url` field in the entity must always be set to the `seller_product_url` of the lowest-priced offer.
 - No fallback or alternative fields are to be used for the seller URL.
 - If no offers are present, the entity `url` must be empty and this must be logged.
+- After selecting the lowest-priced offer, the system must fetch the seller's product page and validate that the price displayed matches BuyWisely's stated price. If there is a mismatch, a diagnostic error is logged and the product is marked as 'price mismatch'.
 
 ## 3. Diagnostics
 - Log the full hydration data, the offers list, all candidate `seller_product_url` values, and the final `url` set in the entity.

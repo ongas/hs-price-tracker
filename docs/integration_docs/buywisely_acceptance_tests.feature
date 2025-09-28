@@ -53,3 +53,9 @@ Feature: BuyWisely Product Tracking Acceptance
     When the integration parses the product data
     Then the entity url is empty
     And a log message indicates the unexpected data type
+
+  Scenario: Validate price on seller's product page after selecting lowest offer
+    Given the lowest-priced offer and its seller_product_url have been selected
+    When the system fetches the seller's product page
+    Then the price displayed on the seller's page must match BuyWisely's stated price
+    And if there is a mismatch, a diagnostic error is logged and the product is marked as 'price mismatch'

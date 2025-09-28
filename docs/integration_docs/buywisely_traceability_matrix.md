@@ -18,6 +18,7 @@ This matrix maps each requirement, user story, BDD scenario, and edge case to it
 | Diagnostics at every step                              | all modules                   | All above                                              | All required logs                      | Error catalog, checklist, deployment guide   |
 | Deployment & verification                              | N/A                           | All above                                              | N/A                                    | Deployment guide, checklist                 |
 | Support multiple BuyWisely products | `config_flow.py`, `components/setup.py` | `test_config_flow.py` | Config flow logs | `US01_Add_BuyWisely_Product.md`, `US01_Add_BuyWisely_Product.feature` |
+| Validate price on seller's product page after lowest offer selection | parser.py, data_transformer.py | valid_multiple_offers.json | Seller page price validation log, price mismatch log | Data contract, Error catalog, BDD feature, checklist |
 
 ---
 

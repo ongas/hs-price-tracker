@@ -30,6 +30,8 @@ This checklist ensures a fool-proof, step-by-step process for implementing the B
    - [ ] Ensure extracted prices are always greater than zero; ignore zero-priced offers or raise an exception if all offers are zero-priced.
    - [ ] Set entity `url` to lowest-priced offer's `seller_product_url` only.
    - [ ] Handle missing/invalid offers as per error catalog.
+   - [ ] After selecting the lowest-priced offer, fetch the seller's product page and validate that the price displayed matches BuyWisely's stated price. If there is a mismatch, log a diagnostic error and mark the product as 'price mismatch'.
+   - [ ] For seller page price validation, iterate through all offers (starting from the lowest price). For each offer, retrieve the seller's product page HTML and use a generic smart search (e.g., regex or fuzzy match) to find price values. Compare all found price values to BuyWisely's stated price for that offer. If a match is found, validation passes and that offer is selected; if not, continue to the next lowest offer. If no offers match, log a diagnostic error and mark as 'price mismatch' or 'no valid offer found'.
 
 6. **Integration with Home Assistant**
    - [ ] Register service in `setup.py`.

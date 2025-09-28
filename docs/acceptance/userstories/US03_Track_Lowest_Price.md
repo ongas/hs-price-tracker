@@ -8,5 +8,6 @@
 - The system parses all available offers for a product from BuyWisely, strictly using only the offers list in the hydration data.
 - The lowest price and its corresponding seller_product_url are always selected and displayed (no fallback logic). Zero-priced offers must be ignored during this selection. If all current offers are zero-priced, it indicates an extraction bug and the product should be marked as inactive or an exception should be raised.
 - If no offers are available, the product is marked as inactive or deleted.
+- After selecting the lowest-priced offer, the system must fetch the seller's product page and validate that the price displayed matches BuyWisely's stated price. If there is a mismatch, a diagnostic error is logged and the product is marked as 'price mismatch'.
 
 ---
