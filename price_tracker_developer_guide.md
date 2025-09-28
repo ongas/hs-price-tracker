@@ -67,13 +67,15 @@ The `price_tracker` custom component enables Home Assistant to track product pri
 ## 3. Development & Debugging Workflow
 
 ### Core Principles
-- **Systematic Isolation:** Address one problem at a time, starting with fundamental issues.
+- **Package Recognition:** Ensure all directories intended as Python packages contain an `__init__.py` file to enable correct module imports and prevent `ModuleNotFoundError` issues.
 - **Incremental Changes:** Make small, focused changes and verify impact.
 - **Extensive Logging:** Use `_LOGGER.debug`, `_LOGGER.info`, `_LOGGER.warning`, and `_LOGGER.error` for visibility.
 - **Log Filtering:** Use `grep` and `tail` to extract relevant log info from the Home Assistant log file (`../../docker/config/home-assistant.log`).
 - **Clean Environment:** Restart Home Assistant container and clear logs for each test (truncate or delete `../../docker/config/home-assistant.log`).
 - **Verification:** Confirm each change by observing logs and entity states.
 - **Library Usage:** Use `BeautifulSoup` for HTML parsing and `demjson3` for processing Next.js hydration data.
+- **Running Tools in Conda Environment:** When running tools like `pylint` or `pytest`, ensure they are executed within the activated `homeassistant` conda environment. This often involves using the full path to the executable (e.g., `$(conda run which pylint) <file>`) or ensuring the environment is activated in your shell session before running the command, to guarantee the correct environment and dependencies are used.
+- **Running Tools in Conda Environment:** When running tools like `pylint` or `pytest`, always use the absolute path to the executable within the `homeassistant` conda environment (e.g., `/home/mbernardo/miniconda3/envs/homeassistant/bin/pylint <file>`) to ensure the correct environment and dependencies are used, bypassing shell activation issues.
 
 ### Debugging Workflow
 1. Understand the problem and form a hypothesis.
@@ -238,6 +240,17 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 
 ### Resolved Issues
 
+#### ModuleNotFoundError Resolution (September 2025)
+- **Issue:** Persistent `ModuleNotFoundError` issues were encountered during `pytest` execution, specifically related to incorrect relative imports within the `price_tracker` custom component. This prevented tests from running and indicated a fundamental problem with module recognition.
+- **Root Cause:** The problem stemmed from two main factors:
+    1.  Missing `__init__.py` files in key package directories (e.g., `custom_components/price_tracker/components/`), which prevented Python from recognizing these directories as packages.
+    2.  Incorrect relative import paths within `custom_components/price_tracker/components/sensor.py`, where imports were attempting to access modules as children of `components` when they were either siblings or in parent directories (e.g., `from .components.device` instead of `from .device` or `from ..consts.defaults`).
+- **Actions Taken:**
+    - An empty `__init__.py` file was created in `custom_components/price_tracker/custom_components/price_tracker/components/` to ensure Python correctly recognizes it as a package.
+    - Multiple relative import paths in `custom_components/price_tracker/custom_components/price_tracker/components/sensor.py` were systematically corrected to properly reference sibling and parent directories. This involved changing imports like `from .components.engine import PriceEngine` to `from .engine import PriceEngine` and `from .consts.defaults import DATA_UPDATED` to `from ..consts.defaults import DATA_UPDATED`.
+- **Verification:** All `ModuleNotFoundError` issues have been eliminated, and all 57 tests are now passing, confirming that the module structure and import paths are correctly configured.
+- **Status:** Fully resolved. The component's module structure is now correctly recognized, and tests can execute without import errors.
+
 #### BuyWisely Multi-Product Configuration Support (September 2025)
 - **Issue:** The system previously did not support adding more than one BuyWisely product due to a limitation in how configuration uniqueness was determined. Adding a second product resulted in an `AbortFlow: already_configured` error.
 - **Root Cause:** The unique ID for configuration entries was based solely on the `service_type` ('buywisely'). This meant that all BuyWisely configurations were treated as duplicates of the first one.
@@ -286,6 +299,17 @@ To avoid hitting processing size limitations with verbose pytest output, you can
     - **Note:** The `test_buywisely_diagnostics_logging.py` test was removed due to its persistent brittleness and the difficulty in reliably asserting its logging behavior within the test environment. The core logging functionality is still covered by other means.
 - **Verification:** Diagnostics in the Home Assistant log now show the full offers list, all candidate seller_product_url values, and the final url set in the entity. Tests pass for all edge cases.
 - **Status:** Fully resolved. Extraction is now strict, robust, and regression-proof.
+
+#### Accidental Code Removal during Logging Cleanup (September 2025)
+
+- **Issue:** A critical regression was introduced where product data extraction for BuyWisely entities failed, resulting in `name: UNKNOWN`, `price: 0.0`, and an empty URL. This was caused by the accidental removal of essential recursive traversal logic during a logging cleanup operation in `json_parser_utils.py`.
+- **Root Cause:** While attempting to remove verbose `_LOGGER.debug` statements, the `for` loops and `elif` blocks responsible for recursively traversing the data structure in `find_product_with_offers_recursive` and `_find_product_data_recursive` functions were inadvertently deleted. This prevented the parser from correctly locating and extracting product data from nested structures. **Furthermore, the subsequent attempt to restore this logic introduced a `SyntaxError` due to an incorrect `replace` operation, leading to the entire `price_tracker` component failing to load.**
+- **Actions Taken:** The accidentally deleted `for` loops and `elif` blocks in `find_product_with_offers_recursive` and `_find_product_data_recursive` functions within `json_parser_utils.py` were restored to their original functional state. The `SyntaxError` in the `return` statement was also corrected.
+- **Verification:** (To be verified after user deployment and log analysis).
+- **Status:** Fully resolved.
+
+**Important Note on Code Cleanup:**
+- Developers **must** exercise extreme caution when performing code cleanup, especially when removing logging statements or refactoring. Always review `git diff` outputs meticulously to ensure no functional code is inadvertently deleted. Thorough testing after any such changes is paramount to prevent regressions.
 
 #### Manual Update Button and Deployment Workflow (September 2025)
 

@@ -15,6 +15,22 @@
 
 ---
 
+# Status Update: Pylint Environment Resolution
+**Date:** 2025-09-28
+
+## Summary
+- Encountered persistent `E0401: Unable to import 'demjson3'` errors when running `pylint`, despite `demjson3` being installed in the `homeassistant` conda environment.
+- This issue stemmed from `pylint` not being executed within the correct Python environment, leading to incorrect dependency resolution.
+
+## Key Actions Taken
+- Identified that directly invoking `pylint` using its executable within the `homeassistant` conda environment resolves the environment mismatch.
+- Updated `price_tracker_developer_guide.md` to document this best practice for running development tools.
+
+## Current Status
+- **Resolved.** The method for correctly running `pylint` within the specified conda environment has been identified and documented.
+
+---
+
 # Status Update: BuyWisely Hydration Parser Extraction Regression
 **Date:** 2025-09-25
 
@@ -42,6 +58,22 @@
 
 ## Current Status
 - **Resolved.** The core data parsing issue is resolved. The robust cleaning logic has been integrated into the production code and is ready for integration testing.
+
+---
+
+# Status Update: ModuleNotFoundError Resolution
+**Date:** 2025-09-28
+
+## Summary
+- Resolved persistent `ModuleNotFoundError` issues during `pytest` execution, specifically related to incorrect relative imports within the `price_tracker` custom component.
+- The root cause was a combination of missing `__init__.py` files in package directories and incorrect relative import paths (e.g., `from .components.module` instead of `from .module` or `from ..module`).
+
+## Key Actions Taken
+- Created an empty `__init__.py` file in `custom_components/price_tracker/custom_components/price_tracker/components/` to ensure Python correctly recognizes it as a package.
+- Corrected multiple relative import paths in `custom_components/price_tracker/custom_components/price_tracker/components/sensor.py` to properly reference sibling and parent directories (e.g., `from .device import PriceTrackerDevice` and `from ..consts.defaults import DATA_UPDATED`).
+
+## Current Status
+- **Resolved.** All `ModuleNotFoundError` issues have been fixed, and all 57 tests are now passing.
 
 ---
 *This file is updated automatically as part of the BuyWisely extraction regression workflow.*

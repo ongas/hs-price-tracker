@@ -6,19 +6,19 @@ from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from custom_components.price_tracker.components.device import PriceTrackerDevice
-from custom_components.price_tracker.components.engine import PriceEngine
-from custom_components.price_tracker.components.id import IdGenerator
-from custom_components.price_tracker.consts.defaults import DATA_UPDATED
-from custom_components.price_tracker.datas.item import ItemData, ItemStatus
-from custom_components.price_tracker.datas.price import (
+from .device import PriceTrackerDevice
+from .engine import PriceEngine
+from .id import IdGenerator
+from ..consts.defaults import DATA_UPDATED
+from ..datas.item import ItemData, ItemStatus
+from ..datas.price import (
     ItemPriceChangeData,
     create_item_price_change,
     ItemPriceChangeStatus,
     ItemPriceData,
 )
-from custom_components.price_tracker.datas.unit import ItemUnitData, ItemUnitType
-from custom_components.price_tracker.utilities.list import Lu
+from ..datas.unit import ItemUnitData, ItemUnitType
+from ..utilities.list import Lu
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -90,8 +90,7 @@ class PriceTrackerSensor(RestoreEntity):
 
         self._unit_type = unit_type
         self._unit_value = unit_value
-        self._refresh_period = refresh_period if refresh_period is not None else 30
-        self._updated_at = datetime.now()
+
         self._management_category = management_category
         self._management_categories = management_categories
         self._debug = debug
@@ -118,7 +117,8 @@ class PriceTrackerSensor(RestoreEntity):
 
             if not state:
                 self._attr_available = False
-                await self.async_update()
+                await self.async_update(force=True)
+                self._updated_at = datetime.min # Set to a very old date to ensure next update is not skipped
                 return
 
             if "updated_at" in state.attributes:
@@ -190,7 +190,7 @@ class PriceTrackerSensor(RestoreEntity):
                     "price_change_after_price": self._price_change.after_price,
                 }
 
-            await self.async_update()
+            await self.async_update(force=True)
 
             async_dispatcher_connect(
                 self.hass, DATA_UPDATED, self._schedule_immediate_update
@@ -209,24 +209,25 @@ class PriceTrackerSensor(RestoreEntity):
         force = kwargs.get("force", False)
         _LOGGER.debug(f"[DIAG][sensor.py] async_update called for {self.entity_id} with force={force}")
         # Check last updated at, unless forced
-        # BYPASS: Always run update logic for diagnostics
-        # if not force:
-        #     if (
-        #         self._engine_status
-        #         and self._updated_at is not None
-        #         and self._attr_available is True
-        #     ):
-        #         if (
-        #             self._updated_at is not None
-        #             and (self._updated_at + timedelta(minutes=self._refresh_period))
-        #             > datetime.now()
-        #         ):
-        #             _LOGGER.debug(
-        #                 "Skip update cause refresh period. {} -({} / {}).".format(
-        #                     self._attr_unique_id, self._updated_at, self._refresh_period
-        #                 )
-        #             )
-        #             return True
+        if not force:
+            _LOGGER.debug(f"[DIAG][sensor.py] Refresh period check for {self.entity_id}. force={force}, _engine_status={self._engine_status}, _updated_at={self._updated_at}, _attr_available={self._attr_available}")
+            if (
+                self._engine_status
+                and self._updated_at is not None
+                and self._attr_available is True
+            ):
+                if (
+                    self._updated_at is not None
+                    and (self._updated_at + timedelta(minutes=self._refresh_period))
+                    > datetime.now()
+                ):
+                    _LOGGER.debug(
+                        "Skip update cause refresh period. {} -({} / {}).".format(
+                            self._attr_unique_id, self._updated_at, self._refresh_period
+                        )
+                    )
+                    return True
+            _LOGGER.debug(f"[DIAG][sensor.py] Refresh period check passed for {self.entity_id}. Proceeding with update.")
 
         _LOGGER.debug(
             "Update sensor: %s (%s) - %s",
