@@ -44,43 +44,6 @@ async def test_get_product_details_success(mock_safe_request):
 
 @pytest.mark.asyncio
 @patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
-async def test_get_product_details_no_price(mock_safe_request):
-    sample_html = (
-        '<html><body><script id="__NEXT_DATA__" type="application/json">'
-                    '{"props":{"pageProps":{"product":{"title":"Another Product","slug":"another-product","availability":"Out of Stock","offers":[{"seller_product_url":"http://example.com/seller_product_url"}],"image":"http://example.com/another_image.jpg"}}}}'        '</script></body></html>'
-    )
-    mock_response = AsyncMock()
-    mock_response.has = True
-    mock_response.text = sample_html
-    mock_response.__bool__.return_value = True
-
-    class MockSafeRequest:
-        def user_agent(self, *args, **kwargs):
-            pass
-        async def request(self, *args, **kwargs):
-            return mock_response
-    engine = BuyWiselyEngine(item_url="http://example.com/product/another-product", request_cls=MockSafeRequest)
-    
-    mock_response = AsyncMock()
-    mock_response.has = True
-    mock_response.text = sample_html
-    mock_response.__bool__.return_value = True
-    mock_instance = mock_safe_request.return_value
-    mock_instance.user_agent = lambda *args, **kwargs: None
-    mock_instance.request = AsyncMock(return_value=mock_response)
-    print("[DIAG] HTML passed to parser:", sample_html)
-    result = await engine.load()
-    print("[DIAG] result:", result)
-    assert result is not None, "Expected result, got None"
-    assert getattr(result, 'name', None) == "Another Product", f"Name mismatch: {getattr(result, 'name', None)}"
-    assert getattr(getattr(result, 'price', None), 'price', None) == 0.0, f"Price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
-    assert getattr(getattr(result, 'price', None), 'currency', None) == "", f"Currency mismatch: {getattr(getattr(result, 'price', None), 'currency', None)}"
-    status = getattr(result, 'status', None)
-    assert status is not None, "Status missing"
-    assert status.value == ItemStatus.INACTIVE.value, f"Status value mismatch: {status.value}"
-
-@pytest.mark.asyncio
-@patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
 async def test_get_product_details_multiple_prices(mock_safe_request):
     sample_html = (
         '<html><body><script id="__NEXT_DATA__" type="application/json">'
@@ -117,6 +80,74 @@ async def test_get_product_details_multiple_prices(mock_safe_request):
     status = getattr(result, 'status', None)
     assert status is not None, "Status missing"
     assert status.value == ItemStatus.ACTIVE.value, f"Status value mismatch: {status.value}"
+
+@pytest.mark.asyncio
+@patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
+async def test_price_must_be_greater_than_zero(mock_safe_request):
+    # Test case 1: Valid product with non-zero price
+    sample_html_valid_price = (
+        '<html><body><script id="__NEXT_DATA__" type="application/json">'
+        '{"props":{"pageProps":{"product":{"title":"Valid Product","slug":"valid-product","availability":"In Stock","offers":[{"base_price":10.00,"currency":"AUD","seller_product_url":"http://example.com/valid_offer"}],"image":"http://example.com/valid_image.jpg"}}}}'
+        '</script></body></html>'
+    )
+    mock_response_valid = AsyncMock()
+    mock_response_valid.has = True
+    mock_response_valid.text = sample_html_valid_price
+    mock_response_valid.__bool__.return_value = True
+
+    class MockSafeRequestValid:
+        def user_agent(self, *args, **kwargs):
+            pass
+        async def request(self, *args, **kwargs):
+            return mock_response_valid
+    engine_valid = BuyWiselyEngine(item_url="http://example.com/product/valid-product", request_cls=MockSafeRequestValid)
+    result_valid = await engine_valid.load()
+    assert result_valid is not None
+    assert getattr(getattr(result_valid, 'price', None), 'price', None) > 0.0, "Price should be greater than 0 for a valid product"
+
+    # Test case 2: Product with zero price - should raise an exception
+    sample_html_zero_price = (
+        '<html><body><script id="__NEXT_DATA__" type="application/json">'
+        '{"props":{"pageProps":{"product":{"title":"Zero Price Product","slug":"zero-price-product","availability":"In Stock","offers":[{"base_price":0.00,"currency":"AUD","seller_product_url":"http://example.com/zero_offer"}],"image":"http://example.com/zero_image.jpg"}}}}'
+        '</script></body></html>'
+    )
+    mock_response_zero = AsyncMock()
+    mock_response_zero.has = True
+    mock_response_zero.text = sample_html_zero_price
+    mock_response_zero.__bool__.return_value = True
+
+    class MockSafeRequestZero:
+        def user_agent(self, *args, **kwargs):
+            pass
+        async def request(self, *args, **kwargs):
+            return mock_response_zero
+    engine_zero = BuyWiselyEngine(item_url="http://example.com/product/zero-price-product", request_cls=MockSafeRequestZero)
+    
+    # Expect an exception to be raised when loading a product with a zero price
+    with pytest.raises(ValueError, match="Extracted price cannot be zero or less."):
+        await engine_zero.load()
+
+    # Test case 3: Product with missing price - should raise an exception
+    sample_html_missing_price = (
+        '<html><body><script id="__NEXT_DATA__" type="application/json">'
+        '{"props":{"pageProps":{"product":{"title":"Missing Price Product","slug":"missing-price-product","availability":"In Stock","offers":[{"currency":"AUD","seller_product_url":"http://example.com/missing_offer"}],"image":"http://example.com/missing_image.jpg"}}}}'
+        '</script></body></html>'
+    )
+    mock_response_missing = AsyncMock()
+    mock_response_missing.has = True
+    mock_response_missing.text = sample_html_missing_price
+    mock_response_missing.__bool__.return_value = True
+
+    class MockSafeRequestMissing:
+        def user_agent(self, *args, **kwargs):
+            pass
+        async def request(self, *args, **kwargs):
+            return mock_response_missing
+    engine_missing = BuyWiselyEngine(item_url="http://example.com/product/missing-price-product", request_cls=MockSafeRequestMissing)
+    
+    # Expect an exception to be raised when loading a product with a missing price
+    with pytest.raises(ValueError, match="Extracted price cannot be zero or less."):
+        await engine_missing.load()
 
 @pytest.mark.asyncio
 @patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
