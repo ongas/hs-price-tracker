@@ -233,12 +233,14 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 
 ### Outstanding Issues
 
-### Outstanding Test Infrastructure Task
-- In `test_services.py`, ensure `hass.data[DOMAIN]` is initialized as a dict in each test setup to prevent `KeyError` in certain tests.
-- All BuyWisely tests now validate strict seller_product_url extraction, robust offers traversal, and correct diagnostics for missing or malformed data.
+### Outstanding Issues
 
-
-### Resolved Issues
+#### Test Infrastructure Task: Initialize hass.data[DOMAIN] (September 2025)
+- **Issue:** The `price_tracker_developer_guide.md` documented an outstanding test infrastructure task to ensure `hass.data[DOMAIN]` is initialized as a dictionary in each test setup within `test_services.py` to prevent `KeyError`.
+- **Root Cause:** While the `mock_hass` fixture already initialized `hass.data[DOMAIN]`, the `test_entity_registration_in_async_added_to_hass` test created its own `hass` object without this specific initialization, potentially leading to `KeyError`.
+- **Actions Taken:** The `test_entity_registration_in_async_added_to_hass` test in `tests/common/test_services.py` was modified to explicitly initialize `hass.data = {DOMAIN: {}}`, ensuring `hass.data[DOMAIN]` is always a dictionary at the start of the test.
+- **Verification:** All tests continue to pass, confirming that this change resolves the potential `KeyError` without introducing any regressions.
+- **Status:** Fully resolved. The test infrastructure now correctly initializes `hass.data[DOMAIN]` in all relevant test setups.
 
 #### ModuleNotFoundError Resolution (September 2025)
 - **Issue:** Persistent `ModuleNotFoundError` issues were encountered during `pytest` execution, specifically related to incorrect relative imports within the `price_tracker` custom component. This prevented tests from running and indicated a fundamental problem with module recognition.

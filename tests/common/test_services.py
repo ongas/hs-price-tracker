@@ -71,7 +71,7 @@ async def test_entity_registration_in_async_added_to_hass(monkeypatch):
     """Test that entity is registered in hass.data['price_tracker']['entities'] in async_added_to_hass."""
     # Simulate hass and entity
     hass = types.SimpleNamespace()
-    hass.data = {}
+    hass.data = {DOMAIN: {}}
     class DummySensor:
         def __init__(self):
             self.entity_id = "sensor.test_entity"
