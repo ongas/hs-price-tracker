@@ -1,5 +1,6 @@
 import dataclasses
 from enum import Enum
+from typing import Optional
 
 from custom_components.price_tracker.datas.category import ItemCategoryData
 from custom_components.price_tracker.datas.delivery import DeliveryData
@@ -10,7 +11,7 @@ from custom_components.price_tracker.datas.unit import ItemUnitData, ItemUnitTyp
 
 @dataclasses.dataclass
 class ItemOptionData:
-    def __init__(self, id: any, name: str, price: float, inventory: int = None):
+    def __init__(self, id: object, name: str, price: float, inventory: int = 0):
         self.id = id
         self.name = name
         self.price = price
@@ -30,24 +31,25 @@ class ItemStatus(Enum):
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
     DELETED = "DELETED"
+    PRICE_MISMATCH = "PRICE_MISMATCH"
 
 
 @dataclasses.dataclass
 class ItemData:
     def __init__(
         self,
-        id: any,
+        id: object,
         name: str = "UNKNOWN",
         price: ItemPriceData = ItemPriceData(),
-        brand: str = None,
-        description: str = None,
-        category: ItemCategoryData = None,
+        brand: Optional[str] = None,
+        description: Optional[str] = None,
+        category: Optional[ItemCategoryData] = None,
         delivery: DeliveryData = DeliveryData(),
-        url: str = None,
-        image: str = None,
-        unit: ItemUnitData = None,
+        url: Optional[str] = None,
+        image: Optional[str] = None,
+        unit: Optional[ItemUnitData] = None,
         inventory: InventoryStatus = InventoryStatus.OUT_OF_STOCK,
-        options: [ItemOptionData] = None,
+        options: Optional[list[ItemOptionData]] = None,
         status: ItemStatus = ItemStatus.ACTIVE,
         http_status: int = 200,
     ) -> None:
