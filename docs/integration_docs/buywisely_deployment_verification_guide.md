@@ -42,7 +42,7 @@ This guide provides step-by-step instructions for deploying and verifying the Bu
 
 ## 3. Post-Deployment Verification
 - [ ] Use the Home Assistant UI or API to trigger a BuyWisely entity update.
-- [ ] Confirm entity state and attributes are updated as expected.
+- [ ] Confirm entity state and attributes are updated as expected, and that all extracted prices are greater than zero.
 - [ ] Check Home Assistant logs for:
     - Hydration data and offers list logs
     - Extraction diagnostics
@@ -66,7 +66,7 @@ This guide provides step-by-step instructions for deploying and verifying the Bu
 
 ## 5. Troubleshooting
 - Check conda environment and dependencies.
-- Review logs for missing fields, HTTP errors, or parsing failures.
+- Review logs for missing fields, HTTP errors, parsing failures, or zero prices (indicating an extraction bug).
 - Use test data and mock fixtures to reproduce and debug issues.
 - Consult error handling and edge case catalog for expected log messages and outcomes.
 

@@ -6,5 +6,6 @@ Feature: View Tracked BuyWisely Product Details
   Scenario: View details of a tracked BuyWisely product
     Given I have added a BuyWisely product to the price tracker
     When I view the tracked products list
-    Then I see the product's name, brand, image, current price, and availability status
+    Then I see the product's name, brand, image, current price (which must be greater than 0.0), and availability status
+  And if the displayed price is 0.0, it indicates an extraction bug
   And the product's tracked URL points to the seller_product_url of the lowest price offer (never a fallback or hydration field)

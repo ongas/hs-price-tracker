@@ -15,7 +15,8 @@ This document describes the end-to-end sequence and data flow for the BuyWisely 
     - Extracts the Next.js hydration JSON from the HTML.
     - Parses the hydration data to locate the `product` dictionary.
     - Traverses the `offers` list within `product`.
-    - Selects the lowest-priced offer and extracts its `seller_product_url`.
+    - Selects the lowest-priced offer (ignoring zero-priced offers). If all current offers are zero-priced, an exception is raised.
+    - Extracts its `seller_product_url`.
     - Logs the full hydration data, offers list, all candidate URLs, and extraction diagnostics.
 5. **Data Transformer**:
     - Maps the extracted product and offer data to the `ItemData` model.
@@ -84,6 +85,7 @@ This document describes the end-to-end sequence and data flow for the BuyWisely 
 - At each step, log input, output, and errors.
 - If offers list is missing/empty, log and set entity `url` to empty.
 - If lowest-priced offer is missing `seller_product_url`, log and set entity `url` to empty.
+- If a zero-priced offer is encountered, log it as an extraction bug and ignore it. If all offers are zero-priced, log and raise an exception.
 - All logs must be accessible via the Home Assistant log file.
 
 ---

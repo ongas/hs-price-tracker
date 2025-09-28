@@ -12,6 +12,13 @@ Feature: Handle Unavailable or Deleted BuyWisely Products
     And the product is clearly marked as unavailable in the UI
     And I am informed that the product is temporarily unavailable
 
+  Scenario: Product price is extracted as zero
+    Given I am tracking a BuyWisely product
+    When the product's price is extracted as 0.0
+    Then its status is set to 'inactive' (unavailable)
+    And an appropriate error is logged (e.g., "Extracted price cannot be zero or less.")
+    And if all current offers are zero-priced, an exception is raised
+
   Scenario: Product page returns 404 or 410 (deleted)
     Given I am tracking a BuyWisely product
     When the product page returns 404 or 410 (Not Found or Gone)

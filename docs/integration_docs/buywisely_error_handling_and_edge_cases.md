@@ -62,6 +62,13 @@ This document catalogs all known error conditions, edge cases, and required diag
   - Set entity state to DELETED.
   - Set entity name to "Deleted {product_id}".
 
+### 2.9 Zero-Priced Offers
+- **Condition:** An offer has a `price` or `base_price` of 0.0.
+- **Action:**
+  - Log: "Zero-priced offer found for product {product.id}, offer: {offer}. Ignoring this offer."
+  - Ignore this offer when determining the lowest price.
+  - If, after ignoring zero-priced offers, no valid offers remain, raise an exception (e.g., `ValueError`) to signal an extraction bug.
+
 ### 2.8 Unexpected Data Types
 
 ### 2.7 Unexpected Data Types
@@ -83,7 +90,9 @@ This document catalogs all known error conditions, edge cases, and required diag
 ## 4. Summary Table
 | Edge Case                        | Entity url | Log Message Example                                              |
 |----------------------------------|------------|-----------------------------------------------------------------|
-| Offers missing                   | empty      | Offers list missing in hydration data for product 123456         |
+| Zero-priced offers               | empty (exception) | Zero-priced offer found for product 123456, offer: {...}. Ignoring. (or exception) |
+|----------------------------------|-------------------|------------------------------------------------------------------------------------|
+| Offers missing                   | empty             | Offers list missing in hydration data for product 123456                           |
 | Offers empty                     | empty      | Offers list empty for product 123456                             |
 | Offer missing seller_product_url | empty      | Offer missing seller_product_url for product 123456, offer: {...}|
 | Multiple lowest price            | first      | Multiple offers with same lowest price for product 123456, using first occurrence. |

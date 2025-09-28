@@ -6,7 +6,13 @@ Feature: Automatically Track the Lowest Price for a BuyWisely Product
   Scenario: Track the lowest price among multiple offers
     Given a BuyWisely product has multiple offers
     When the product is tracked
-    Then the lowest price and its corresponding seller_product_url are selected and displayed (no fallback logic)
+    Then the lowest price (which must be greater than 0.0) and its corresponding seller_product_url are selected and displayed (no fallback logic). Zero-priced offers must be ignored during this selection. If all current offers are zero-priced, it indicates an extraction bug and the product should be marked as inactive or an exception should be raised.
+
+  Scenario: Product has only zero-priced offers
+    Given a BuyWisely product has only current offers with a price of 0.0
+    When the product is tracked
+    Then an error is logged indicating an extraction bug (e.g., "Extracted price cannot be zero or less.")
+    And the product is marked as inactive or an exception is raised
 
   Scenario: No offers available for a product
     Given a BuyWisely product has no available offers

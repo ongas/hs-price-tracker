@@ -45,7 +45,7 @@ This document defines the expected structure and sample payloads for BuyWisely p
 - `product.brand` (string): Brand name.
 - `product.image` (string): URL to product image.
 - `product.offers` (array): List of offers for this product.
-  - `price` (number): Price of the offer.
+  - `price` (number): Price of the offer. Must be greater than 0.0.
   - `currency` (string): Currency code (e.g., "USD").
   - `seller_product_url` (string): URL to the seller's product offer (must be used for entity `url`).
   - `seller` (string): Seller name.
@@ -53,6 +53,7 @@ This document defines the expected structure and sample payloads for BuyWisely p
 - `product.description` (string): Product description.
 
 ## 2. Extraction & Mapping Rules
+- Offers with a price of 0.0 (zero) must be ignored. If, after filtering, all current offers have a price of 0.0, an exception must be raised to signal an extraction bug.
 - The `offers` list must be robustly traversed, regardless of its nesting in the hydration data.
 - The `url` field in the entity must always be set to the `seller_product_url` of the lowest-priced offer.
 - No fallback or alternative fields are to be used for the seller URL.
@@ -63,6 +64,7 @@ This document defines the expected structure and sample payloads for BuyWisely p
 - Log extraction failures and missing/invalid data with clear error messages.
 
 ## 4. Edge Cases
+- Zero-priced offers (must be ignored, or trigger an exception if all offers are zero).
 - Offers list missing or empty.
 - Offers present but missing `seller_product_url`.
 - Malformed or unexpected hydration data structure.

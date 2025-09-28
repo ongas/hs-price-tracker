@@ -4,6 +4,8 @@ This matrix maps each requirement, user story, BDD scenario, and edge case to it
 
 | Requirement / Scenario                                 | Code Module(s)                | Test Data / Fixture(s)                                 | Diagnostics / Log(s)                | Documentation / Spec(s)                       |
 |--------------------------------------------------------|-------------------------------|--------------------------------------------------------|--------------------------------------|----------------------------------------------|
+| Price is never zero (extraction bug)                   | data_transformer.py           | (test cases for zero/missing price)                    | Error logs, exception details       | Best Practices, Error catalog, BDD feature   |
+|--------------------------------------------------------|-------------------------------|--------------------------------------------------------|-------------------------------------|----------------------------------------------|
 | Extract seller_product_url from lowest-priced offer     | parser.py, data_transformer.py | valid_multiple_offers.json                              | Hydration, offers, selected url logs | Data contract, BDD feature, checklist         |
 | Offers list missing                                    | parser.py                     | missing_offers_key.json                                 | Offers missing log                   | Error catalog, BDD feature                   |
 | Offers list empty                                      | parser.py                     | empty_offers_list.json                                  | Offers empty log                      | Error catalog, BDD feature                   |

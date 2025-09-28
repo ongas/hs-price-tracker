@@ -6,7 +6,7 @@
 
 ## Acceptance Criteria
 - User can view a list of all BuyWisely products being tracked.
-- Each product displays its name, brand, image, current price, and availability (active/inactive/deleted).
+- Each product displays its name, brand, image, current price (which must be greater than 0.0), and availability (active/inactive/deleted). If the displayed price is 0.0, it indicates an extraction bug.
 - The product's tracked URL always points to the seller_product_url of the lowest-priced offer, never to any fallback or hydration field.
 
 ---

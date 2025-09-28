@@ -27,6 +27,7 @@ This checklist ensures a fool-proof, step-by-step process for implementing the B
 
 5. **Data Transformer Implementation**
    - [ ] Map parsed data to `ItemData` model.
+   - [ ] Ensure extracted prices are always greater than zero; ignore zero-priced offers or raise an exception if all offers are zero-priced.
    - [ ] Set entity `url` to lowest-priced offer's `seller_product_url` only.
    - [ ] Handle missing/invalid offers as per error catalog.
 
@@ -42,7 +43,7 @@ This checklist ensures a fool-proof, step-by-step process for implementing the B
 8. **Testing**
    - [ ] Use provided test data and mock fixtures for all core and edge cases.
    - [ ] Validate against BDD acceptance tests.
-   - [ ] Add/Update pytests as needed.
+   - [ ] Add/Update pytests as needed, ensuring price validation (always > 0).
 
 9. **Documentation**
    - [ ] Update developer guide and service documentation.

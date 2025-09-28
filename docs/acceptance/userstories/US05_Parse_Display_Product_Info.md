@@ -6,7 +6,7 @@
 
 ## Acceptance Criteria
 - The system uses a robust, state-aware parser to extract product HTML and JSON data from BuyWisely pages, handling all known edge cases (see error/edge case catalog).
-- Product details such as name, brand, image, price, and offers are extracted and shown to the user.
+- Product details such as name, brand, image, price (which must be greater than 0.0), and offers are extracted and shown to the user. If the extracted price is 0.0, it indicates an extraction bug.
 - The seller URL is always extracted from the offers list (never from fallback or hydration fields).
 - If parsing fails, the user is notified with a clear diagnostic message.
 
