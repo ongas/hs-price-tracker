@@ -29,6 +29,7 @@ async def async_setup_entry(
     config_entry: config_entries.ConfigEntry,
     async_add_entities,
 ):
+    _LOGGER.info("[DIAG][sensor.py] async_setup_entry START.") # <--- NEW LINE
     config = hass.data[DOMAIN][config_entry.entry_id]
     service_type = config['service_type']
 

@@ -6,6 +6,7 @@ import os
 from typing import Optional
 from bs4 import BeautifulSoup
 from .hydration_parser import extract_and_parse_all_hydration_data
+from datetime import datetime
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -110,6 +111,7 @@ def extract_from_beautifulsoup(html: str) -> dict:
 # Now define extract_product_data_from_html after extract_from_beautifulsoup
 def extract_product_data_from_html(html: str) -> dict:
     """Extracts product data from BuyWisely HTML content."""
+    _LOGGER.info("[DIAG][html_extractor] extract_product_data_from_html START.") # <--- NEW LINE
     raw_data = {}
     _LOGGER.info("BuyWisely HtmlExtractor: Starting HTML extraction")
     parsed_data_list = []

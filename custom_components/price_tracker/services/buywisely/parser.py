@@ -7,6 +7,7 @@ from asyncio import TimeoutError
 
 _LOGGER = logging.getLogger(__name__)
 def parse_product(html: str, product_id: str = '', item_url: str = '', context: Optional[str] = None) -> Union[dict, ItemData]:
+    _LOGGER.info("[DIAG][parser] parse_product START.") # <--- NEW LINE
     try:
         raw_data = extract_product_data_from_html(html)
     except TimeoutError:

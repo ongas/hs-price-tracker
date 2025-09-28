@@ -49,6 +49,7 @@ class BuyWiselyEngine(PriceEngine):
         self._request_cls = request_cls or SafeRequest
 
     async def load(self) -> ItemData | None:
+        _LOGGER.info("[DIAG][BuyWiselyEngine.load] START.") # <--- NEW LINE
         self._request = self._request_cls()
         self._request.user_agent(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3')
         try:

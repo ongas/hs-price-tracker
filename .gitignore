@@ -16,6 +16,7 @@ venv/
 .coverage
 coverage.xml
 pytest_output.log
+pytest_output.txt
 
 # IDEs and editors
 .vscode/

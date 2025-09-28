@@ -194,6 +194,11 @@ def extract_and_parse_all_hydration_data(html: str) -> list:
                     product_data = find_product_with_offers_recursive(parsed_data)
                     if product_data:
                         _LOGGER.info("[DIAG][hydration_parser] Found product data with offers in push block.")
+                        # Log the raw offers list
+                        if 'offers' in product_data:
+                            _LOGGER.info(f"[DIAG][hydration_parser] Raw offers list: {json.dumps(product_data['offers'], indent=2)}")
+                        else:
+                            _LOGGER.info("[DIAG][hydration_parser] No 'offers' key found in product data.")
                         # Normalize the 'title' key to 'name' to match the expected output format.
                         if 'title' in product_data:
                             product_data['name'] = product_data.pop('title')

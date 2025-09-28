@@ -190,7 +190,7 @@ fi
 
 
 # Add a delay to allow Home Assistant to fully start up
-DELAY_SECONDS=15
+DELAY_SECONDS=20
 echo "Waiting $DELAY_SECONDS seconds for Home Assistant to fully start up..."
 for ((i=1; i<=DELAY_SECONDS; i++)); do
   echo "  ... $i second(s) elapsed"
