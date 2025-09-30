@@ -25,8 +25,11 @@ _LOGGER = logging.getLogger(__name__)
 
 class PriceTrackerSensor(RestoreEntity):
     async def async_manual_update(self):
-        _LOGGER.debug(f"[DIAG][sensor.py] async_manual_update called for {self.entity_id}")
+        _LOGGER.debug(
+            f"[DIAG][sensor.py] async_manual_update called for {self.entity_id}"
+        )
         await self.async_update(force=True)
+
     # STATIC
     _attr_icon = "mdi:cart"
     _attr_device_class = "price"
@@ -74,7 +77,11 @@ class PriceTrackerSensor(RestoreEntity):
         self._attr_state = STATE_UNKNOWN
         self._attr_available = True
         # Ensure _attr_device_info is a DeviceInfo or None
-        if device is not None and hasattr(device, 'device_info') and device.device_info is not None:
+        if (
+            device is not None
+            and hasattr(device, "device_info")
+            and device.device_info is not None
+        ):
             self._attr_device_info = device.device_info  # type: ignore[attr-defined]
         else:
             self._attr_device_info = None
@@ -86,7 +93,9 @@ class PriceTrackerSensor(RestoreEntity):
         if management_categories is None:
             management_categories = []
         elif isinstance(management_categories, str):
-            management_categories = [s.strip() for s in management_categories.split(",")]
+            management_categories = [
+                s.strip() for s in management_categories.split(",")
+            ]
 
         self._unit_type = unit_type
         self._unit_value = unit_value
@@ -97,18 +106,23 @@ class PriceTrackerSensor(RestoreEntity):
         self._engine_status = True
 
         # Registration in hass.data['price_tracker']['entities'] moved to async_added_to_hass
+
     async def async_added_to_hass(self) -> None:
         try:
             await super().async_added_to_hass()
             # Register entity in hass.data for robust service access
             if self.hass is not None:
-                if 'price_tracker' not in self.hass.data:
-                    self.hass.data['price_tracker'] = {}
-                if 'entities' not in self.hass.data['price_tracker']:
-                    self.hass.data['price_tracker']['entities'] = {}
-                self.hass.data['price_tracker']['entities'][self.entity_id] = self
-                _LOGGER.debug(f"[DIAG][sensor.py] Registered entity in hass.data['price_tracker']['entities'] with key: {self.entity_id}")
-                _LOGGER.debug(f"[DIAG][sensor.py] hass.data['price_tracker']['entities'] keys after registration: {list(self.hass.data['price_tracker']['entities'].keys())}")
+                if "price_tracker" not in self.hass.data:
+                    self.hass.data["price_tracker"] = {}
+                if "entities" not in self.hass.data["price_tracker"]:
+                    self.hass.data["price_tracker"]["entities"] = {}
+                self.hass.data["price_tracker"]["entities"][self.entity_id] = self
+                _LOGGER.debug(
+                    f"[DIAG][sensor.py] Registered entity in hass.data['price_tracker']['entities'] with key: {self.entity_id}"
+                )
+                _LOGGER.debug(
+                    f"[DIAG][sensor.py] hass.data['price_tracker']['entities'] keys after registration: {list(self.hass.data['price_tracker']['entities'].keys())}"
+                )
 
             state = await self.async_get_last_state()
 
@@ -118,7 +132,9 @@ class PriceTrackerSensor(RestoreEntity):
             if not state:
                 self._attr_available = False
                 await self.async_update(force=True)
-                self._updated_at = datetime.min # Set to a very old date to ensure next update is not skipped
+                self._updated_at = (
+                    datetime.min
+                )  # Set to a very old date to ensure next update is not skipped
                 return
 
             if "updated_at" in state.attributes:
@@ -174,7 +190,9 @@ class PriceTrackerSensor(RestoreEntity):
                 and "price_change_after_price" in state.attributes
             ):
                 # Ensure updated_at is always a datetime, not None
-                updated_at_val = self._updated_at if self._updated_at is not None else datetime.now()
+                updated_at_val = (
+                    self._updated_at if self._updated_at is not None else datetime.now()
+                )
                 self._price_change = ItemPriceChangeData(
                     status=ItemPriceChangeStatus.of(
                         Lu.get(state.attributes, "price_change_status", "no_change")
@@ -202,15 +220,17 @@ class PriceTrackerSensor(RestoreEntity):
     def engine_id_str(self):
         return self._engine.id_str()
 
-
-
     async def async_update(self, *args, **kwargs):
         # Accept force as a kwarg for compatibility with service/manual calls
         force = kwargs.get("force", False)
-        _LOGGER.debug(f"[DIAG][sensor.py] async_update called for {self.entity_id} with force={force}")
+        _LOGGER.debug(
+            f"[DIAG][sensor.py] async_update called for {self.entity_id} with force={force}"
+        )
         # Check last updated at, unless forced
         if not force:
-            _LOGGER.debug(f"[DIAG][sensor.py] Refresh period check for {self.entity_id}. force={force}, _engine_status={self._engine_status}, _updated_at={self._updated_at}, _attr_available={self._attr_available}")
+            _LOGGER.debug(
+                f"[DIAG][sensor.py] Refresh period check for {self.entity_id}. force={force}, _engine_status={self._engine_status}, _updated_at={self._updated_at}, _attr_available={self._attr_available}"
+            )
             if (
                 self._engine_status
                 and self._updated_at is not None
@@ -227,7 +247,9 @@ class PriceTrackerSensor(RestoreEntity):
                         )
                     )
                     return True
-            _LOGGER.debug(f"[DIAG][sensor.py] Refresh period check passed for {self.entity_id}. Proceeding with update.")
+            _LOGGER.debug(
+                f"[DIAG][sensor.py] Refresh period check passed for {self.entity_id}. Proceeding with update."
+            )
 
         _LOGGER.debug(
             "Update sensor: %s (%s) - %s",
@@ -245,7 +267,9 @@ class PriceTrackerSensor(RestoreEntity):
         try:
             data = await self._engine.load()
 
-            _LOGGER.info(f"[DIAG][sensor.py] async_update loaded data.url: {getattr(data, 'url', None)}")
+            _LOGGER.info(
+                f"[DIAG][sensor.py] async_update loaded data.url: {getattr(data, 'url', None)}"
+            )
 
             if data is None:
                 if (
@@ -270,7 +294,9 @@ class PriceTrackerSensor(RestoreEntity):
             )
             self._item_data = data
 
-            _LOGGER.info(f"[DIAG][sensor.py] Setting _attr_extra_state_attributes['url'] to: {getattr(self._item_data, 'url', None)}")
+            _LOGGER.info(
+                f"[DIAG][sensor.py] Setting _attr_extra_state_attributes['url'] to: {getattr(self._item_data, 'url', None)}"
+            )
 
             # Calculate unit
             unit = (
@@ -316,7 +342,6 @@ class PriceTrackerSensor(RestoreEntity):
         # Ensure state is refreshed in HA after manual/service update
         self.async_schedule_update_ha_state(True)
 
-
     @callback
     def _schedule_immediate_update(self):
         self.async_schedule_update_ha_state(True)
@@ -328,13 +353,7 @@ class PriceTrackerSensor(RestoreEntity):
             "updated_at": self._updated_at,
         }
 
-    def _update_engine_status(self, status: bool):
-        reason = None
-        import inspect
-        frame = inspect.currentframe()
-        args, _, _, values = inspect.getargvalues(frame)
-        if 'reason' in values:
-            reason = values['reason']
+    def _update_engine_status(self, status: bool, reason: str = None):
         if self._attr_extra_state_attributes is None:
             self._attr_extra_state_attributes = {}
         self._attr_extra_state_attributes = {
@@ -343,5 +362,9 @@ class PriceTrackerSensor(RestoreEntity):
             "engine_error_reason": reason if not status else None,
         }
         if not status:
-            _LOGGER.error(f"[DIAG][sensor.py] engine_status=ERROR for {self.entity_id}. Reason: {reason}")
+            _LOGGER.error(
+                "[DIAG][sensor.py] engine_status=ERROR for %s. Reason: %s",
+                self.entity_id,
+                reason,
+            )
         self._engine_status = status
