@@ -6,17 +6,17 @@ from .data_transformer import transform_raw_product_data
 from asyncio import TimeoutError
 
 _LOGGER = logging.getLogger(__name__)
-def parse_product(html: str, product_id: str = '', item_url: str = '', context: Optional[str] = None) -> Union[dict, ItemData]:
+async def parse_product(html: str, product_id: str = '', item_url: str = '', context: Optional[str] = None) -> Union[dict, ItemData]:
     _LOGGER.info("[DIAG][parser] parse_product START.") # <--- NEW LINE
     try:
-        raw_data = extract_product_data_from_html(html)
+        raw_data = await extract_product_data_from_html(html)
     except TimeoutError:
         _LOGGER.warning("TimeoutError encountered during HTML extraction. Falling back to BeautifulSoup.")
         from .html_extractor import extract_from_beautifulsoup
         raw_data = extract_from_beautifulsoup(html)
     product_id = product_id or ''
     item_url = item_url or ''
-    result = transform_raw_product_data(raw_data, product_id, item_url)
+    result = await transform_raw_product_data(raw_data, product_id, item_url)
     # Return dict only for direct parse_product calls (unit tests), else return ItemData
     import inspect
     stack = inspect.stack()

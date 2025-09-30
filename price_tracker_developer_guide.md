@@ -91,6 +91,8 @@ The `price_tracker` custom component enables Home Assistant to track product pri
 - Shell commands: For container management and log review.
 - `google_web_search`: For researching Home Assistant behaviors.
 
+Once local development and debugging are complete, follow the steps outlined in '5. Deployment Workflow' for code quality checks, static analysis, local testing, deployment, and verification.
+
 ### Deployment Paths
 - **Project Root:** `custom_components/price_tracker`
 - **Deployment Source (only this gets deployed!):** `custom_components/price_tracker/custom_components/price_tracker`
@@ -116,6 +118,16 @@ The `price_tracker` custom component enables Home Assistant to track product pri
      ```bash
      pytest tests/test_config_flow.py tests/test_buywisely_parser.py tests/test_buywisely_engine.py tests/test_buywisely_config.py tests/test_buywisely_api.py
      ```
+
+### Iterative Testing Workflow
+A recommended approach for tackling test failures is to first run the entire test suite with logging disabled to quickly identify all failing tests. Then, address each failure one by one by running the specific test with verbose logging enabled. This iterative process is efficient for debugging as it isolates failures and provides detailed diagnostic information only when necessary, avoiding large and noisy log files.
+
+1.  **Run all tests with logging turned off.** This provides a quick overview of which tests are failing.
+2.  **For each failing test:**
+    *   Run that specific test individually with verbose logging enabled.
+    *   Analyze the detailed logs to diagnose the root cause of the failure.
+    *   Implement a fix for that specific test.
+3.  **Repeat the process** until all tests pass.
 
 ### Focused Testing
 To debug specific failures without the noise of the full test suite, you can run tests in a more focused manner. This is especially useful when dealing with verbose logging, as it avoids creating excessively large log files.
@@ -192,9 +204,10 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 
 **Steps:**
 1. **Code Modification:** Make changes as needed.
-2. **Local Testing:** Run tests with `pytest`.
-3. **Code Quality:** Use `ruff check --fix .` for linting and formatting.
-4. **Deployment:** Use the deployment script in `custom_components/price_tracker/scripts/` (`./DEPLOYMENT_SCRIPT.sh`).
+2. **Code Quality:** Run `ruff format .` for consistent formatting, then `ruff check --fix .` for linting.
+3. **Static Analysis:** Run `pylint` on the modified files.
+4. **Local Testing:** Run tests with `pytest`.
+5. **Deployment:** Use the deployment script in `custom_components/price_tracker/scripts/` (`./DEPLOYMENT_SCRIPT.sh`).
 5. **Restart Home Assistant:**
      ```bash
      cd ../../docker
@@ -401,6 +414,25 @@ Replace `entity_id` with the correct sensor/entity for your product. This button
 - The extraction logic is robust to changes in the hydration data structure, as it traverses all nested product dictionaries to find the offers list.
 - If the BuyWisely website changes the structure or naming of the offers list, diagnostics will log the full hydration data and extraction failure, making debugging straightforward.
 - Parsing logic may still break if the site layout or hydration data format changes significantly; always check logs for extraction diagnostics.
+
+**Seller Price Extraction Strategy:**
+
+To ensure robust and accurate price validation, the `_fetch_and_parse_seller_price` function in `custom_components/price_tracker/services/buywisely/data_transformer.py` implements a sophisticated, context-aware scoring mechanism. This approach is designed to be resilient to variations in seller page HTML layouts.
+
+The process is as follows:
+
+1.  **Candidate Identification:** A regular expression (`(?:\\$|AUD|€|£|USD)?\\s*\\d{1,3}(?:[,.]\\d{3})*(?:[,.]\\d{2})?`) is used to find all text nodes in the HTML that resemble a price. This pattern accounts for optional currency symbols ($, AUD, €, £, USD), thousands separators (commas or periods), and decimal points.
+
+2.  **Contextual Scoring:** Each potential price candidate is assigned a score based on its surrounding context. The scoring logic considers several factors:
+    *   **Keyword Proximity:** The presence of keywords like "price", "sale", "now", "was", "total", "aud", or "$" in the parent element's text increases the score.
+    *   **CSS Class Names:** If the candidate's parent elements have CSS classes containing "price", "amount", "cost", or "sale", the score is significantly boosted.
+    *   **Exclusionary Keywords:** The presence of words like "off" or the "%" symbol in the surrounding text will lower the score, as these often relate to discounts rather than the final price.
+
+3.  **Best Candidate Selection:** After all candidates are scored, they are sorted in descending order based on their score. As a secondary sorting criterion, the price value itself is used, giving preference to higher-priced candidates when scores are tied. This helps to distinguish the main product price from other, smaller numerical values on the page.
+
+4.  **Final Price:** The price from the highest-scoring candidate is selected as the validated seller price.
+
+This scoring mechanism allows the system to intelligently weigh different contextual clues, making the price extraction process more reliable and less dependent on a fixed page structure.
 
 **Entity Management:**
 

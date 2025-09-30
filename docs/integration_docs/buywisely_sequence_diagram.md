@@ -14,10 +14,10 @@ This document describes the end-to-end sequence and data flow for the BuyWisely 
 4. **BuyWisely Parser**:
     - Extracts the Next.js hydration JSON from the HTML.
     - Parses the hydration data to locate the `product` dictionary.
-    - Traverses the `offers` list within `product`.
-    - Selects the lowest-priced offer (ignoring zero-priced offers). If all current offers are zero-priced, an exception is raised.
-    - Extracts its `seller_product_url`.
-    - Logs the full hydration data, offers list, all candidate URLs, and extraction diagnostics.
+      - Traverses the `offers` list within `product`, considering only current offers (those visible above 'See n more history offers').
+      - Selects the lowest-priced current offer (ignoring zero-priced offers). If all current offers are zero-priced, an exception is raised.
+      - Extracts its `seller_product_url`.
+      - Logs the full hydration data, current offers list, all candidate URLs, and extraction diagnostics.
 5. **Data Transformer**:
     - Maps the extracted product and offer data to the `ItemData` model.
     - Sets the entity `url` to the selected `seller_product_url`.

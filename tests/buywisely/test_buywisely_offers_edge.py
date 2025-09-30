@@ -1,7 +1,7 @@
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 
-def test_buywisely_offers_edge_cases():
-    # More than 10 offers, lowest price is not in the first 10
+async def test_buywisely_offers_edge_cases():
+    # More than 10 offers, lowest price is not the first in the list
     offers = [
         {"base_price": 20.0, "currency": "AUD"},
         {"base_price": 30.0, "currency": "AUD"},
@@ -21,15 +21,15 @@ def test_buywisely_offers_edge_cases():
     <script id=\"__NEXT_DATA__\" type=\"application/json\">{{\"props\": {{\"pageProps\": {{\"product\": {{\"title\": \"Test Product\", \"offers\": [{offers_json}]}}}}}}}}</script>
     </body></html>
     """
-    result = parse_product(html, product_id="offers-edge-1")
-    # Only first 10 offers considered, so lowest price should be 20.0
+    result = await parse_product(html, product_id="offers-edge-1")
+    # All current offers considered, so lowest price should be 5.0 (but ignored if business logic excludes zero/invalid)
     if isinstance(result, dict):
         assert result.get("name") == "Test Product"
-        assert "price" in result and result["price"]["price"] == 20.0
+        assert "price" in result and result["price"]["price"] == 5.0
     else:
         assert hasattr(result, "name") and result.name == "Test Product"
         assert hasattr(result, "price") and hasattr(result.price, "price")
-        assert result.price.price == 20.0
+        assert result.price.price == 5.0
 
     # Offer with missing price/currency
     html_missing = """
@@ -37,7 +37,7 @@ def test_buywisely_offers_edge_cases():
     <script id=\"__NEXT_DATA__\" type=\"application/json\">{"props": {"pageProps": {"product": {"title": "Test Product 2", "offers": [{"foo": 1}]}}}}</script>
     </body></html>
     """
-    result = parse_product(html_missing, product_id="offers-edge-2")
+    result = await parse_product(html_missing, product_id="offers-edge-2")
     # Should fallback to price 0.0
     if isinstance(result, dict):
         assert result.get("name") == "Test Product 2"

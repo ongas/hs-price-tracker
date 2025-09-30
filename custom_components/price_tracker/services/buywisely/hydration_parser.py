@@ -1,33 +1,17 @@
 import re
 import logging
-import json
+
 import demjson3
 from bs4 import BeautifulSoup
-from .json_parser_utils import find_product_with_offers_recursive, _find_product_data_recursive, extract_js_literal_from_push_string, remove_js_prefix, unescape_json_string
+from .json_parser_utils import find_product_with_offers_recursive
+
 
 
 _LOGGER = logging.getLogger(__name__)
+_LOGGER.setLevel(logging.WARNING)
 
 
-def _extract_next_data_json(html: str) -> list[dict]:
-    """
-    Extracts and parses JSON from <script id="__NEXT_DATA__"> tags if present.
-    Returns a list of parsed JSON objects (may be empty).
-    """
-    # This function is currently unused in extract_and_parse_all_hydration_data,
-    # but keeping it for completeness. The logic below will be more robust.
-    soup = BeautifulSoup(html, 'html.parser')
-    script = soup.find('script', id='__NEXT_DATA__')
-    if script and script.string:
-        try:
-            data = json.loads(script.string)
-            _LOGGER.info("[NEXT_DATA] Found and parsed <script id='__NEXT_DATA__'> JSON.")
-            return [data]
-        except Exception as e:
-            _LOGGER.warning(f"[NEXT_DATA] Failed to parse <script id='__NEXT_DATA__'>: {e}")
-    else:
-        _LOGGER.info("[NEXT_DATA] No <script id='__NEXT_DATA__'> tag found.")
-    return []
+
 
 
 def robust_stateful_cleaner(data_string: str) -> str:
@@ -97,42 +81,166 @@ def _normalize_and_parse_push_block(block_content: str) -> dict | None:
     It decodes the array, extracts the data string if it contains product data,
     cleans it, and parses it.
     """
-    _LOGGER.debug(f"[DIAG][hydration_parser] Processing push block (first 200): {block_content[:200]}")
+    # _LOGGER.debug(f"[DIAG][hydration_parser] Processing push block (first 200): {block_content[:200]}")
 
+    # Log raw block content for diagnostics
+    # _LOGGER.debug(f"[DIAG][hydration_parser] Raw push block (first 200): {block_content[:200]}")
+
+    # Try to parse as JS array literal
+
+
+    # Try demjson3 first
     try:
-        parsed_array = demjson3.decode(block_content)
-    except demjson3.JSONDecodeError:
-        try:
-            cleaned_block = robust_stateful_cleaner(block_content)
-            parsed_array = demjson3.decode(cleaned_block)
-        except demjson3.JSONDecodeError as e:
-            _LOGGER.warning(f"[DIAG][hydration_parser] Failed to decode push block after cleaning: {e}. Content: {block_content[:200]}")
-            return None
-
-    if not (isinstance(parsed_array, list) and len(parsed_array) > 1 and isinstance(parsed_array[1], str)):
-        _LOGGER.debug("[DIAG][hydration_parser] Push block does not match expected [number, string] format.")
-        return None
-
-    data_string = parsed_array[1]
-
-    if '"product"' not in data_string and '"offers"' not in data_string:
-        _LOGGER.debug("[DIAG][hydration_parser] Skipping block without product/offers data.")
-        return None
-
-    _LOGGER.debug(f"[DIAG][hydration_parser] Found potential product data string (first 200): {data_string[:200]}")
-
-    data_string = remove_js_prefix(data_string)
-    cleaned_payload = robust_stateful_cleaner(data_string)
-
-    _LOGGER.debug(f"[DIAG][hydration_parser] Cleaned payload (first 200): {cleaned_payload[:200]}")
-
-    try:
-        parsed_data = demjson3.decode(cleaned_payload)
-        return parsed_data
+        parsed_array_literal = demjson3.decode(block_content)
+    # _LOGGER.debug("[DIAG][hydration_parser] demjson3 successfully parsed array literal.")
     except demjson3.JSONDecodeError as e:
-        _LOGGER.error(f"[DIAG][hydration_parser] Failed to parse product data payload: {e}")
-        _LOGGER.error(f"[DIAG][hydration_parser] Problematic product payload (first 1000): {cleaned_payload[:1000]}")
+        _LOGGER.warning(f"[DIAG][hydration_parser] demjson3 failed for array literal: {e}. Attempting enhanced manual extraction. Content: {block_content[:200]}")
+        arr_match = re.match(r'^\s*\[(.*)\]\s*$', block_content, re.DOTALL)
+        elements = []
+        if arr_match:
+            arr_content = arr_match.group(1)
+            depth = 0
+            current = []
+            in_string = False
+            is_escaped = False
+            for c in arr_content:
+                if in_string:
+                    if is_escaped:
+                        is_escaped = False
+                    elif c == '\\':
+                        is_escaped = True
+                    elif c == '"':
+                        in_string = False
+                    current.append(c)
+                else:
+                    if c == '"':
+                        in_string = True
+                        current.append(c)
+                    elif c in '{[':
+                        depth += 1
+                        current.append(c)
+                    elif c in '}]':
+                        depth -= 1
+                        current.append(c)
+                    elif c == ',' and depth == 0:
+                        elements.append(''.join(current).strip())
+                        current = []
+                    else:
+                        current.append(c)
+            if current:
+                elements.append(''.join(current).strip())
+            # Try all elements for product/offers
+            for idx, elem in enumerate(elements):
+                cleaned = robust_stateful_cleaner(elem)
+                try:
+                    payload = demjson3.decode(cleaned)
+                    found_product = find_product_with_offers_recursive(payload)
+                    if found_product:
+                        # _LOGGER.info(f"[DIAG][hydration_parser] Found product with offers in element {idx}.")
+                        return found_product
+                except Exception as e2:
+                    _LOGGER.warning(f"[DIAG][hydration_parser] Failed to parse element {idx}: {e2}. Content: {elem[:200]}")
+                # NEW: Try to parse string elements as JSON if they look like object literals
+                if elem.startswith('"') and '{' in elem:
+                    try:
+                        possible_json = elem.strip('"')
+                        possible_json_cleaned = robust_stateful_cleaner(possible_json)
+                        payload = demjson3.decode(possible_json_cleaned)
+                        found_product = find_product_with_offers_recursive(payload)
+                        if found_product:
+                            # _LOGGER.info(f"[DIAG][hydration_parser] Found product with offers in string element {idx}.")
+                            return found_product
+                    except Exception as e3:
+                        _LOGGER.warning(f"[DIAG][hydration_parser] Failed to parse string element {idx}: {e3}. Content: {elem[:200]}")
+                else:
+                    pass  # Skipped string element
+            _LOGGER.error(f"[DIAG][hydration_parser] No product with offers found in any top-level or string element. Elements: {elements}")
+            return None
+        else:
+            _LOGGER.error(f"[DIAG][hydration_parser] Could not match array literal format for manual extraction. Content: {block_content[:200]}")
+            return None
+    except Exception as e:
+        _LOGGER.warning(f"[DIAG][hydration_parser] Unexpected error: {e}. Content: {block_content[:200]}")
         return None
+
+
+    # Find the first dictionary in the array (skip any string elements)
+    product_payload = None
+    def extract_object_literals_from_string(s):
+        # Robust stateful parser to extract the largest balanced {...} block containing 'offers'
+        max_obj = None
+        max_obj_len = 0
+        i = 0
+        while i < len(s):
+            if s[i] == '{':
+                depth = 1
+                start = i
+                in_string = False
+                is_escaped = False
+                j = i + 1
+                while j < len(s) and depth > 0:
+                    c = s[j]
+                    if in_string:
+                        if is_escaped:
+                            is_escaped = False
+                        elif c == '\\':
+                            is_escaped = True
+                        elif c == '"':
+                            in_string = False
+                    else:
+                        if c == '"':
+                            in_string = True
+                        elif c == '{':
+                            depth += 1
+                        elif c == '}':
+                            depth -= 1
+                    j += 1
+                if depth == 0:
+                    obj_str = s[start:j]
+                    if 'offers' in obj_str and len(obj_str) > max_obj_len:
+                        max_obj = obj_str
+                        max_obj_len = len(obj_str)
+                i = j
+            else:
+                i += 1
+        if max_obj:
+            # _LOGGER.info(f"[DIAG][hydration_parser] Extracted largest object literal containing 'offers' (length {max_obj_len}): {max_obj[:200]}")
+            return [max_obj]
+        else:
+            # _LOGGER.info("[DIAG][hydration_parser] No object literal containing 'offers' found in string block.")
+            return []
+
+    if isinstance(parsed_array_literal, list):
+        for item in parsed_array_literal:
+            if isinstance(item, dict):
+                product_payload = item
+                break
+            # Try to parse string elements as JSON if they look like object literals
+            if isinstance(item, str) and '{' in item:
+                # Extract all object literals from the string
+                object_literals = extract_object_literals_from_string(item)
+                for obj_str in object_literals:
+                    try:
+                        possible_json_cleaned = robust_stateful_cleaner(obj_str)
+                        payload = demjson3.decode(possible_json_cleaned)
+                        found_product = find_product_with_offers_recursive(payload)
+                        if found_product:
+                            # _LOGGER.info(f"[DIAG][hydration_parser] Found product with offers in extracted object literal from string item.")
+                            # _LOGGER.info(f"[DIAG][hydration_parser] Extracted object literal: {obj_str[:200]}")
+                            return found_product
+                    except Exception as e3:
+                        _LOGGER.warning(f"[DIAG][hydration_parser] Failed to parse extracted object literal: {e3}. Content: {obj_str[:200]}")
+    elif isinstance(parsed_array_literal, dict):
+        product_payload = parsed_array_literal
+
+    if product_payload is None:
+    # _LOGGER.debug("[DIAG][hydration_parser] No dictionary found in push block to process.")
+        return None
+
+    found_product = find_product_with_offers_recursive(product_payload)
+    if found_product:
+        return found_product
+    return product_payload
 
 
 def extract_and_parse_all_hydration_data(html: str) -> list:
@@ -141,11 +249,13 @@ def extract_and_parse_all_hydration_data(html: str) -> list:
     This version targets `self.__next_f.push()` calls and uses a robust
     manual parser to find the matching parentheses of the push() call.
     """
-    _LOGGER.debug("[DIAG][hydration_parser] Starting extract_and_parse_all_hydration_data")
+    # _LOGGER.debug("[DIAG][hydration_parser] Starting extract_and_parse_all_hydration_data")
 
     soup = BeautifulSoup(html, 'html.parser')
     scripts = soup.find_all('script')
     
+    extracted_data = []
+
     start_str = 'self.__next_f.push('
 
     for script in scripts:
@@ -153,6 +263,10 @@ def extract_and_parse_all_hydration_data(html: str) -> list:
             continue
 
         content = script.string
+        # if content:
+        #     _LOGGER.debug(f"[DIAG][hydration_parser] script.string length: {len(content)}")
+        # else:
+        #     _LOGGER.debug("[DIAG][hydration_parser] script.string is empty.")
         current_pos = 0
         
         while True:
@@ -186,28 +300,31 @@ def extract_and_parse_all_hydration_data(html: str) -> list:
             
             if open_parens == 0:
                 # The end of the push() call is at i-1. The content is between start_index + len(start_str) and i-1.
-                block_content = content[start_index + len(start_str) : i - 1]
-                _LOGGER.debug(f"[DIAG][hydration_parser] Found push block with balanced parens (length {len(block_content)}).")
+                block_content = content[start_index + len(start_str) : i-1]
+                # _LOGGER.debug(f"[DIAG][hydration_parser] Extracted block_content length: {len(block_content)}.")
+                # _LOGGER.debug(f"[DIAG][hydration_parser] Found push block with balanced parens (length {len(block_content)}).")
                 
                 parsed_data = _normalize_and_parse_push_block(block_content)
                 if parsed_data:
                     product_data = find_product_with_offers_recursive(parsed_data)
                     if product_data:
-                        _LOGGER.info("[DIAG][hydration_parser] Found product data with offers in push block.")
-                        # Log the raw offers list
-                        if 'offers' in product_data:
-                            _LOGGER.info(f"[DIAG][hydration_parser] Raw offers list: {json.dumps(product_data['offers'], indent=2)}")
-                        else:
-                            _LOGGER.info("[DIAG][hydration_parser] No 'offers' key found in product data.")
+                        # _LOGGER.info("[DIAG][hydration_parser] Found product data with offers in push block.")
+                        # if 'offers' in product_data:
+                        #     _LOGGER.info(f"[DIAG][hydration_parser] Raw offers list: {demjson3.encode(product_data['offers'], compactly=False, indent=2)}")
+                        # else:
+                        #     _LOGGER.info("[DIAG][hydration_parser] No 'offers' key found in product data.")
                         # Normalize the 'title' key to 'name' to match the expected output format.
                         if 'title' in product_data:
                             product_data['name'] = product_data.pop('title')
-                        return [product_data]
+                        extracted_data.append(product_data)
                 
                 current_pos = i
             else:
                 _LOGGER.warning("[DIAG][hydration_parser] Could not find matching parenthesis for a push call, moving to next script.")
                 break # Move to the next script tag
     
-    _LOGGER.debug("[DIAG][hydration_parser] No product data found in any push blocks.")
+    if extracted_data:
+        return extracted_data
+
+    # _LOGGER.debug("[DIAG][hydration_parser] No product data found in any push blocks.")
     return []

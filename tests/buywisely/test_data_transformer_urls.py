@@ -19,7 +19,8 @@ def mock_raw_data():
         ]
     }
 
-def test_is_valid_seller_url_valid_url(mock_raw_data):
+@pytest.mark.asyncio
+async def test_is_valid_seller_url_valid_url(mock_raw_data):
     # Access the is_valid_seller_url function from within transform_raw_product_data
     # This is a bit of a hack, but necessary since it's a nested function
     # In a real scenario, this function would ideally be a standalone helper
@@ -29,35 +30,40 @@ def test_is_valid_seller_url_valid_url(mock_raw_data):
 
     # Test a valid seller URL
     mock_raw_data['offers'][0]['seller_product_url'] = "http://valid-seller.com/product"
-    item_data = transform_raw_product_data(mock_raw_data, "test_product_id", "http://buywisely.com.au/product/test")
+    item_data = await transform_raw_product_data(mock_raw_data, "test_product_id", "http://buywisely.com.au/product/test")
     assert item_data.url == "http://valid-seller.com/product"
 
-def test_is_valid_seller_url_buywisely_url(mock_raw_data):
+@pytest.mark.asyncio
+async def test_is_valid_seller_url_buywisely_url(mock_raw_data):
     # Test a buywisely.com.au URL (should be invalid as a seller URL)
     mock_raw_data['offers'][0]['seller_product_url'] = "http://buywisely.com.au/product/test"
-    item_data = transform_raw_product_data(mock_raw_data, "test_product_id", "http://buywisely.com.au/product/test")
+    item_data = await transform_raw_product_data(mock_raw_data, "test_product_id", "http://buywisely.com.au/product/test")
     assert item_data.url == ""
 
-def test_is_valid_seller_url_image_url(mock_raw_data):
+@pytest.mark.asyncio
+async def test_is_valid_seller_url_image_url(mock_raw_data):
     # Test an image URL (should be invalid)
     mock_raw_data['offers'][0]['seller_product_url'] = "http://seller.com/image.jpg"
-    item_data = transform_raw_product_data(mock_raw_data, "test_product_id", "http://buywisely.com.au/product/test")
+    item_data = await transform_raw_product_data(mock_raw_data, "test_product_id", "http://buywisely.com.au/product/test")
     assert item_data.url == ""
 
-def test_is_valid_seller_url_malformed_url(mock_raw_data):
+@pytest.mark.asyncio
+async def test_is_valid_seller_url_malformed_url(mock_raw_data):
     # Test a malformed URL (should be invalid)
     mock_raw_data['offers'][0]['seller_product_url'] = "invalid-url"
-    item_data = transform_raw_product_data(mock_raw_data, "test_product_id", "http://buywisely.com.au/product/test")
+    item_data = await transform_raw_product_data(mock_raw_data, "test_product_id", "http://buywisely.com.au/product/test")
     assert item_data.url == ""
 
-def test_is_valid_seller_url_none_url(mock_raw_data):
+@pytest.mark.asyncio
+async def test_is_valid_seller_url_none_url(mock_raw_data):
     # Test a None URL (should be invalid)
     mock_raw_data['offers'][0]['seller_product_url'] = None
-    item_data = transform_raw_product_data(mock_raw_data, "test_product_id", "http://buywisely.com.au/product/test")
+    item_data = await transform_raw_product_data(mock_raw_data, "test_product_id", "http://buywisely.com.au/product/test")
     assert item_data.url == ""
 
-def test_is_valid_seller_url_empty_string_url(mock_raw_data):
+@pytest.mark.asyncio
+async def test_is_valid_seller_url_empty_string_url(mock_raw_data):
     # Test an empty string URL (should be invalid)
     mock_raw_data['offers'][0]['seller_product_url'] = ""
-    item_data = transform_raw_product_data(mock_raw_data, "test_product_id", "http://buywisely.com.au/product/test")
+    item_data = await transform_raw_product_data(mock_raw_data, "test_product_id", "http://buywisely.com.au/product/test")
     assert item_data.url == ""

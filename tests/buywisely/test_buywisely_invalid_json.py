@@ -1,6 +1,6 @@
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 
-def test_buywisely_invalid_json_in_hydration():
+async def test_buywisely_invalid_json_in_hydration():
     # HTML with invalid JSON in hydration block
     invalid_json_html = """
     <html><body>
@@ -8,7 +8,7 @@ def test_buywisely_invalid_json_in_hydration():
     <span class='price'>$88.88</span>
     </body></html>
     """
-    result = parse_product(invalid_json_html, product_id="invalid-json-1")
+    result = await parse_product(invalid_json_html, product_id="invalid-json-1")
     # Should fallback to BeautifulSoup and extract price
     if isinstance(result, dict):
         assert "price" in result and isinstance(result["price"], dict)
@@ -26,7 +26,7 @@ def test_buywisely_invalid_json_in_hydration():
     <span class='price'>$77.77</span>
     </body></html>
     """
-    result = parse_product(unexpected_json_html, product_id="unexpected-json-1")
+    result = await parse_product(unexpected_json_html, product_id="unexpected-json-1")
     # Should fallback to BeautifulSoup and extract price
     if isinstance(result, dict):
         assert "price" in result and isinstance(result["price"], dict)

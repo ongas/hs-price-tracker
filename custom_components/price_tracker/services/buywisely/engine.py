@@ -50,7 +50,7 @@ class BuyWiselyEngine(PriceEngine):
     async def load(self) -> ItemData | None:
         _LOGGER.info("[DIAG][BuyWiselyEngine.load] START.")
         self._request = self._request_cls() # Assign in load method
-        self._request.user_agent(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3')
+        await self._request.user_agent(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3')
         try:
             response = await self._request.request(
                 method=SafeRequestMethod.GET,
@@ -105,7 +105,13 @@ class BuyWiselyEngine(PriceEngine):
                          self.item_url, html[:2000])
         else:
             _LOGGER.warning("[DIAG][BuyWiselyEngine.load] No HTML content fetched for %s", self.item_url)
-        product_details = parse_product(html, product_id=self.product_id, item_url=self.item_url)
+        product_details = await parse_product(html, product_id=self.product_id, item_url=self.item_url)
+
+        # Validate that the extracted price is greater than zero
+        if product_details and product_details.price and product_details.price.price <= 0.0:
+            _LOGGER.error("Extracted price for item_url=%s is zero or less. This indicates an extraction bug.", self.item_url)
+            raise ValueError("Extracted price cannot be zero or less.")
+
         # Ensure return type is always ItemData
         if isinstance(product_details, dict):
             # Defensive: fallback if parse_product returns dict (shouldn't in prod)

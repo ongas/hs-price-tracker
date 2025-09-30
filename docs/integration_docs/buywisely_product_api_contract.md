@@ -53,12 +53,13 @@ This document defines the expected structure and sample payloads for BuyWisely p
 - `product.description` (string): Product description.
 
 ## 2. Extraction & Mapping Rules
+- Only 'current offers' (those visible above 'See n more history offers' on the BuyWisely product page) must be processed. History offers must be ignored.
 - Offers with a price of 0.0 (zero) must be ignored. If, after filtering, all current offers have a price of 0.0, an exception must be raised to signal an extraction bug.
 - The `offers` list must be robustly traversed, regardless of its nesting in the hydration data.
-- The `url` field in the entity must always be set to the `seller_product_url` of the lowest-priced offer.
+- The `url` field in the entity must always be set to the `seller_product_url` of the lowest-priced current offer.
 - No fallback or alternative fields are to be used for the seller URL.
-- If no offers are present, the entity `url` must be empty and this must be logged.
-- After selecting the lowest-priced offer, the system must fetch the seller's product page and validate that the price displayed matches BuyWisely's stated price. If there is a mismatch, a diagnostic error is logged and the product is marked as 'price mismatch'.
+- If no current offers are present, the entity `url` must be empty and this must be logged.
+- After selecting the lowest-priced current offer, the system must fetch the seller's product page and validate that the price displayed matches BuyWisely's stated price. If there is a mismatch, a diagnostic error is logged and the product is marked as 'price mismatch'.
 
 ## 3. Diagnostics
 - Log the full hydration data, the offers list, all candidate `seller_product_url` values, and the final `url` set in the entity.

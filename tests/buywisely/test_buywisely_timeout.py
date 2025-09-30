@@ -1,7 +1,7 @@
 from unittest.mock import patch
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 
-def test_buywisely_timeout_and_rate_limiting():
+async def test_buywisely_timeout_and_rate_limiting():
     # Simulate a timeout in the HTML extractor
     with patch("custom_components.price_tracker.services.buywisely.parser.extract_product_data_from_html", side_effect=TimeoutError("Simulated timeout")):
         html = """
@@ -10,7 +10,7 @@ def test_buywisely_timeout_and_rate_limiting():
         <span class='price'>$99.99</span>
         </body></html>
         """
-        result = parse_product(html, product_id="timeout-1")
+        result = await parse_product(html, product_id="timeout-1")
         # Accept 0.0 as valid fallback for timeout scenario
         if isinstance(result, dict):
             assert "price" in result and (
@@ -29,7 +29,7 @@ def test_buywisely_timeout_and_rate_limiting():
         <span class='price'>$88.88</span>
         </body></html>
         """
-        result = parse_product(html, product_id="ratelimit-1")
+        result = await parse_product(html, product_id="ratelimit-1")
         # Should fallback to BeautifulSoup and extract price
         if isinstance(result, dict):
             assert "price" in result and result["price"]["price"] == 88.88

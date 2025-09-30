@@ -12,7 +12,7 @@ async def test_real_html_hydration_extraction(mock_safe_request):
     """
     Integration test: Use real BuyWisely HTML fixture to validate Next.js hydration extraction logic.
     """
-    fixture_path = os.path.join(os.path.dirname(__file__), "fixtures", "real_buywisely_fetched.html")
+    fixture_path = os.path.join(os.path.dirname(__file__), "fixtures", "real_buywisely_motorola-moto-g75-5g-256gb-grey-with-buds.html")
     with open(fixture_path, encoding="utf-8") as f:
         real_html = f.read()
     mock_response = AsyncMock()
@@ -21,14 +21,14 @@ async def test_real_html_hydration_extraction(mock_safe_request):
     mock_response.__bool__.return_value = True
 
     class MockSafeRequest:
-        def user_agent(self, *args, **kwargs):
+        async def user_agent(self, *args, **kwargs):
             pass
         async def request(self, *args, **kwargs):
             return mock_response
 
     engine = BuyWiselyEngine(item_url="https://buywisely.com.au/product/real-fixture-test", request_cls=MockSafeRequest)
     mock_instance = mock_safe_request.return_value
-    mock_instance.user_agent = lambda *args, **kwargs: None
+    mock_instance.user_agent = AsyncMock()
     mock_instance.request = AsyncMock(return_value=mock_response)
     print("[DIAG] Using real HTML fixture for hydration extraction test.")
     result = await engine.load()

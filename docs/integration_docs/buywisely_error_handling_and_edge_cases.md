@@ -24,9 +24,9 @@ This document catalogs all known error conditions, edge cases, and required diag
   - Set entity `url` to empty.
 
 ### 2.2 Offers List Empty
-- **Condition:** `product.offers` is present but empty (`[]`).
+- **Condition:** `product.offers` is present but empty (`[]`), or all offers are history offers (not current).
 - **Action:**
-  - Log: "Offers list empty for product {product.id}"
+  - Log: "Current offers list empty for product {product.id}"
   - Set entity `url` to empty.
 
 ### 2.3 Offer Missing seller_product_url
@@ -36,11 +36,11 @@ This document catalogs all known error conditions, edge cases, and required diag
   - Skip offers without `seller_product_url` when selecting lowest-priced offer.
   - If no valid offer remains, set entity `url` to empty and log.
 
-### 2.4 Multiple Offers with Same Price
-- **Condition:** Two or more offers have the same lowest price.
+### 2.4 Multiple Current Offers with Same Price
+- **Condition:** Two or more current offers have the same lowest price.
 - **Action:**
-  - Log: "Multiple offers with same lowest price for product {product.id}, using first occurrence."
-  - Use the first offer in the list.
+  - Log: "Multiple current offers with same lowest price for product {product.id}, using first occurrence."
+  - Use the first current offer in the list.
 
 ### 2.5 Malformed Hydration Data
 - **Condition:** Hydration data is not valid JSON, or expected keys are missing at any level.
@@ -97,9 +97,9 @@ This document catalogs all known error conditions, edge cases, and required diag
 | Zero-priced offers               | empty (exception) | Zero-priced offer found for product 123456, offer: {...}. Ignoring. (or exception) |
 |----------------------------------|-------------------|------------------------------------------------------------------------------------|
 | Offers missing                   | empty             | Offers list missing in hydration data for product 123456                           |
-| Offers empty                     | empty      | Offers list empty for product 123456                             |
+| Current offers empty             | empty      | Current offers list empty for product 123456                             |
 | Offer missing seller_product_url | empty      | Offer missing seller_product_url for product 123456, offer: {...}|
-| Multiple lowest price            | first      | Multiple offers with same lowest price for product 123456, using first occurrence. |
+| Multiple lowest price (current)  | first      | Multiple current offers with same lowest price for product 123456, using first occurrence. |
 | Malformed hydration data         | empty      | Malformed or missing hydration data for product URL: ...         |
 | HTTP/network error (transient)   | unavailable (INACTIVE) | Network error or HTTP error 500 for product URL: ...             |
 | 404/410 Not Found (deleted)      | deleted    | 404/410 Not Found for product URL: ...                           |
