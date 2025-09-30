@@ -19,6 +19,7 @@ venv/
 coverage.xml
 pytest_output.log
 pytest_output.txt
+scripts/call_ha_api_output.txt
 
 # IDEs and editors
 .vscode/
