@@ -353,7 +353,7 @@ class PriceTrackerSensor(RestoreEntity):
             "updated_at": self._updated_at,
         }
 
-    def _update_engine_status(self, status: bool, reason: str = None):
+    def _update_engine_status(self, status: bool, reason: str | None = None):
         if self._attr_extra_state_attributes is None:
             self._attr_extra_state_attributes = {}
         self._attr_extra_state_attributes = {

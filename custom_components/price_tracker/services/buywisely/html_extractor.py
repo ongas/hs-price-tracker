@@ -142,7 +142,7 @@ def extract_from_beautifulsoup(html: str) -> dict:
             else:
                 price_val = None
 
-    raw_data = {}
+    raw_data = {'html': html}
     if price_val is not None:
         raw_data['price'] = price_val
         raw_data['currency'] = currency_val
@@ -162,13 +162,11 @@ def extract_from_beautifulsoup(html: str) -> dict:
         raw_data['offers'] = [offer] if offer else []
     else:
         raw_data['availability'] = 'Out of Stock'
-    # _LOGGER.debug("[DIAG][_extract_from_beautifulsoup] Price is None, Out of Stock.")
         raw_data['title'] = title_val if title_val else ''
         raw_data['name'] = title_val if title_val else ''
         raw_data['url'] = seller_url if seller_url else ''
         raw_data['offers'] = []
-    # Removed stray logger info and unmatched parenthesis
-    # _LOGGER.info(f"[DIAG][html_extractor] Final fallback returned structure: {raw_data}")
+    # Always include the original HTML for fallback extraction
     return raw_data
 
 async def extract_product_data_from_html(html: str) -> dict:
@@ -177,7 +175,7 @@ async def extract_product_data_from_html(html: str) -> dict:
     try:
         parsed_data_list = extract_and_parse_all_hydration_data(html)
         try:
-            import json as _json
+            pass
             # _LOGGER.info("[DIAG][html_extractor] Full parsed_data (hydration): %s", _json.dumps(parsed_data_list, default=str)[:10000])
         except Exception as e:
             _LOGGER.error("[DIAG][html_extractor] Exception logging full parsed_data: %s", e)
@@ -220,6 +218,7 @@ async def extract_product_data_from_html(html: str) -> dict:
                                 product_data[field] = offers[0][field]
                                 break
                 break
+    # Always include the original HTML for fallback extraction
     # Patch: If product_data is missing 'title' and 'name', but has a nested 'product' dict, use that dict
     if product_data and isinstance(product_data, dict):
         if not any(k in product_data for k in ('title', 'name')) and 'product' in product_data and isinstance(product_data['product'], dict):
@@ -229,8 +228,16 @@ async def extract_product_data_from_html(html: str) -> dict:
         brand = title.split(' ')[0] if title else ''
         # Only process current offers (those visible above 'See n more history offers')
         offers_list = product_data.get('offers', [])
-        # TODO: If history offers are present, filter them out here
-        product_data['offers'] = offers_list if isinstance(offers_list, list) else []
+        # Filter out history/hidden offers if present
+        filtered_offers = []
+        for offer in offers_list:
+            # Heuristic: skip offers with 'history' or 'hidden' flag, or if marked as not visible
+            if isinstance(offer, dict):
+                if offer.get('history') or offer.get('hidden') or offer.get('is_history') or offer.get('is_hidden'):
+                    _LOGGER.info(f"[DIAG][html_extractor] Skipping history/hidden offer: {offer}")
+                    continue
+                filtered_offers.append(offer)
+        product_data['offers'] = filtered_offers if isinstance(filtered_offers, list) else []
         offers, main_url, lowest_total, lowest_offer = _process_product_offers(product_data, return_lowest_details=True)
         selected_delivery = None
         if lowest_offer and isinstance(lowest_offer, dict):
@@ -242,20 +249,8 @@ async def extract_product_data_from_html(html: str) -> dict:
                     selected_delivery = None
                 if selected_delivery is not None:
                     break
-        soup = BeautifulSoup(html, 'html.parser')
-        title_tag = soup.find('title')
-        if title_tag and title_tag.get_text(strip=True):
-            name_value = title_tag.get_text(strip=True)
-        else:
-            name_fields = ['title', 'name', 'product']
-            name_value = None
-            for field in name_fields:
-                name_raw = product_data.get(field)
-                if isinstance(name_raw, str) and name_raw.strip():
-                    name_value = name_raw.strip()
-                    break
-            if not name_value:
-                name_value = 'UNKNOWN'
+        # Use only the product 'title' field from hydration data for display and entity attributes
+        name_value = product_data.get('title') or product_data.get('name') or ''
         price_val = lowest_total if lowest_total is not None else None
         currency_val = lowest_offer.get('currency') if lowest_offer else product_data.get('currency', 'AUD')
         raw_data = {
@@ -268,10 +263,12 @@ async def extract_product_data_from_html(html: str) -> dict:
             'url': main_url,
             'offers': offers,
             'delivery_price': selected_delivery,
+            'html': html,  # Always include the original HTML
         }
         return raw_data
     else:
         raw_data = extract_from_beautifulsoup(html)
+        raw_data['html'] = html  # Always include the original HTML
         return raw_data
 
 def _debug_local_html_parsing():
@@ -287,10 +284,12 @@ def _debug_local_html_parsing():
     except Exception as e:
         _LOGGER.error("[DIAG][_debug_local_html_parsing] Failed to read HTML file: %s", e)
         return
+    # Extraction logic for local debug (sync context)
+    # If you need to run async extraction, use asyncio.run()
     try:
-        result = extract_product_data_from_html(html)
-    # _LOGGER.info("[DIAG][_debug_local_html_parsing] Extraction result: %s", demjson3.encode(result, compactly=False, indent=2)[:10000])
-        return None
+        # For local debug, just call and ignore result
+        # If extract_product_data_from_html is async, use: asyncio.run(extract_product_data_from_html(html))
+        pass
     except Exception:
         pass
 

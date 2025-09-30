@@ -1,8 +1,35 @@
+import pytest
+from unittest.mock import patch
+@pytest.mark.asyncio
+@patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
+@patch("custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price")
+async def test_price_mismatch_moves_to_next_offer(mock_fetch_seller_price, mock_safe_request):
+    """Test that if the price is mismatched, the engine moves to the next lowest offer and repeats validation."""
+    # Simulate two offers: first is a mismatch, second matches
+    offers_html = '''<html><body><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"product":{"title":"Test Product","slug":"test-product","availability":"In Stock","offers":[{"base_price":100.0,"currency":"AUD","seller_product_url":"http://example.com/offer1"},{"base_price":120.0,"currency":"AUD","seller_product_url":"http://example.com/offer2"}],"image":"http://example.com/test_image.jpg"}}}}</script></body></html>'''
+    mock_response = AsyncMock()
+    mock_response.has = True
+    mock_response.text = offers_html
+    mock_response.__bool__.return_value = True
+    mock_safe_request.return_value = AsyncMock()
+    mock_safe_request.return_value.user_agent.return_value = None
+    mock_safe_request.return_value.request.return_value = mock_response
+
+    # First call: mismatch, second call: match
+    mock_fetch_seller_price.side_effect = [90.0, 120.0]  # 100.0 (mismatch), 120.0 (match)
+    engine = BuyWiselyEngine(item_url="https://www.buywisely.com.au/product/test-product", request_cls=mock_safe_request)
+    result = await engine.load()
+    print("[DIAG] Extraction result:", result)
+    # Should select the second offer (120.0) after first mismatch
+    assert result is not None, "Expected result, got None"
+    extracted_price = getattr(getattr(result, 'price', None), 'price', None)
+    assert extracted_price == 120.0, f"Expected price 120.0, got {extracted_price}"
+    assert getattr(result, 'url', None) == "http://example.com/offer2", f"Expected url for second offer, got {getattr(result, 'url', None)}"
 """Tests for offer selection and lowest price logic in BuyWiselyEngine."""
+
 import os
 from unittest.mock import AsyncMock, patch
 import pytest
-
 from custom_components.price_tracker.datas.item import ItemStatus
 from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
 

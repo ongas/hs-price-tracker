@@ -1,4 +1,6 @@
 # BuyWisely Error Handling & Edge Case Catalog
+## Definition of 'Current Offer'
+The 'current offers' are strictly defined as the list of seller product offers visible above the 'See n more history offers' selection on the BuyWisely product page. Only these offers are considered valid for price extraction, validation, and entity state. Historical or expired offers below this section must be ignored for all logic and diagnostics.
 
 
 All error conditions and edge cases listed here are now handled by the robust, state-aware BuyWisely parser integrated in the price tracker component (see developer guide and user story 5).

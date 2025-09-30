@@ -396,9 +396,14 @@ Replace `entity_id` with the correct sensor/entity for your product. This button
 
 
 **Seller URL and Lowest Price Extraction (CRITICAL REQUIREMENT):**
-- The seller URL for each product **must** be strictly and only extracted from the `seller_product_url` field of the lowest-priced offer in the *current* offers list, as found in the hydration data. The 'current' offers are those visible on the product page before any 'See n more history offers' or similar expansion. No fallback or alternative logic is permitted.
-- The lowest price must be the minimum of the `price` (or `base_price`) fields among the *current* offers. Delivery cost, if present, should be included in the total price calculation if business logic requires it.
-- **Example (as of 2025-09-23):**
+The seller URL for each product **must** be strictly and only extracted from the `seller_product_url` field of the lowest-priced offer in the *current* offers list, as found in the hydration data. The 'current' offers are those visible on the product page before any 'See n more history offers' or similar expansion. No fallback or alternative logic is permitted.
+The lowest price must be the minimum of the `price` (or `base_price`) fields among the *current* offers. Delivery cost, if present, should be included in the total price calculation if business logic requires it.
+
+**Display Name vs product_id:** The product_id is derived from the BuyWisely product page slug and used for internal tracking/entity keys. The display name shown to users should be extracted from the HTML `<title>`, meta tags, or summary field for user-friendly display. There is no requirement for product_id to match the full HTML page title.
+
+**Seller Page Price Validation Requirement:** After selecting the lowest-priced current offer, the system **must** fetch the seller's product page and validate that the price displayed matches BuyWisely's stated price for that offer. If there is a mismatch, a diagnostic error is logged and the product is marked as 'price mismatch'. This requirement is documented in the acceptance tests, implementation checklist, and API contract.
+
+**Example (as of 2025-09-23):**
         - The current lowest price listed for the Motorola Moto G75 5G 256GB Grey with Buds is **$391** with **$13 delivery** (as of 2025-09-23).
         - The correct `seller_product_url` is:
             `https://vtechindustries.com.au/products/motorola-g75-5g-256gb-with-moto-buds-charcoal-grey-au-stock-6-8-full-hd-120hz-8gb-256gb-dual-sim-50mp-16mp-water-protection-5000mah-2year-warranty-pb3y0024au?variant=50641766383904&utm_source=buywisely`

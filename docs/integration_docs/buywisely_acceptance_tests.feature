@@ -1,6 +1,8 @@
 # language: en
 
 Feature: BuyWisely Product Tracking Acceptance
+# Definition of 'Current Offer':
+# The 'current offers' are strictly defined as the list of seller product offers visible above the 'See n more history offers' selection on the BuyWisely product page. Only these offers are considered valid for price extraction, validation, and entity state. Historical or expired offers below this section must be ignored for all logic and diagnostics.
   This feature file defines the acceptance criteria and scenarios for the BuyWisely service integration, covering all core and edge case behaviors as specified in the requirements and error catalog.
 
   Background:
@@ -57,5 +59,7 @@ Feature: BuyWisely Product Tracking Acceptance
   Scenario: Validate price on seller's product page after selecting lowest offer
     Given the lowest-priced offer and its seller_product_url have been selected
     When the system fetches the seller's product page
-    Then the price displayed on the seller's page must match BuyWisely's stated price
-    And if there is a mismatch, a diagnostic error is logged and the product is marked as 'price mismatch'
+  Then the price displayed on the seller's page must match BuyWisely's stated price
+  And if there is a mismatch, a diagnostic error is logged
+  And the system must move onto the next lowest-priced current offer and repeat the validation process
+  And if all current offers result in a price mismatch, the product is marked as 'price mismatch' and all attempted offers and prices are logged
