@@ -1,3 +1,5 @@
+# Temporary test output
+pytest_collected.txt
 # Ignore technical notes
 DEVELOPMENT_NOTES.md
 
