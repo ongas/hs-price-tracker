@@ -299,17 +299,18 @@ class PriceTrackerSensor(RestoreEntity):
             self._attr_available = True
             self._attr_unit_of_measurement = self._item_data.price.currency
             self._update_engine_status(True)
-        except Exception:
+        except Exception as exc:
+            reason = f"Exception in async_update: {exc}"
             if (
                 self._updated_at is None
                 or self._updated_at + timedelta(hours=6) < datetime.now()
                 or self._debug
             ):
                 self._attr_available = False
-                self._update_engine_status(False)
+                self._update_engine_status(False, reason=reason)
             else:
                 self._attr_available = True
-                self._update_engine_status(False)
+                self._update_engine_status(False, reason=reason)
         finally:
             self._update_updated_at()
         # Ensure state is refreshed in HA after manual/service update
@@ -328,11 +329,19 @@ class PriceTrackerSensor(RestoreEntity):
         }
 
     def _update_engine_status(self, status: bool):
+        reason = None
+        import inspect
+        frame = inspect.currentframe()
+        args, _, _, values = inspect.getargvalues(frame)
+        if 'reason' in values:
+            reason = values['reason']
         if self._attr_extra_state_attributes is None:
             self._attr_extra_state_attributes = {}
-
         self._attr_extra_state_attributes = {
             **self._attr_extra_state_attributes,
             "engine_status": "FETCHED" if status else "ERROR",
+            "engine_error_reason": reason if not status else None,
         }
+        if not status:
+            _LOGGER.error(f"[DIAG][sensor.py] engine_status=ERROR for {self.entity_id}. Reason: {reason}")
         self._engine_status = status
