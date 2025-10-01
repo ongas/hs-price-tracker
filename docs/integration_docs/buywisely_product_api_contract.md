@@ -59,7 +59,16 @@ This document defines the expected structure and sample payloads for BuyWisely p
 - The `url` field in the entity must always be set to the `seller_product_url` of the lowest-priced current offer.
 - No fallback or alternative fields are to be used for the seller URL.
 - If no current offers are present, the entity `url` must be empty and this must be logged.
-- After selecting the lowest-priced current offer, the system must fetch the seller's product page and validate that the price displayed matches BuyWisely's stated price. If there is a mismatch, a diagnostic error is logged and the product is marked as 'price mismatch'.
+- After selecting the lowest-priced current offer, the system must fetch the seller's product page and validate the price using a hybrid approach:
+  1. **Extract all prices** from the seller page (JSON and HTML)
+  2. **Normalize and match**: Create variants of the expected price (e.g., "399.99" → ["399.99", "399", "39999", "$399.99", "AUD 399.99"]) and check if any extracted price matches
+  3. **Score matches by context**: For each matching price, score based on surrounding context:
+     - High confidence: Multiple occurrences + product price context (classes like "product-price", near product title)
+     - Medium confidence: Single occurrence + product price context
+     - Low confidence: Single occurrence, no clear context
+     - Reject: Found in non-product context (shipping, discounts, related products, "save $", "from $")
+  4. **Decision**: Accept high/medium confidence matches. Log and investigate low confidence or mismatches.
+  5. If there is a mismatch or extraction failure, a diagnostic error is logged with details about all extracted prices and their contexts.
 
 ## 3. Diagnostics
 - Log the full hydration data, the offers list, all candidate `seller_product_url` values, and the final `url` set in the entity.

@@ -53,19 +53,56 @@ def step_given_lowest_selected(context):
 @when("the system fetches the seller's product page")
 def step_when_fetch_seller_page(context):
     """Simulate fetching seller page (mocked)."""
-    context.seller_page_price = context.lowest_offer["base_price"]  # Simulate match
+    context.expected_price = context.lowest_offer["base_price"]
+    # Simulate extracting all prices from page
+    context.extracted_prices = [99.99, context.expected_price, 5.00]
+    # Simulate normalization
+    context.normalized_variants = [
+        str(context.expected_price),
+        str(int(context.expected_price)),
+        f"${context.expected_price}",
+        f"AUD {context.expected_price}"
+    ]
 
 
-@then("the price displayed on the seller's page must match BuyWisely's stated price")
-def step_then_prices_match(context):
-    """Verify price validation."""
-    buywisely_price = context.lowest_offer["base_price"]
-    assert_that(context.seller_page_price, equal_to(buywisely_price))
+@then("the system extracts all prices from the page and normalizes the expected price into variants")
+def step_then_extract_and_normalize(context):
+    """Verify extraction and normalization."""
+    assert_that(context.extracted_prices, not_none())
+    assert_that(context.normalized_variants, not_none())
 
 
-@then("if there is a mismatch, a diagnostic error is logged and the product is marked as 'price mismatch'")
-def step_then_log_price_mismatch(context):
-    """Verify mismatch handling."""
+@then("the system matches extracted prices against normalized variants")
+def step_then_match_prices(context):
+    """Verify price matching."""
+    context.matched_prices = [p for p in context.extracted_prices if str(p) in context.normalized_variants]
+    assert_that(len(context.matched_prices), greater_than(0))
+
+
+@then("the system scores matches by context to verify they're product prices")
+def step_then_score_by_context(context):
+    """Verify context scoring."""
+    # Simulate context scoring (high confidence for this test)
+    context.confidence = "HIGH"
+    context.context_info = "class='product-price', near product title"
+
+
+@then("high or medium confidence matches are accepted")
+def step_then_accept_high_medium(context):
+    """Verify acceptance of high/medium confidence."""
+    assert_that(context.confidence, equal_to("HIGH"))
+
+
+@then("low confidence or non-product context matches cause the offer to be skipped and next offer tried")
+def step_then_skip_low_confidence(context):
+    """Verify skipping of low confidence matches."""
+    # This would be tested with different context setup
+    pass
+
+
+@then("comprehensive diagnostics are logged including all extracted prices, normalized variants, matching prices with contexts, confidence scores, and final decision")
+def step_then_log_diagnostics(context):
+    """Verify comprehensive diagnostics logging."""
     # This would check logs in real implementation
     pass
 

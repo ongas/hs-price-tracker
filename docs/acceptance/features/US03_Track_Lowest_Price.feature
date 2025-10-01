@@ -11,8 +11,12 @@ Feature: Automatically Track the Lowest Price for a BuyWisely Product
   Scenario: Validate price on seller's product page after selecting lowest offer
     Given the lowest-priced offer and its seller_product_url have been selected
     When the system fetches the seller's product page
-    Then the price displayed on the seller's page must match BuyWisely's stated price
-    And if there is a mismatch, a diagnostic error is logged and the product is marked as 'price mismatch'
+    Then the system extracts all prices from the page and normalizes the expected price into variants
+    And the system matches extracted prices against normalized variants
+    And the system scores matches by context to verify they're product prices
+    And high or medium confidence matches are accepted
+    And low confidence or non-product context matches cause the offer to be skipped and next offer tried
+    And comprehensive diagnostics are logged including all extracted prices, normalized variants, matching prices with contexts, confidence scores, and final decision
 
   Scenario: Product has only zero-priced offers
     Given a BuyWisely product has only current offers with a price of 0.0

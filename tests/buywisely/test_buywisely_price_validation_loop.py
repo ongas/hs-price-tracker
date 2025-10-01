@@ -49,7 +49,7 @@ async def test_price_validation_loop_selects_matching_offer(
         return_value=AsyncMock(has=True, text=sample_html, __bool__=lambda: True)
     )
 
-    def fetch_seller_price_side_effect(url):
+    def fetch_seller_price_side_effect(url, expected_price):
         for offer_url, html in seller_htmls.items():
             if url == offer_url:
                 soup = BeautifulSoup(html, "html.parser")
@@ -109,7 +109,7 @@ async def test_price_validation_loop_handles_no_matching_offer(
         return_value=AsyncMock(has=True, text=sample_html, __bool__=lambda: True)
     )
 
-    def fetch_seller_price_side_effect(url):
+    def fetch_seller_price_side_effect(url, expected_price):
         for offer_url, html in seller_htmls.items():
             if url == offer_url:
                 soup = BeautifulSoup(html, "html.parser")

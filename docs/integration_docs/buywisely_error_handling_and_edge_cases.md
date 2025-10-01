@@ -77,11 +77,38 @@ This document catalogs all known error conditions, edge cases, and required diag
   - Log: "Unexpected data type for field {field} in product {product.id}"
   - Attempt to coerce if safe, else set entity `url` to empty.
 
-### 2.10 Seller Page Price Mismatch
-- **Condition:** The price displayed on the seller's product page does not match BuyWisely's stated price for the lowest offer.
+### 2.10 Seller Page Price Validation
+The system uses a hybrid approach to validate prices on seller pages:
+
+#### 2.10.1 Price Extraction Failure
+- **Condition:** Unable to extract any prices from the seller page.
 - **Action:**
-  - Log: "Price mismatch detected for product {product.id} at seller page {seller_product_url}. BuyWisely price: {bw_price}, Seller page price: {seller_price}"
-  - Mark product as 'price mismatch' in entity state/attributes.
+  - Log: "Price validation failed: Could not extract any prices from seller page {seller_product_url} for product {product.id}"
+  - Accept the offer (BuyWisely data is trusted) but log for investigation.
+
+#### 2.10.2 Price Not Found on Page
+- **Condition:** Expected price not found among extracted prices (after normalization).
+- **Action:**
+  - Log: "Price validation failed: Expected price {expected_price} not found on seller page {seller_product_url}. Extracted prices: {all_prices}"
+  - Skip this offer and try next offer.
+
+#### 2.10.3 Price Found in Non-Product Context
+- **Condition:** Expected price found but in non-product context (shipping, discounts, related products, "save $", "from $").
+- **Action:**
+  - Log: "Price validation uncertain: Found {expected_price} on seller page but context suggests it's not the product price. Context: {context_info}"
+  - Skip this offer and try next offer.
+
+#### 2.10.4 Low Confidence Match
+- **Condition:** Expected price found once with no clear product price context.
+- **Action:**
+  - Log: "Price validation low confidence: Found {expected_price} once on seller page with no product price context. Accepting with warning."
+  - Accept the offer but log for monitoring.
+
+#### 2.10.5 High/Medium Confidence Match
+- **Condition:** Expected price found multiple times OR found once in clear product price context.
+- **Action:**
+  - Log: "Price validation succeeded: Found {expected_price} on seller page with {confidence} confidence. Occurrences: {count}, Context: {context_info}"
+  - Accept the offer.
 
 ---
 
@@ -90,6 +117,12 @@ This document catalogs all known error conditions, edge cases, and required diag
 - Log offers list and all candidate `seller_product_url` values.
 - Log final selected `seller_product_url` and entity `url`.
 - Log all error and edge case conditions as above.
+- For price validation, log:
+  - All extracted prices from seller page
+  - Normalized variants of expected price
+  - Matching prices with their contexts (HTML classes, surrounding text)
+  - Confidence score for each match
+  - Final validation decision and reasoning
 
 ---
 
@@ -106,7 +139,10 @@ This document catalogs all known error conditions, edge cases, and required diag
 | HTTP/network error (transient)   | unavailable (INACTIVE) | Network error or HTTP error 500 for product URL: ...             |
 | 404/410 Not Found (deleted)      | deleted    | 404/410 Not Found for product URL: ...                           |
 | Unexpected data type             | empty      | Unexpected data type for field price in product 123456           |
-| Seller page price mismatch       | price mismatch | Price mismatch detected for product 123456 at seller page https://... BuyWisely price: 299.99, Seller page price: 319.99 |
+| Seller page price not found      | try next offer | Price validation failed: Expected price 299.99 not found on seller page https://... Extracted prices: [199.99, 12.00, 5.00] |
+| Price in non-product context     | try next offer | Price validation uncertain: Found 299.99 but context suggests shipping/discount. Context: "Shipping from $299.99" |
+| Low confidence price match       | accept with warning | Price validation low confidence: Found 299.99 once with no product context. Accepting. |
+| High confidence price match      | accept | Price validation succeeded: Found 299.99 with HIGH confidence. Occurrences: 3, Context: class="product-price" |
 
 ---
 
