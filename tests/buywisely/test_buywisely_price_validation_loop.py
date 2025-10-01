@@ -20,16 +20,19 @@ async def test_price_validation_loop_selects_matching_offer(
             "base_price": 100.00,
             "currency": "AUD",
             "seller_product_url": "http://example.com/seller1",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
         },
         {
             "base_price": 99.50,
             "currency": "AUD",
             "seller_product_url": "http://example.com/seller2",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
         },
         {
             "base_price": 120.00,
             "currency": "AUD",
             "seller_product_url": "http://example.com/seller3",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
         },
     ]
     sample_html = (
@@ -66,7 +69,7 @@ async def test_price_validation_loop_selects_matching_offer(
     result = await engine.load()
     # Should select the second offer (99.50) as it matches seller page
     assert (
-        getattr(getattr(result, "price", None), "price", None) == 99.50
+        getattr(getattr(result, "price", None), "price", None) == 99.5
     ), "Did not select the correct matching offer price"
     assert (
         getattr(result, "status", None).value == ItemStatus.ACTIVE.value
@@ -87,11 +90,13 @@ async def test_price_validation_loop_handles_no_matching_offer(
             "base_price": 100.00,
             "currency": "AUD",
             "seller_product_url": "http://example.com/seller1",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
         },
         {
             "base_price": 99.50,
             "currency": "AUD",
             "seller_product_url": "http://example.com/seller2",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
         },
     ]
     sample_html = (

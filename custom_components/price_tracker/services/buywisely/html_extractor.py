@@ -381,12 +381,33 @@ def _process_product_offers(
     if not isinstance(offers, list):
         offers = []
 
+    # Filter to only current offers (exclude history offers)
+    # Current offers are those with the maximum created_at timestamp
+    if offers:
+        max_created_at = max(
+            offer.get("created_at", "")
+            for offer in offers
+            if isinstance(offer, dict)
+        )
+        current_offers = [
+            offer
+            for offer in offers
+            if isinstance(offer, dict) and offer.get("created_at") == max_created_at
+        ]
+        # Limit to first 10 offers (initially visible offers)
+        offers = current_offers[:10]
+        _LOGGER.info(
+            "[DIAG][html_extractor] Filtered to %d initially visible current offers (max_created_at: %s) from %d total offers",
+            len(offers),
+            max_created_at,
+            len(product_data.get("offers", [])),
+        )
+
     all_seller_urls = [
         offer.get("seller_product_url")
         for offer in offers
         if isinstance(offer, dict) and "seller_product_url" in offer
     ]
-    _LOGGER.info("[DIAG][html_extractor] Full offers list: %r", offers)
     _LOGGER.info(
         "[DIAG][html_extractor] All candidate seller_product_url values: %r",
         all_seller_urls,

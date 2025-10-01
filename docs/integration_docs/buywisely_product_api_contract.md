@@ -45,15 +45,19 @@ This document defines the expected structure and sample payloads for BuyWisely p
 - `product.brand` (string): Brand name.
 - `product.image` (string): URL to product image.
 - `product.offers` (array): List of offers for this product.
-  - `price` (number): Price of the offer. Must be greater than 0.0.
-  - `currency` (string): Currency code (e.g., "USD").
+  - `price` (number): Price of the offer. Must be greater than 0.0. Rounded to 1 decimal place in entity state.
+  - `currency` (string): Currency code (e.g., "USD", "AUD").
   - `seller_product_url` (string): URL to the seller's product offer (must be used for entity `url`).
   - `seller` (string): Seller name.
   - `availability` (string): Stock status (e.g., "in_stock").
+  - `created_at` (string): ISO 8601 timestamp indicating when the offer was created. Used to distinguish current vs historical offers.
 - `product.description` (string): Product description.
 
 ## 2. Extraction & Mapping Rules
-- Only 'current offers' (those visible above 'See n more history offers' on the BuyWisely product page) must be processed. History offers must be ignored.
+- Only 'current offers' must be processed:
+  1. Filter to offers with the maximum `created_at` timestamp (excluding historical offers)
+  2. Limit to the first 10 offers from the filtered list (initially visible offers)
+  3. Historical offers (older `created_at` timestamps) must be completely ignored
 - Offers with a price of 0.0 (zero) must be ignored. If, after filtering, all current offers have a price of 0.0, an exception must be raised to signal an extraction bug.
 - The `offers` list must be robustly traversed, regardless of its nesting in the hydration data.
 - The `url` field in the entity must always be set to the `seller_product_url` of the lowest-priced current offer.

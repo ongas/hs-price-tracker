@@ -40,8 +40,8 @@ async def test_buywisely_ha_entity_state_and_service():
     await sensor.async_added_to_hass()
     await sensor.async_update(force=True)
 
-    # Check state and attributes
-    assert sensor.state == 42.42
+    # Check state and attributes (sensor.state rounded to 1 decimal, attrs.price keeps original)
+    assert sensor.state == 42.4
     assert sensor.unit_of_measurement == "AUD"
     assert sensor.name == "BuyWisely Product"
     assert sensor.entity_picture == "http://example.com/image.jpg"

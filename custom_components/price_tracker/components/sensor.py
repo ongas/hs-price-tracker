@@ -320,7 +320,7 @@ class PriceTrackerSensor(RestoreEntity):
                 "refresh_period": self._refresh_period,
             }
             self._attr_name = self._item_data.name
-            self._attr_state = self._item_data.price.price
+            self._attr_state = round(self._item_data.price.price, 1)
             self._attr_entity_picture = self._item_data.image
             self._attr_available = True
             self._attr_unit_of_measurement = self._item_data.price.currency
