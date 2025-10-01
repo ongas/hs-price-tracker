@@ -1,8 +1,12 @@
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 
 
-async def test_buywisely_timeout_and_rate_limiting():
+@patch("custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price")
+async def test_buywisely_timeout_and_rate_limiting(mock_fetch_price):
+    # Mock seller page fetch to avoid timeouts
+    mock_fetch_price.return_value = None
+
     # Simulate a timeout in the HTML extractor
     with patch(
         "custom_components.price_tracker.services.buywisely.parser.extract_product_data_from_html",

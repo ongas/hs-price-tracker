@@ -35,3 +35,4 @@ scripts/call_ha_api_output.txt
 
 # Deployment
 DEPLOYMENT_CONFIG.sh
+pretty.output

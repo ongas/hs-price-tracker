@@ -196,6 +196,9 @@ async def transform_raw_product_data(
         matched = False
         valid_offer_found = False
         fallback_offer = None
+        # Set fallback_offer to the lowest-priced offer regardless of seller_product_url
+        if sorted_offers:
+            fallback_offer = sorted_offers[0]
         for offer in sorted_offers:
             seller_product_url = offer.get("seller_product_url")
             offer_price = offer.get("base_price")
@@ -204,8 +207,6 @@ async def transform_raw_product_data(
                 _LOGGER.error(f"No seller_product_url found in offer: {offer}")
                 continue
             valid_offer_found = True
-            if fallback_offer is None:
-                fallback_offer = offer
             seller_page_price = await _fetch_and_parse_seller_price(seller_product_url)
             _LOGGER.info(
                 f"[DIAG][data_transformer] Validating offer: {offer}, seller_page_price: {seller_page_price}"
@@ -240,58 +241,69 @@ async def transform_raw_product_data(
                 lowest_currency_value = fallback_offer.get("currency", "AUD")
                 _LOGGER.info(f"Fallback: using lowest base_price offer's seller_product_url: {product_link}")
             else:
-                # No valid seller_product_url in any offer: fallback to extracting price and currency from HTML and use item_url as URL
+                # No valid seller_product_url in any offer: use item_url as URL
+                # But still try to use offer prices if available
                 product_link = item_url
-                html = raw_data.get("html", "")
-                price_from_html = None
-                currency_from_html = None
-                if html:
-                    soup = BeautifulSoup(html, "html.parser")
-                    price_candidates = []
-                    # Regex to match price and currency (captures currency symbol and value)
-                    price_currency_regex = re.compile(r"(?P<currency>\\$|AUD|€|£|USD)?\\s*(?P<price>\\d{1,3}(?:[,.]\\d{3})*(?:[,.]\\d{2})?)")
-                    for text_node in soup.find_all(string=True):
-                        if text_node.parent.name in [
-                            "script",
-                            "style",
-                            "head",
-                            "title",
-                            "meta",
-                            "[document]",
-                        ]:
-                            continue
-                        for match in price_currency_regex.finditer(text_node):
-                            price_text = match.group("price")
-                            currency_text = match.group("currency")
-                            cleaned_price_text = re.sub(r"[^\\d,.]", "", price_text)
-                            if not cleaned_price_text:
+                # Try to use the lowest base_price from offers even if no seller_product_url
+                if fallback_offer and fallback_offer.get("base_price"):
+                    lowest_price_value = fallback_offer.get("base_price")
+                    lowest_currency_value = fallback_offer.get("currency", "AUD")
+                    _LOGGER.info(f"Fallback: using lowest base_price {lowest_price_value} from offers despite no seller_product_url")
+                else:
+                    # No prices in offers either: fallback to extracting price and currency from HTML
+                    html = raw_data.get("html", "")
+                    price_from_html = None
+                    currency_from_html = None
+                    if html:
+                        soup = BeautifulSoup(html, "html.parser")
+                        price_candidates = []
+                        # Regex to match price and currency (captures currency symbol and value)
+                        price_currency_regex = re.compile(r"(?P<currency>\$|AUD|€|£|USD)?\s*(?P<price>\d{1,3}(?:[,.]?\d{3})*(?:[,.]\d{2})?)")
+                        for text_node in soup.find_all(string=True):
+                            if text_node.parent.name in [
+                                "script",
+                                "style",
+                                "head",
+                                "title",
+                                "meta",
+                                "[document]",
+                            ]:
                                 continue
-                            try:
-                                price_value = parse_float(cleaned_price_text)
-                                if price_value > 0:
-                                    price_candidates.append({
-                                        "price": price_value,
-                                        "currency": currency_text,
-                                        "text": match.group(0)
-                                    })
-                            except Exception:
-                                continue
-                    if price_candidates:
-                        # Prefer candidate with a currency symbol, else fallback to first
-                        best = next((c for c in price_candidates if c["currency"]), price_candidates[0])
-                        price_from_html = best["price"]
-                        currency_from_html = best["currency"] or raw_data.get("currency") or "AUD"
-                        lowest_price_value = price_from_html
-                        lowest_currency_value = currency_from_html
-                        _LOGGER.info(f"Fallback: extracted price from HTML: {price_from_html}, currency: {currency_from_html}")
+                            for match in price_currency_regex.finditer(text_node):
+                                price_text = match.group("price")
+                                currency_text = match.group("currency")
+                                cleaned_price_text = re.sub(r"[^\d,.]", "", price_text)
+                                if not cleaned_price_text:
+                                    continue
+                                try:
+                                    price_value = parse_float(cleaned_price_text)
+                                    if price_value > 0:
+                                        price_candidates.append({
+                                            "price": price_value,
+                                            "currency": currency_text,
+                                            "text": match.group(0)
+                                        })
+                                except Exception:
+                                    continue
+                        if price_candidates:
+                            # Prefer candidate with a currency symbol, else fallback to first
+                            best = next((c for c in price_candidates if c["currency"]), price_candidates[0])
+                            price_from_html = best["price"]
+                            currency_symbol = best["currency"] or raw_data.get("currency") or "$"
+                            # Normalize currency symbols to ISO codes
+                            currency_map = {"$": "AUD", "€": "EUR", "£": "GBP"}
+                            currency_from_html = currency_map.get(currency_symbol, currency_symbol)
+                            lowest_price_value = price_from_html
+                            lowest_currency_value = currency_from_html
+                            _LOGGER.info(f"Fallback: extracted price from HTML: {price_from_html}, currency: {currency_from_html}")
+                        else:
+                            lowest_price_value = 0.0
+                            lowest_currency_value = raw_data.get("currency") or "AUD"
+                            _LOGGER.error(f"Fallback: could not extract price from HTML. Setting price to 0.0.")
                     else:
                         lowest_price_value = 0.0
                         lowest_currency_value = raw_data.get("currency") or "AUD"
-                        _LOGGER.error(f"Fallback: could not extract price from HTML. Setting price to 0.0.")
-                else:
-                    lowest_price_value = 0.0
-                    lowest_currency_value = raw_data.get("currency") or "AUD"
-                    _LOGGER.error(f"Fallback: no HTML available. Setting price to 0.0.")
+                        _LOGGER.error(f"Fallback: no HTML available. Setting price to 0.0.")
 
     from custom_components.price_tracker.utilities.parser import parse_float
 
