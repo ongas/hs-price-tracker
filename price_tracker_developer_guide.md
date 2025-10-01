@@ -103,6 +103,7 @@ Once local development and debugging are complete, follow the steps outlined in 
 
 ## 4. Testing
 
+
 **Test Scope:**
 - Only run Buywisely-specific and common logic tests (not other integrations).
 
@@ -115,17 +116,28 @@ Once local development and debugging are complete, follow the steps outlined in 
 **How to Run:**
 1. Ensure you are in the correct directory: `custom/price_tracker/hs-price-tracker/`
 2. Run:
-     ```bash
-     pytest tests/test_config_flow.py tests/test_buywisely_parser.py tests/test_buywisely_engine.py tests/test_buywisely_config.py tests/test_buywisely_api.py
-     ```
+    ```bash
+    pytest tests/test_config_flow.py tests/test_buywisely_parser.py tests/test_buywisely_engine.py tests/test_buywisely_config.py tests/test_buywisely_api.py
+    ```
+
+**Logging Policy:**
+- Verbose logging (`log_cli=true`) is **disabled by default** for all tests. This prevents excessive log output and improves test performance.
+- **Verbose logging must only be enabled for debugging a single test.**
+- To enable verbose logging for a single test run, temporarily set `log_cli=true` in `pytest.ini` or use the command line:
+    ```bash
+    pytest --log-cli-level=DEBUG tests/buywisely/test_buywisely_parser.py::test_hydration_parser_with_real_data
+    ```
+  or edit `pytest.ini` to set `log_cli=true` and revert it after debugging.
+
+**Never commit with log_cli=true enabled.**
 
 ### Iterative Testing Workflow
-A recommended approach for tackling test failures is to first run the entire test suite with logging disabled to quickly identify all failing tests. Then, address each failure one by one by running the specific test with verbose logging enabled. This iterative process is efficient for debugging as it isolates failures and provides detailed diagnostic information only when necessary, avoiding large and noisy log files.
 
-1.  **Run all tests with logging turned off.** This provides a quick overview of which tests are failing.
+A recommended approach for tackling test failures is:
+1.  **Run all tests with logging disabled** (default). This provides a quick overview of which tests are failing.
 2.  **For each failing test:**
-    *   Run that specific test individually with verbose logging enabled.
-    *   Analyze the detailed logs to diagnose the root cause of the failure.
+    *   Enable verbose logging (`log_cli=true` or `--log-cli-level=DEBUG`) **only for that test**.
+    *   Run the specific test and analyze the detailed logs to diagnose the root cause of the failure.
     *   Implement a fix for that specific test.
 3.  **Repeat the process** until all tests pass.
 
@@ -183,9 +195,8 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 
 ## 5. Deployment Workflow
 
-
 **Conda Environment Activation (MANDATORY):**
-- You must **only** use the `homeassistant` conda environment for all development, testing, and deployment. **Never create or use a Python virtualenv, venv, or pipenv.**
+- You must **ALWAYS** use the `homeassistant` conda environment for all development, testing, and deployment. **Never create or use a Python virtualenv, venv, or pipenv.**
 - To activate:
         ```bash
         conda activate homeassistant
@@ -395,24 +406,16 @@ Replace `entity_id` with the correct sensor/entity for your product. This button
 
 
 
-**Seller URL and Lowest Price Extraction (CRITICAL REQUIREMENT):**
-The seller URL for each product **must** be strictly and only extracted from the `seller_product_url` field of the lowest-priced offer in the *current* offers list, as found in the hydration data. The 'current' offers are those visible on the product page before any 'See n more history offers' or similar expansion. No fallback or alternative logic is permitted.
-The lowest price must be the minimum of the `price` (or `base_price`) fields among the *current* offers. Delivery cost, if present, should be included in the total price calculation if business logic requires it.
+**Business Requirements:**
+All business requirements for BuyWisely—including seller URL and lowest price extraction, display name rules, and seller page price validation—are defined in the following project artefacts:
 
-**Display Name vs product_id:** The product_id is derived from the BuyWisely product page slug and used for internal tracking/entity keys. The display name shown to users should be extracted from the HTML `<title>`, meta tags, or summary field for user-friendly display. There is no requirement for product_id to match the full HTML page title.
+- User Stories & Acceptance Criteria: `docs/acceptance/userstories/`
+- BDD Features: `docs/acceptance/features/`
+- API/Data Contract: `docs/integration_docs/buywisely_product_api_contract.md`
+- Implementation Checklist: `docs/integration_docs/buywisely_implementation_checklist.md`
+- Error/Edge Case Catalog: `docs/integration_docs/buywisely_error_handling_and_edge_cases.md`
 
-**Seller Page Price Validation Requirement:** After selecting the lowest-priced current offer, the system **must** fetch the seller's product page and validate that the price displayed matches BuyWisely's stated price for that offer. If there is a mismatch, a diagnostic error is logged and the product is marked as 'price mismatch'. This requirement is documented in the acceptance tests, implementation checklist, and API contract.
-
-**Example (as of 2025-09-23):**
-        - The current lowest price listed for the Motorola Moto G75 5G 256GB Grey with Buds is **$391** with **$13 delivery** (as of 2025-09-23).
-        - The correct `seller_product_url` is:
-            `https://vtechindustries.com.au/products/motorola-g75-5g-256gb-with-moto-buds-charcoal-grey-au-stock-6-8-full-hd-120hz-8gb-256gb-dual-sim-50mp-16mp-water-protection-5000mah-2year-warranty-pb3y0024au?variant=50641766383904&utm_source=buywisely`
-        - This real-world example must be reflected in all test data, fixtures, and acceptance artefacts until the live BuyWisely data changes.
-- Extraction logic and tests **must** always verify that the entity\'s price and URL match the lowest-priced offer (including delivery if required) among the first 10 offers on the BuyWisely product page.
-- If this requirement is not met, it is a regression and must be fixed immediately. This is a standing requirement and must not be omitted from future development or code reviews.
-
-- If the BuyWisely website changes the structure or naming of the offers list, diagnostics will log the full hydration data and extraction failure, making debugging straightforward.
-- Parsing logic may still break if the site layout or hydration data format changes significantly; always check logs for extraction diagnostics.
+All implementation, extraction logic, and tests **must** strictly adhere to these artefacts. If any requirement is not met, it is a regression and must be fixed immediately. Always consult these artefacts for the latest requirements and acceptance criteria.
 
 
 **Web Scraping & Extraction Considerations:**

@@ -45,27 +45,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Define service for manual update
     SERVICE_UPDATE_ENTITY = "update_entity"
-    SERVICE_SCHEMA_UPDATE_ENTITY = vol.Schema({
-        vol.Required("entity_id"): str,
-    })
+    SERVICE_SCHEMA_UPDATE_ENTITY = vol.Schema(
+        {
+            vol.Required("entity_id"): str,
+        }
+    )
 
     async def handle_update_entity(call):
-        _LOGGER.debug(f"[DIAG][__init__.py] handle_update_entity called with call.data: {call.data}")
+        _LOGGER.debug(
+            f"[DIAG][__init__.py] handle_update_entity called with call.data: {call.data}"
+        )
         entity_id = call.data.get("entity_id")
         _LOGGER.debug(f"[DIAG][__init__.py] Service call to update entity: {entity_id}")
 
         entity_registry = er.async_get(hass)
         entity_entry = entity_registry.async_get(entity_id)
-        _LOGGER.debug(f"[DIAG][__init__.py] entity_entry for {entity_id}: {entity_entry}")
+        _LOGGER.debug(
+            f"[DIAG][__init__.py] entity_entry for {entity_id}: {entity_entry}"
+        )
 
         # Retrieve entity from hass.data
         entity = None
         try:
-            entities_dict = hass.data.get('price_tracker', {}).get('entities', {})
-            _LOGGER.debug(f"[DIAG][__init__.py] hass.data['price_tracker']['entities'] keys at lookup: {list(entities_dict.keys())}")
+            entities_dict = hass.data.get("price_tracker", {}).get("entities", {})
+            _LOGGER.debug(
+                f"[DIAG][__init__.py] hass.data['price_tracker']['entities'] keys at lookup: {list(entities_dict.keys())}"
+            )
             entity = entities_dict.get(entity_id)
         except Exception as e:
-            _LOGGER.warning(f"[DIAG][__init__.py] Exception while retrieving entity from hass.data: {e}")
+            _LOGGER.warning(
+                f"[DIAG][__init__.py] Exception while retrieving entity from hass.data: {e}"
+            )
 
         # Fallback: try entity_component registry if not found in price_tracker dict
         if not entity:
@@ -73,22 +83,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 entity_component = hass.data.get("entity_component", {}).get("sensor")
                 if entity_component and hasattr(entity_component, "get_entity"):
                     entity = entity_component.get_entity(entity_id)
-                    _LOGGER.debug(f"[DIAG][__init__.py] Fallback: Found entity via entity_component.get_entity: {entity}")
+                    _LOGGER.debug(
+                        f"[DIAG][__init__.py] Fallback: Found entity via entity_component.get_entity: {entity}"
+                    )
             except Exception as e:
-                _LOGGER.warning(f"[DIAG][__init__.py] Exception in fallback entity_component lookup: {e}")
+                _LOGGER.warning(
+                    f"[DIAG][__init__.py] Exception in fallback entity_component lookup: {e}"
+                )
 
         if not entity:
-            _LOGGER.warning(f"[DIAG][__init__.py] Could not find entity object for {entity_id} in hass.data['price_tracker']['entities'] or entity_component.")
+            _LOGGER.warning(
+                f"[DIAG][__init__.py] Could not find entity object for {entity_id} in hass.data['price_tracker']['entities'] or entity_component."
+            )
         else:
-            _LOGGER.debug(f"[DIAG][__init__.py] Found entity object: {entity} (type: {type(entity)})")
-            if hasattr(entity, 'async_manual_update'):
-                _LOGGER.info(f"[DIAG][__init__.py] Manually triggering manual update for {entity_id} (entity: {entity})")
+            _LOGGER.debug(
+                f"[DIAG][__init__.py] Found entity object: {entity} (type: {type(entity)})"
+            )
+            if hasattr(entity, "async_manual_update"):
+                _LOGGER.info(
+                    f"[DIAG][__init__.py] Manually triggering manual update for {entity_id} (entity: {entity})"
+                )
                 await entity.async_manual_update()
-            elif hasattr(entity, 'async_update'):
-                _LOGGER.info(f"[DIAG][__init__.py] Manually triggering update for {entity_id} (entity: {entity})")
+            elif hasattr(entity, "async_update"):
+                _LOGGER.info(
+                    f"[DIAG][__init__.py] Manually triggering update for {entity_id} (entity: {entity})"
+                )
                 await entity.async_update()
             else:
-                _LOGGER.warning(f"[DIAG][__init__.py] Entity {entity_id} does not have async_update/manual_update method. Entity: {entity}")
+                _LOGGER.warning(
+                    f"[DIAG][__init__.py] Entity {entity_id} does not have async_update/manual_update method. Entity: {entity}"
+                )
 
     hass.services.async_register(
         DOMAIN,
@@ -98,18 +122,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     # For upgrade options (1.4.0)
-    if not has_service_item_target_parser(entry.data['service_type']):
+    if not has_service_item_target_parser(entry.data["service_type"]):
         return False
 
     # For upgrade options (1.0.0)
     if entry.data is not None and "device" in entry.data:
         # Update device_id safely
         def safe_device_id(x):
-            device_target = create_service_device_parser_and_parse(entry.data['service_type'], x)
+            device_target = create_service_device_parser_and_parse(
+                entry.data["service_type"], x
+            )
             return {
                 **x,
-                CONF_ITEM_DEVICE_ID: IdGenerator.generate_device_id(device_target) if device_target is not None else None,
+                CONF_ITEM_DEVICE_ID: IdGenerator.generate_device_id(device_target)
+                if device_target is not None
+                else None,
             }
+
         data = {
             **entry.data,
             "device": Lu.map(entry.data["device"], safe_device_id),
@@ -139,11 +168,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 lambda x: {
                     **x,
                     CONF_ITEM_UNIQUE_ID: IdGenerator.generate_entity_id(
-                        service_type=entry.data['service_type'],
+                        service_type=entry.data["service_type"],
                         entity_target=create_service_item_target_parser(
-                            entry.data['service_type']
+                            entry.data["service_type"]
                         )(
-                            create_service_item_url_parser(entry.data['service_type'])(
+                            create_service_item_url_parser(entry.data["service_type"])(
                                 x["item_url"]
                             )
                         ),
@@ -163,7 +192,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     data = dict(data)
     listeners = entry.add_update_listener(options_update_listener)
-    _LOGGER.info("[DIAG][__init__.py] Storing in hass.data[%s][%s]: %s", DOMAIN, entry.entry_id, data)
+    _LOGGER.info(
+        "[DIAG][__init__.py] Storing in hass.data[%s][%s]: %s",
+        DOMAIN,
+        entry.entry_id,
+        data,
+    )
     hass.data[DOMAIN][entry.entry_id] = data
 
     entry.async_on_unload(listeners)

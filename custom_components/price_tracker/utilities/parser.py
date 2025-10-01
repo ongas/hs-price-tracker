@@ -53,6 +53,7 @@ def parse_float(value: any) -> float:
     )
     # Remove any trailing/leading non-numeric chars
     import re
+
     s = re.sub(r"[^0-9.\-]+", "", s)
     try:
         return float(s)

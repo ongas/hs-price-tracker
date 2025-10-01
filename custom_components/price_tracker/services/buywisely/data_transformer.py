@@ -193,7 +193,9 @@ async def transform_raw_product_data(
             return value
 
         sorted_offers = sorted(offers, key=get_base_price)
-        # Loop through sorted offers, validate price on seller page
+        matched = False
+        valid_offer_found = False
+        fallback_offer = None
         for offer in sorted_offers:
             seller_product_url = offer.get("seller_product_url")
             offer_price = offer.get("base_price")
@@ -201,6 +203,9 @@ async def transform_raw_product_data(
             if not seller_product_url:
                 _LOGGER.error(f"No seller_product_url found in offer: {offer}")
                 continue
+            valid_offer_found = True
+            if fallback_offer is None:
+                fallback_offer = offer
             seller_page_price = await _fetch_and_parse_seller_price(seller_product_url)
             _LOGGER.info(
                 f"[DIAG][data_transformer] Validating offer: {offer}, seller_page_price: {seller_page_price}"
@@ -214,6 +219,7 @@ async def transform_raw_product_data(
                 lowest_currency_value = offer_currency
                 status_value = ItemStatus.ACTIVE
                 product_link = seller_product_url
+                matched = True
                 break
             elif seller_page_price is None:
                 _LOGGER.error(
@@ -225,14 +231,67 @@ async def transform_raw_product_data(
                     f"Price mismatch for product_id={product_id}. BuyWisely price: {offer_price}, Seller page price: {seller_page_price}. Skipping offer."
                 )
                 continue
-        else:
-            # No matching offer found
+        if not matched:
             status_value = ItemStatus.PRICE_MISMATCH
-            lowest_price_value = None
-            lowest_currency_value = ""
-            product_link = (
-                sorted_offers[0].get("seller_product_url") if sorted_offers else ""
-            )
+            if valid_offer_found and fallback_offer:
+                # Fallback to lowest base_price offer's seller_product_url if valid
+                product_link = fallback_offer.get("seller_product_url", "")
+                lowest_price_value = fallback_offer.get("base_price")
+                lowest_currency_value = fallback_offer.get("currency", "AUD")
+                _LOGGER.info(f"Fallback: using lowest base_price offer's seller_product_url: {product_link}")
+            else:
+                # No valid seller_product_url in any offer: fallback to extracting price and currency from HTML and use item_url as URL
+                product_link = item_url
+                html = raw_data.get("html", "")
+                price_from_html = None
+                currency_from_html = None
+                if html:
+                    soup = BeautifulSoup(html, "html.parser")
+                    price_candidates = []
+                    # Regex to match price and currency (captures currency symbol and value)
+                    price_currency_regex = re.compile(r"(?P<currency>\\$|AUD|€|£|USD)?\\s*(?P<price>\\d{1,3}(?:[,.]\\d{3})*(?:[,.]\\d{2})?)")
+                    for text_node in soup.find_all(string=True):
+                        if text_node.parent.name in [
+                            "script",
+                            "style",
+                            "head",
+                            "title",
+                            "meta",
+                            "[document]",
+                        ]:
+                            continue
+                        for match in price_currency_regex.finditer(text_node):
+                            price_text = match.group("price")
+                            currency_text = match.group("currency")
+                            cleaned_price_text = re.sub(r"[^\\d,.]", "", price_text)
+                            if not cleaned_price_text:
+                                continue
+                            try:
+                                price_value = parse_float(cleaned_price_text)
+                                if price_value > 0:
+                                    price_candidates.append({
+                                        "price": price_value,
+                                        "currency": currency_text,
+                                        "text": match.group(0)
+                                    })
+                            except Exception:
+                                continue
+                    if price_candidates:
+                        # Prefer candidate with a currency symbol, else fallback to first
+                        best = next((c for c in price_candidates if c["currency"]), price_candidates[0])
+                        price_from_html = best["price"]
+                        currency_from_html = best["currency"] or raw_data.get("currency") or "AUD"
+                        lowest_price_value = price_from_html
+                        lowest_currency_value = currency_from_html
+                        _LOGGER.info(f"Fallback: extracted price from HTML: {price_from_html}, currency: {currency_from_html}")
+                    else:
+                        lowest_price_value = 0.0
+                        lowest_currency_value = raw_data.get("currency") or "AUD"
+                        _LOGGER.error(f"Fallback: could not extract price from HTML. Setting price to 0.0.")
+                else:
+                    lowest_price_value = 0.0
+                    lowest_currency_value = raw_data.get("currency") or "AUD"
+                    _LOGGER.error(f"Fallback: no HTML available. Setting price to 0.0.")
 
     from custom_components.price_tracker.utilities.parser import parse_float
 
@@ -243,31 +302,56 @@ async def transform_raw_product_data(
     # Always default currency to 'AUD' if missing or empty
     currency_value = lowest_currency_value or raw_data.get("currency") or "AUD"
     brand_value = raw_data.get("brand") or ""
-    # Always extract product name from BuyWisely product page HTML <title>, fallback to other fields
+    # Prefer user-friendly product title from hydration data, fallback to user-friendly HTML element, then <title> as last resort
     name_value = None
-    if "html" in raw_data:
-        soup = BeautifulSoup(raw_data["html"], "html.parser")
-        title_tag = soup.find("title")
-        if title_tag and title_tag.text.strip():
-            name_value = title_tag.text.strip()
+    name_fields = ["title", "name"]
+    for field in name_fields:
+        name_raw = raw_data.get(field)
+        if isinstance(name_raw, str) and name_raw.strip():
+            name_value = name_raw.strip()
             _LOGGER.info(
-                f"[DIAG][data_transformer] Extracted product name from BuyWisely <title>: {name_value}"
+                f"[DIAG][data_transformer] Extracted user-friendly product name from field '{field}': {name_value}"
             )
-    if not name_value:
-        name_fields = ["title", "name", "product"]
-        for field in name_fields:
-            name_raw = raw_data.get(field)
-            if isinstance(name_raw, str) and name_raw.strip():
-                name_value = name_raw.strip()
+            break
+    # Fallback: try to extract from user-friendly HTML element (h1, h2, class/id with 'title' or 'product-name')
+    if not name_value and "html" in raw_data:
+        soup = BeautifulSoup(raw_data["html"], "html.parser")
+        # Try h1 or h2 with non-empty text
+        for tag in ["h1", "h2"]:
+            el = soup.find(tag)
+            if el and el.text.strip():
+                name_value = el.text.strip()
                 _LOGGER.info(
-                    f"[DIAG][data_transformer] Extracted product name from field '{field}': {name_value}"
+                    f"[DIAG][data_transformer] Fallback: extracted product name from <{tag}>: {name_value}"
                 )
                 break
+        # Try class or id containing 'title' or 'product-name'
+        if not name_value:
+            el = soup.find(attrs={"class": re.compile(r"(title|product-name)", re.I)})
+            if el and el.text.strip():
+                name_value = el.text.strip()
+                _LOGGER.info(
+                    f"[DIAG][data_transformer] Fallback: extracted product name from class: {name_value}"
+                )
+        if not name_value:
+            el = soup.find(attrs={"id": re.compile(r"(title|product-name)", re.I)})
+            if el and el.text.strip():
+                name_value = el.text.strip()
+                _LOGGER.info(
+                    f"[DIAG][data_transformer] Fallback: extracted product name from id: {name_value}"
+                )
+        # As last resort, use <title>
+        if not name_value:
+            title_tag = soup.find("title")
+            if title_tag and title_tag.text.strip():
+                name_value = title_tag.text.strip()
+                _LOGGER.info(
+                    f"[DIAG][data_transformer] Last resort: extracted product name from <title>: {name_value}"
+                )
     if not name_value:
-        name_fields = ["title", "name", "product"]
         name_value = "UNKNOWN"
         _LOGGER.warning(
-            f"Product name not found in <title> or any of {name_fields}, defaulting to 'UNKNOWN'. raw_data keys: {list(raw_data.keys())}"
+            f"Product name not found in user-friendly fields, HTML, or <title>, defaulting to 'UNKNOWN'. raw_data keys: {list(raw_data.keys())}"
         )
     image_value = raw_data.get("image") or ""
     # Set status to INACTIVE if price is None or 0.0, or if not in stock

@@ -578,7 +578,9 @@ class SafeRequest:
                         tries += 1
 
         if len(errors) > 0 and raise_errors:
-            _LOGGER.error(f"Failed to request {url}, {set(Lu.map(errors, lambda x: repr(x)))}")
+            _LOGGER.error(
+                f"Failed to request {url}, {set(Lu.map(errors, lambda x: repr(x)))}"
+            )
             raise errors[0]
         else:
             _LOGGER.error("Request failed %s", errors)

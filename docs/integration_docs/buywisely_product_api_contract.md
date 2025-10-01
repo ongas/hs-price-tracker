@@ -41,7 +41,7 @@ This document defines the expected structure and sample payloads for BuyWisely p
 
 ### Field Descriptions
 - `product.id` (string): Unique product identifier.
-- `product.name` (string): Product name.
+- `product.name` (string): User-friendly product name. This should be concise and human-readable, as a user would expect to see in a store or catalog. Do not use the full HTML <title> if it contains branding or marketing text.
 - `product.brand` (string): Brand name.
 - `product.image` (string): URL to product image.
 - `product.offers` (array): List of offers for this product.

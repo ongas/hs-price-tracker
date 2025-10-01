@@ -27,6 +27,7 @@ This checklist ensures a fool-proof, step-by-step process for implementing the B
 
 5. **Data Transformer Implementation**
    - [ ] Map parsed data to `ItemData` model.
+   - [ ] Ensure the display name is a user-friendly product name (not the full HTML <title>), as a user would expect to see in a store or catalog.
    - [ ] Ensure extracted prices are always greater than zero; ignore zero-priced offers or raise an exception if all offers are zero-priced.
    - [ ] Set entity `url` to lowest-priced offer's `seller_product_url` only.
    - [ ] Handle missing/invalid offers as per error catalog.

@@ -3,11 +3,12 @@ import subprocess
 import os
 
 # Define the path to the configuration file
-CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), 'call_ha_api_config.yaml')
+CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), "call_ha_api_config.yaml")
+
 
 def load_config(config_file):
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file, "r") as f:
             config = yaml.safe_load(f)
         return config
     except FileNotFoundError:
@@ -17,11 +18,12 @@ def load_config(config_file):
         print(f"Error parsing configuration file: {e}")
         exit(1)
 
+
 def get_api_token(secrets_file):
     try:
-        with open(secrets_file, 'r') as f:
+        with open(secrets_file, "r") as f:
             secrets = yaml.safe_load(f)
-        token = secrets.get('homeassistant_api_token')
+        token = secrets.get("homeassistant_api_token")
         if not token:
             print(f"Error: 'homeassistant_api_token' not found in {secrets_file}")
             return None
@@ -33,16 +35,22 @@ def get_api_token(secrets_file):
         print(f"Error parsing secrets.yaml: {e}")
         return None
 
+
 def run_curl_command(token, ha_instance, entity_id):
     curl_command = [
         "curl",
-        "-X", "GET",
-        "-H", f"Authorization: Bearer {token}",
-        "-H", "Content-Type: application/json",
-        f"http://{ha_instance}/api/states/{entity_id}"
+        "-X",
+        "GET",
+        "-H",
+        f"Authorization: Bearer {token}",
+        "-H",
+        "Content-Type: application/json",
+        f"http://{ha_instance}/api/states/{entity_id}",
     ]
     try:
-        result = subprocess.run(curl_command, capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            curl_command, capture_output=True, text=True, check=True
+        )
         print("Curl Command Output:")
         print(result.stdout)
         if result.stderr:
@@ -55,12 +63,15 @@ def run_curl_command(token, ha_instance, entity_id):
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
+
 if __name__ == "__main__":
     config = load_config(CONFIG_FILE_PATH)
 
-    secrets_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), config.get('secrets_file_path')))
-    entity_id = config.get('entity_id')
-    ha_instance = config.get('ha_instance')
+    secrets_file_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), config.get("secrets_file_path"))
+    )
+    entity_id = config.get("entity_id")
+    ha_instance = config.get("ha_instance")
 
     if not all([secrets_file_path, entity_id, ha_instance]):
         print("Error: Missing configuration values in config.yaml")

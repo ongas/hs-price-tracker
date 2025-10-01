@@ -27,12 +27,12 @@ _URL = "https://m.{}.naver.com/{}/{}/{}"
 
 class SmartstoreEngine(PriceEngine):
     def __init__(
-            self,
-            item_url: str,
-            device: None = None,
-            proxies: Optional[list] = None,
-            selenium: Optional[str] = None,
-            selenium_proxy: Optional[list] = None,
+        self,
+        item_url: str,
+        device: None = None,
+        proxies: Optional[list] = None,
+        selenium: Optional[str] = None,
+        selenium_proxy: Optional[list] = None,
     ):
         self.item_url = item_url
         self.id = SmartstoreEngine.parse_id(item_url)
@@ -56,17 +56,19 @@ class SmartstoreEngine(PriceEngine):
         if random_bool():
             request.cookie(
                 key="NNB",
-                value='PPYXCW' + ''.join(random.choices(string.ascii_uppercase, k=7))
+                value="PPYXCW" + "".join(random.choices(string.ascii_uppercase, k=7)),
             )
         else:
             request.cookie(
                 key="NNB",
                 value="PPYXCWKW"
-                      + random_choice(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "X"])
-                      + random_choice(["A", "B", "C", "D", "X"])
-                      + random_choice(["A", "B", "C", "D", "X"])
-                      + random_choice(["A", "B", "C", "D", "E"])
-                      + random_choice(["A", "B", "C", "D", "E", "F"]),
+                + random_choice(
+                    ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "X"]
+                )
+                + random_choice(["A", "B", "C", "D", "X"])
+                + random_choice(["A", "B", "C", "D", "X"])
+                + random_choice(["A", "B", "C", "D", "E"])
+                + random_choice(["A", "B", "C", "D", "E", "F"]),
             )
 
         if random_bool():
@@ -86,14 +88,16 @@ class SmartstoreEngine(PriceEngine):
         request.cookie(
             key="NNB",
             value="PPYXCWKWXC"
-                  + random_choice(["A", "B", "C", "D", "X"])
-                  + random_choice(["A", "B", "C", "D", "E"])
-                  + random_choice(["A", "B", "C", "D", "E", "F"]),
+            + random_choice(["A", "B", "C", "D", "X"])
+            + random_choice(["A", "B", "C", "D", "E"])
+            + random_choice(["A", "B", "C", "D", "E", "F"]),
         )
 
         response = await request.request(
             method=SafeRequestMethod.GET,
-            url=_URL.format(self.store_type, self.store, self.detail_type, self.product_id),
+            url=_URL.format(
+                self.store_type, self.store, self.detail_type, self.product_id
+            ),
         )
 
         if response.is_not_found:

@@ -4,6 +4,7 @@ from custom_components.price_tracker.components.sensor import PriceTrackerSensor
 from custom_components.price_tracker.datas.item import ItemData, ItemStatus
 from custom_components.price_tracker.datas.price import ItemPriceData
 
+
 @pytest.mark.asyncio
 async def test_buywisely_ha_entity_state_and_service():
     # Mock Home Assistant hass object

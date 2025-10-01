@@ -1,4 +1,5 @@
 """Minimal test for the BuyWiselyEngine."""
+
 from unittest.mock import AsyncMock, patch
 import pytest
 
@@ -18,7 +19,9 @@ async def test_get_product_details_success_minimal(
     mock_fetch_seller_price.return_value = 123.45  # Simulate matching price
 
     # Read sample HTML from fixture file
-    with open("tests/buywisely/fixtures/minimal_product.html", "r", encoding="utf-8") as f:
+    with open(
+        "tests/buywisely/fixtures/minimal_product.html", "r", encoding="utf-8"
+    ) as f:
         sample_html = f.read()
 
     mock_response = AsyncMock()

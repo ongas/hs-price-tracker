@@ -1,5 +1,6 @@
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 
+
 async def test_buywisely_invalid_json_in_hydration():
     # HTML with invalid JSON in hydration block
     invalid_json_html = """

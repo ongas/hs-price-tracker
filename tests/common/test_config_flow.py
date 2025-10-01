@@ -3,28 +3,47 @@ import pytest
 import sys
 import os
 from unittest.mock import MagicMock, AsyncMock
+
 # Add both possible package roots to sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../custom_components/price_tracker/custom_components/price_tracker')))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../custom_components/price_tracker')))
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "../custom_components/price_tracker/custom_components/price_tracker",
+        )
+    ),
+)
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../custom_components/price_tracker")
+    ),
+)
 from custom_components.price_tracker.config_flow import PriceTrackerConfigFlow
 from custom_components.price_tracker.datas.item import ItemData, ItemStatus
 from custom_components.price_tracker.datas.price import ItemPriceData
 from datetime import datetime
+
 
 @pytest.mark.asyncio
 async def test_config_flow_guided(monkeypatch):
     # Mock the hass object and its config.language attribute
     mock_hass = MagicMock()
     mock_hass.config.language = "en"
-    monkeypatch.setattr("custom_components.price_tracker.services.setup.price_tracker_setup_init", lambda hass: vol.Schema({"lang": "en"}))
+    monkeypatch.setattr(
+        "custom_components.price_tracker.services.setup.price_tracker_setup_init",
+        lambda hass: vol.Schema({"lang": "en"}),
+    )
 
     # Mock the _KIND dictionary directly
     mock_kind = {
         "buywisely": "Buywisely",
         "coupang": "Coupang (Korea)",
     }
-    monkeypatch.setattr("custom_components.price_tracker.services.setup._KIND", mock_kind)
-
+    monkeypatch.setattr(
+        "custom_components.price_tracker.services.setup._KIND", mock_kind
+    )
 
     flow = PriceTrackerConfigFlow()
     flow.hass = mock_hass
@@ -59,12 +78,13 @@ async def test_config_flow_guided(monkeypatch):
     assert result.get("type") == "form"
     assert result.get("step_id") == "user"
 
-    user_input_step2_other = {} # No product_url needed
+    user_input_step2_other = {}  # No product_url needed
     result = await flow.async_step_user(user_input_step2_other)
     assert result.get("type") == "create_entry"
     assert result.get("title") == mock_kind[user_input_step1_other["service_type"]]
     assert result.get("data", {}).get("service_type") == "coupang"
     assert "product_url" not in result.get("data", {})
+
 
 @pytest.mark.asyncio
 async def test_async_setup_entry_service_type_handling(monkeypatch):
@@ -74,26 +94,35 @@ async def test_async_setup_entry_service_type_handling(monkeypatch):
 
     # Mock hass object
     mock_hass = MagicMock(spec=HomeAssistant)
-    mock_hass.data = {"price_tracker": {}} # Initialize hass.data for DOMAIN
+    mock_hass.data = {"price_tracker": {}}  # Initialize hass.data for DOMAIN
     mock_hass.config = MagicMock()
     mock_hass.config.config_dir = "/tmp/hass_config"
-    mock_hass.bus = MagicMock() # Add this line to mock the bus attribute
+    mock_hass.bus = MagicMock()  # Add this line to mock the bus attribute
     mock_hass.services = MagicMock()
 
     # Mock entity and device registries
     mock_entity_registry = MagicMock()
-    mock_entity_registry.entities.get_entries_for_config_entry_id.return_value = [] # Mock the method called
-    monkeypatch.setattr("homeassistant.helpers.entity_registry.async_get", MagicMock(return_value=mock_entity_registry))
+    mock_entity_registry.entities.get_entries_for_config_entry_id.return_value = []  # Mock the method called
+    monkeypatch.setattr(
+        "homeassistant.helpers.entity_registry.async_get",
+        MagicMock(return_value=mock_entity_registry),
+    )
 
     mock_device_registry = MagicMock()
-    mock_device_registry.async_entries_for_config_entry.return_value = [] # Mock the method called
-    monkeypatch.setattr("homeassistant.helpers.device_registry.async_get", MagicMock(return_value=mock_device_registry))
+    mock_device_registry.async_entries_for_config_entry.return_value = []  # Mock the method called
+    monkeypatch.setattr(
+        "homeassistant.helpers.device_registry.async_get",
+        MagicMock(return_value=mock_device_registry),
+    )
 
     # Mock config_entry
     mock_config_entry = MagicMock(spec=ConfigEntry)
     mock_config_entry.entry_id = "test_entry_id"
-    mock_config_entry.data = {"service_type": "buywisely", "product_url": "http://example.com/product"}
-    mock_config_entry.options = {} # Ensure options is not None
+    mock_config_entry.data = {
+        "service_type": "buywisely",
+        "product_url": "http://example.com/product",
+    }
+    mock_config_entry.options = {}  # Ensure options is not None
 
     # Mock async_update_entry to prevent errors during setup
     mock_config_entry.add_update_listener = MagicMock()
@@ -102,10 +131,14 @@ async def test_async_setup_entry_service_type_handling(monkeypatch):
 
     # Mock the actual async_setup_entry from __init__.py
     # We need to import it directly to call it
-    from custom_components.price_tracker import async_setup_entry as init_async_setup_entry
+    from custom_components.price_tracker import (
+        async_setup_entry as init_async_setup_entry,
+    )
 
     # Mock the actual async_setup_entry from sensor.py
-    from custom_components.price_tracker.sensor import async_setup_entry as sensor_async_setup_entry
+    from custom_components.price_tracker.sensor import (
+        async_setup_entry as sensor_async_setup_entry,
+    )
 
     # Patch hass.data[DOMAIN][entry.entry_id] to be the config_entry.data
     # This simulates how sensor.py gets its config
@@ -114,16 +147,19 @@ async def test_async_setup_entry_service_type_handling(monkeypatch):
     # Call async_setup_entry from __init__.py
     # This should process the config_entry and store data in hass.data
     result_init = await init_async_setup_entry(mock_hass, mock_config_entry)
-    assert result_init is True # Should return True on successful setup
+    assert result_init is True  # Should return True on successful setup
 
     # Now call async_setup_entry from sensor.py
     # This is where the KeyError previously occurred
     mock_async_add_entities = MagicMock()
-    await sensor_async_setup_entry(mock_hass, mock_config_entry, mock_async_add_entities)
+    await sensor_async_setup_entry(
+        mock_hass, mock_config_entry, mock_async_add_entities
+    )
 
     # Assert that no KeyError occurred and entities were attempted to be added
     mock_async_add_entities.assert_called()
     # You might add more specific assertions here, e.g., checking the type of entities added
+
 
 @pytest.mark.asyncio
 async def test_lowest_price_populates_ha_entity(monkeypatch):
@@ -145,16 +181,25 @@ async def test_lowest_price_populates_ha_entity(monkeypatch):
     # Mock entity and device registries
     mock_entity_registry = MagicMock()
     mock_entity_registry.entities.get_entries_for_config_entry_id.return_value = []
-    monkeypatch.setattr("homeassistant.helpers.entity_registry.async_get", MagicMock(return_value=mock_entity_registry))
+    monkeypatch.setattr(
+        "homeassistant.helpers.entity_registry.async_get",
+        MagicMock(return_value=mock_entity_registry),
+    )
 
     mock_device_registry = MagicMock()
     mock_device_registry.async_entries_for_config_entry.return_value = []
-    monkeypatch.setattr("homeassistant.helpers.device_registry.async_get", MagicMock(return_value=mock_device_registry))
+    monkeypatch.setattr(
+        "homeassistant.helpers.device_registry.async_get",
+        MagicMock(return_value=mock_device_registry),
+    )
 
     # Mock config_entry
     mock_config_entry = MagicMock(spec=ConfigEntry)
     mock_config_entry.entry_id = "test_entry_id_lowest_price"
-    mock_config_entry.data = {"service_type": "buywisely", "product_url": "https://www.buywisely.com.au/product/test-product-lowest-price"}
+    mock_config_entry.data = {
+        "service_type": "buywisely",
+        "product_url": "https://www.buywisely.com.au/product/test-product-lowest-price",
+    }
     mock_config_entry.options = {}
 
     mock_config_entry.add_update_listener = MagicMock()
@@ -184,25 +229,36 @@ async def test_lowest_price_populates_ha_entity(monkeypatch):
     mock_engine_instance.id_str.return_value = "test-product-lowest-price"
     mock_engine_instance.entity_id = "test-product-lowest-price"
 
-
-
     # Patch the BuyWiselyEngine constructor in the service engine mapping directly for the entire test
     import custom_components.price_tracker.services.factory as factory_mod
+
     original_service_item_engine = factory_mod._SERVICE_ITEM_ENGINE.copy()
-    factory_mod._SERVICE_ITEM_ENGINE["buywisely"] = lambda **kwargs: mock_engine_instance
+    factory_mod._SERVICE_ITEM_ENGINE["buywisely"] = (
+        lambda **kwargs: mock_engine_instance
+    )
 
     try:
-        from custom_components.price_tracker import async_setup_entry as init_async_setup_entry
-        from custom_components.price_tracker.sensor import async_setup_entry as sensor_async_setup_entry
+        from custom_components.price_tracker import (
+            async_setup_entry as init_async_setup_entry,
+        )
+        from custom_components.price_tracker.sensor import (
+            async_setup_entry as sensor_async_setup_entry,
+        )
 
-        mock_hass.data["price_tracker"][mock_config_entry.entry_id] = mock_config_entry.data
+        mock_hass.data["price_tracker"][mock_config_entry.entry_id] = (
+            mock_config_entry.data
+        )
 
         result_init = await init_async_setup_entry(mock_hass, mock_config_entry)
         assert result_init is True
 
         mock_async_add_entities = MagicMock()
-        await sensor_async_setup_entry(mock_hass, mock_config_entry, mock_async_add_entities)
-        print(f"DIAGNOSTIC: mock_async_add_entities.call_args_list: {mock_async_add_entities.call_args_list}")
+        await sensor_async_setup_entry(
+            mock_hass, mock_config_entry, mock_async_add_entities
+        )
+        print(
+            f"DIAGNOSTIC: mock_async_add_entities.call_args_list: {mock_async_add_entities.call_args_list}"
+        )
 
         # Assert that entities were added
         # We expect two calls to async_add_entities, one for devices (empty) and one for sensors.
@@ -215,7 +271,9 @@ async def test_lowest_price_populates_ha_entity(monkeypatch):
         # Ensure it's a PriceTrackerSensor instance
         assert isinstance(sensor_entity, PriceTrackerSensor)
         print(f"DIAGNOSTIC: sensor_entity: {sensor_entity}")
-        print(f"DIAGNOSTIC: sensor_entity._engine: {getattr(sensor_entity, '_engine', None)}")
+        print(
+            f"DIAGNOSTIC: sensor_entity._engine: {getattr(sensor_entity, '_engine', None)}"
+        )
 
         # Set _updated_at to an old date to force update
         sensor_entity._updated_at = datetime(2000, 1, 1)
@@ -226,9 +284,13 @@ async def test_lowest_price_populates_ha_entity(monkeypatch):
         print(f"DIAGNOSTIC: sensor_entity.state: {sensor_entity.state}")
         print(f"DIAGNOSTIC: sensor_entity._item_data: {sensor_entity._item_data}")
         if sensor_entity._item_data is not None:
-            print(f"DIAGNOSTIC: sensor_entity._item_data.price: {sensor_entity._item_data.price}")
+            print(
+                f"DIAGNOSTIC: sensor_entity._item_data.price: {sensor_entity._item_data.price}"
+            )
             if sensor_entity._item_data.price is not None:
-                print(f"DIAGNOSTIC: sensor_entity._item_data.price.price: {sensor_entity._item_data.price.price}")
+                print(
+                    f"DIAGNOSTIC: sensor_entity._item_data.price.price: {sensor_entity._item_data.price.price}"
+                )
             else:
                 print("DIAGNOSTIC: sensor_entity._item_data.price is None")
         else:
@@ -246,6 +308,9 @@ async def test_lowest_price_populates_ha_entity(monkeypatch):
         assert sensor_entity.extra_state_attributes.get("image") == mock_image_url
         assert sensor_entity.extra_state_attributes.get("url") == mock_item_data.url
         assert sensor_entity.extra_state_attributes.get("brand") == mock_item_data.brand
-        assert sensor_entity.extra_state_attributes.get("status") == mock_item_data.status.name
+        assert (
+            sensor_entity.extra_state_attributes.get("status")
+            == mock_item_data.status.name
+        )
     finally:
         factory_mod._SERVICE_ITEM_ENGINE = original_service_item_engine

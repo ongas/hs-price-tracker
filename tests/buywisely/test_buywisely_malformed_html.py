@@ -1,5 +1,6 @@
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 
+
 async def test_buywisely_malformed_html_and_missing_hydration():
     # Malformed HTML (broken tags, no hydration block)
     malformed_html = "<html><body><div><span class='price'>$99.99</span></div>"
@@ -21,8 +22,14 @@ async def test_buywisely_malformed_html_and_missing_hydration():
     if isinstance(result, dict):
         # Accept 0.0 as valid fallback for missing price
         assert "price" in result and (
-            (isinstance(result["price"], dict) and (result["price"].get("price") in (None, 0.0))) or
-            (isinstance(result["price"], (int, float)) and result["price"] in (None, 0.0))
+            (
+                isinstance(result["price"], dict)
+                and (result["price"].get("price") in (None, 0.0))
+            )
+            or (
+                isinstance(result["price"], (int, float))
+                and result["price"] in (None, 0.0)
+            )
         )
     else:
         # Accept ItemData.price.price == 0.0 as valid fallback

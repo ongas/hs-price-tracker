@@ -1,5 +1,6 @@
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 
+
 async def test_buywisely_graceful_failure():
     # Completely unparseable HTML (no hydration, no price, no fallback)
     html = "<html><body><h1>Nothing here</h1></body></html>"
@@ -8,8 +9,14 @@ async def test_buywisely_graceful_failure():
     if isinstance(result, dict):
         assert result.get("name") == "UNKNOWN"
         assert "price" in result and (
-            (isinstance(result["price"], dict) and result["price"].get("price") in (None, 0.0)) or
-            (isinstance(result["price"], (int, float)) and result["price"] in (None, 0.0))
+            (
+                isinstance(result["price"], dict)
+                and result["price"].get("price") in (None, 0.0)
+            )
+            or (
+                isinstance(result["price"], (int, float))
+                and result["price"] in (None, 0.0)
+            )
         )
     else:
         assert hasattr(result, "name") and result.name == "Nothing here"

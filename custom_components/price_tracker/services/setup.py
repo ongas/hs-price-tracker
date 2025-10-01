@@ -43,7 +43,9 @@ _SERVICE_SETUP = {
     DaisoKrSetup.setup_code(): lambda cfg: DaisoKrSetup(config_flow=cfg),
 }
 _SERVICE_OPTION_SETUP = {
-    BuyWiselySetup.setup_code(): lambda cfg, e: BuyWiselySetup(option_flow=cfg, config_entry=e),
+    BuyWiselySetup.setup_code(): lambda cfg, e: BuyWiselySetup(
+        option_flow=cfg, config_entry=e
+    ),
     CoupangSetup.setup_code(): lambda cfg, e: CoupangSetup(
         option_flow=cfg, config_entry=e
     ),
@@ -74,29 +76,34 @@ _SERVICE_OPTION_SETUP = {
         option_flow=cfg, config_entry=e
     ),
 }
-_KIND = {} # Will be dynamically populated in price_tracker_setup_init
+_KIND = {}  # Will be dynamically populated in price_tracker_setup_init
 
 
 def price_tracker_setup_init(hass):
-    _LOGGER.debug("price_tracker_setup_init called.") # Log function call
+    _LOGGER.debug("price_tracker_setup_init called.")  # Log function call
 
     dynamic_kind = {
         "buywisely": "Buywisely",
         "coupang": "Coupang (Korea)",
     }
-    _LOGGER.debug(f"dynamic_kind populated: {dynamic_kind}") # Log dynamic_kind content
+    _LOGGER.debug(f"dynamic_kind populated: {dynamic_kind}")  # Log dynamic_kind content
 
     schema = vol.Schema(
         {
             vol.Required(_SERVICE_TYPE): selector.SelectSelector(
                 selector.SelectSelectorConfig(
-                    options=[{"value": code, "label": name} for code, name in dynamic_kind.items()],
+                    options=[
+                        {"value": code, "label": name}
+                        for code, name in dynamic_kind.items()
+                    ],
                     mode=selector.SelectSelectorMode.DROPDOWN,
                 )
             ),
         }
     )
-    _LOGGER.debug(f"Final schema returned by price_tracker_setup_init: {schema}") # Log final schema
+    _LOGGER.debug(
+        f"Final schema returned by price_tracker_setup_init: {schema}"
+    )  # Log final schema
 
     return schema
 
@@ -120,15 +127,29 @@ def price_tracker_setup_option_service(
     config_entry: any = None,
 ) -> PriceTrackerSetup | None:
     import logging
+
     _LOGGER = logging.getLogger(__name__)
     if service_type is None or option_flow is None:
-        _LOGGER.error("[DIAG][setup.py] service_type or option_flow is None. service_type=%s", service_type)
+        _LOGGER.error(
+            "[DIAG][setup.py] service_type or option_flow is None. service_type=%s",
+            service_type,
+        )
         return None
 
-    _LOGGER.info("[DIAG][setup.py] price_tracker_setup_option_service called with service_type=%s", service_type)
-    _LOGGER.info("[DIAG][setup.py] _SERVICE_OPTION_SETUP keys: %s", list(_SERVICE_OPTION_SETUP.keys()))
+    _LOGGER.info(
+        "[DIAG][setup.py] price_tracker_setup_option_service called with service_type=%s",
+        service_type,
+    )
+    _LOGGER.info(
+        "[DIAG][setup.py] _SERVICE_OPTION_SETUP keys: %s",
+        list(_SERVICE_OPTION_SETUP.keys()),
+    )
     if service_type not in _SERVICE_OPTION_SETUP:
-        _LOGGER.error("[DIAG][setup.py] Unsupported service type: %s. Available: %s", service_type, list(_SERVICE_OPTION_SETUP.keys()))
+        _LOGGER.error(
+            "[DIAG][setup.py] Unsupported service type: %s. Available: %s",
+            service_type,
+            list(_SERVICE_OPTION_SETUP.keys()),
+        )
         raise UnsupportedError(f"Unsupported service type: {service_type}")
 
     return _SERVICE_OPTION_SETUP[service_type](option_flow, config_entry)

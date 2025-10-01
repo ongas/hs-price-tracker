@@ -1,5 +1,6 @@
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 
+
 async def test_buywisely_offers_edge_cases():
     # More than 10 offers, lowest price is not the first in the list
     offers = [
@@ -13,9 +14,9 @@ async def test_buywisely_offers_edge_cases():
         {"base_price": 90.0, "currency": "AUD"},
         {"base_price": 100.0, "currency": "AUD"},
         {"base_price": 110.0, "currency": "AUD"},
-        {"base_price": 5.0, "currency": "AUD"}  # Should be ignored
+        {"base_price": 5.0, "currency": "AUD"},  # Should be ignored
     ]
-    offers_json = ','.join([str(offer).replace("'", '"') for offer in offers])
+    offers_json = ",".join([str(offer).replace("'", '"') for offer in offers])
     html = f"""
     <html><body>
     <script id=\"__NEXT_DATA__\" type=\"application/json\">{{\"props\": {{\"pageProps\": {{\"product\": {{\"title\": \"Test Product\", \"offers\": [{offers_json}]}}}}}}}}</script>
@@ -42,8 +43,14 @@ async def test_buywisely_offers_edge_cases():
     if isinstance(result, dict):
         assert result.get("name") == "Test Product 2"
         assert "price" in result and (
-            (isinstance(result["price"], dict) and result["price"].get("price") in (None, 0.0)) or
-            (isinstance(result["price"], (int, float)) and result["price"] in (None, 0.0))
+            (
+                isinstance(result["price"], dict)
+                and result["price"].get("price") in (None, 0.0)
+            )
+            or (
+                isinstance(result["price"], (int, float))
+                and result["price"] in (None, 0.0)
+            )
         )
     else:
         assert hasattr(result, "name") and result.name == "Test Product 2"

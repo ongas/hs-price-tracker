@@ -1,5 +1,6 @@
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 
+
 async def test_buywisely_missing_unexpected_data():
     # Hydration with missing required fields (no title, no offers)
     missing_fields_html = """
@@ -12,8 +13,14 @@ async def test_buywisely_missing_unexpected_data():
     if isinstance(result, dict):
         assert result.get("name") == "UNKNOWN"
         assert "price" in result and (
-            (isinstance(result["price"], dict) and result["price"].get("price") in (None, 0.0)) or
-            (isinstance(result["price"], (int, float)) and result["price"] in (None, 0.0))
+            (
+                isinstance(result["price"], dict)
+                and result["price"].get("price") in (None, 0.0)
+            )
+            or (
+                isinstance(result["price"], (int, float))
+                and result["price"] in (None, 0.0)
+            )
         )
     else:
         assert hasattr(result, "name") and result.name == "UNKNOWN"
@@ -31,8 +38,14 @@ async def test_buywisely_missing_unexpected_data():
     if isinstance(result, dict):
         assert result.get("name") == "Test Product"
         assert "price" in result and (
-            (isinstance(result["price"], dict) and result["price"].get("price") in (None, 0.0)) or
-            (isinstance(result["price"], (int, float)) and result["price"] in (None, 0.0))
+            (
+                isinstance(result["price"], dict)
+                and result["price"].get("price") in (None, 0.0)
+            )
+            or (
+                isinstance(result["price"], (int, float))
+                and result["price"] in (None, 0.0)
+            )
         )
     else:
         assert hasattr(result, "name") and result.name == "Test Product"

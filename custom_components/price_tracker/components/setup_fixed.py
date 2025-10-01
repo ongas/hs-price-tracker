@@ -5,6 +5,7 @@ from custom_components.price_tracker.consts.confs import CONF_TYPE, CONF_TARGET
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class PriceTrackerSetup:
     _step_setup: str = "setup"
     _config_flow: Optional[config_entries.ConfigFlow]
@@ -35,7 +36,12 @@ class PriceTrackerSetup:
     conf_item_price_change_interval_hour: str = "item_price_change_interval_hour"
     conf_item_debug: str = "item_debug"
 
-    def __init__(self, config_flow: Optional[config_entries.ConfigFlow] = None, option_flow: Optional[config_entries.OptionsFlow] = None, config_entry=None):
+    def __init__(
+        self,
+        config_flow: Optional[config_entries.ConfigFlow] = None,
+        option_flow: Optional[config_entries.OptionsFlow] = None,
+        config_entry=None,
+    ):
         self._config_flow = config_flow
         self._option_flow = option_flow
         self._config_entry = config_entry
@@ -44,11 +50,21 @@ class PriceTrackerSetup:
         _LOGGER.debug("Setup(configuration): %s", user_input)
         if user_input is None:
             return None
-        await self._config_flow.async_set_unique_id(self._async_set_unique_id(user_input))
-        self._config_flow._abort_if_unique_id_configured(updates={CONF_TARGET: user_input["service_type"]})
+        await self._config_flow.async_set_unique_id(
+            self._async_set_unique_id(user_input)
+        )
+        self._config_flow._abort_if_unique_id_configured(
+            updates={CONF_TARGET: user_input["service_type"]}
+        )
         entry_data = {**self.setup_config_data(user_input)}
-        _LOGGER.info("[DIAG][PriceTrackerSetup] async_create_entry called with title=%s, data=%s", self.setup_name(), entry_data)
-        return self._config_flow.async_create_entry(title=self.setup_name(), data=entry_data)
+        _LOGGER.info(
+            "[DIAG][PriceTrackerSetup] async_create_entry called with title=%s, data=%s",
+            self.setup_name(),
+            entry_data,
+        )
+        return self._config_flow.async_create_entry(
+            title=self.setup_name(), data=entry_data
+        )
 
     def setup_config_data(self, user_input: Optional[dict] = None) -> dict:
         if user_input is None:
