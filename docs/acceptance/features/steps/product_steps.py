@@ -86,7 +86,6 @@ def step_then_product_added_successfully(context):
 @then("if the extracted price is 0.0, it indicates an extraction bug and the product should not be added as a valid entity")
 def step_then_zero_price_indicates_bug(context):
     """Verify zero price handling."""
-    from custom_components.price_tracker.datas.item import ItemStatus
     if context.result and hasattr(context.result, 'price'):
         assert_that(
             context.result.price.price,

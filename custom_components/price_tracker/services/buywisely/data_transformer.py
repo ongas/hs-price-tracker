@@ -299,11 +299,11 @@ async def transform_raw_product_data(
                         else:
                             lowest_price_value = 0.0
                             lowest_currency_value = raw_data.get("currency") or "AUD"
-                            _LOGGER.error(f"Fallback: could not extract price from HTML. Setting price to 0.0.")
+                            _LOGGER.error("Fallback: could not extract price from HTML. Setting price to 0.0.")
                     else:
                         lowest_price_value = 0.0
                         lowest_currency_value = raw_data.get("currency") or "AUD"
-                        _LOGGER.error(f"Fallback: no HTML available. Setting price to 0.0.")
+                        _LOGGER.error("Fallback: no HTML available. Setting price to 0.0.")
 
     from custom_components.price_tracker.utilities.parser import parse_float
 

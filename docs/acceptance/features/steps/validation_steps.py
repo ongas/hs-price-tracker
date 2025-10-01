@@ -5,11 +5,9 @@ Covers product URL validation and error handling.
 """
 
 import logging
-from behave import given, when, then
+from behave import given, then
 from hamcrest import assert_that, is_, not_none
 
-from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
-from custom_components.price_tracker.components.error import InvalidItemUrlError
 
 _LOGGER = logging.getLogger(__name__)
 

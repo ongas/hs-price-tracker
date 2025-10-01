@@ -330,8 +330,8 @@ def _debug_local_html_parsing():
         )
     try:
         with open(html_path, "r", encoding="utf-8") as f:
-            html = f.read()
-    # _LOGGER.info("[DIAG][_debug_local_html_parsing] Read %d bytes from HTML file.", len(html))
+            _html_content = f.read()
+    # _LOGGER.info("[DIAG][_debug_local_html_parsing] Read %d bytes from HTML file.", len(_html_content))
     except Exception as e:
         _LOGGER.error(
             "[DIAG][_debug_local_html_parsing] Failed to read HTML file: %s", e
@@ -339,12 +339,9 @@ def _debug_local_html_parsing():
         return
     # Extraction logic for local debug (sync context)
     # If you need to run async extraction, use asyncio.run()
-    try:
-        # For local debug, just call and ignore result
-        # If extract_product_data_from_html is async, use: asyncio.run(extract_product_data_from_html(html))
-        pass
-    except Exception:
-        pass
+    # For local debug, just call and ignore result
+    # If extract_product_data_from_html is async, use: asyncio.run(extract_product_data_from_html(_html_content))
+    pass
 
 
 if __name__ == "__main__":

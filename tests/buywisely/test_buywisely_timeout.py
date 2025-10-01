@@ -1,4 +1,4 @@
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch
 from custom_components.price_tracker.services.buywisely.parser import parse_product
 
 

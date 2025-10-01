@@ -5,7 +5,6 @@ This module provides reusable test fixtures, mocks, and helpers
 for testing the BuyWisely integration with Home Assistant.
 """
 
-import os
 import sys
 from pathlib import Path
 

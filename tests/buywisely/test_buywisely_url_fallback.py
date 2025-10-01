@@ -1,4 +1,4 @@
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch
 from custom_components.price_tracker.services.buywisely.data_transformer import (
     transform_raw_product_data,
 )

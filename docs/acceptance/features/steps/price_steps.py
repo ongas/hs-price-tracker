@@ -6,7 +6,7 @@ Covers lowest price tracking, offer selection, and price validation.
 
 import logging
 from behave import given, when, then
-from hamcrest import assert_that, equal_to, is_, greater_than, not_none, empty
+from hamcrest import assert_that, equal_to, greater_than, not_none, empty
 
 _LOGGER = logging.getLogger(__name__)
 
