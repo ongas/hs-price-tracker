@@ -322,3 +322,143 @@ def test_validate_excluded_domains_config():
     mixed_list = valid_domains + invalid_domains
     valid_only = [d for d in mixed_list if validate_domain(d)]
     assert valid_only == valid_domains
+
+
+def test_merge_global_and_per_product_exclusions():
+    """Test that global and per-product exclusions are merged correctly."""
+    global_excluded = ["ebay.com.au", "amazon.com.au"]
+    per_product_excluded = ["temu.com", "wish.com"]
+
+    # Merge exclusions
+    merged = list(set(global_excluded + per_product_excluded))
+
+    # Should have 4 unique domains
+    assert len(merged) == 4
+    assert "ebay.com.au" in merged
+    assert "amazon.com.au" in merged
+    assert "temu.com" in merged
+    assert "wish.com" in merged
+
+
+def test_merge_with_duplicate_domains():
+    """Test that duplicate domains in global and per-product lists are handled."""
+    global_excluded = ["ebay.com.au", "amazon.com.au"]
+    per_product_excluded = ["ebay.com.au", "temu.com"]  # ebay.com.au appears in both
+
+    # Merge and deduplicate
+    merged = list(set(global_excluded + per_product_excluded))
+
+    # Should have 3 unique domains (ebay.com.au counted once)
+    assert len(merged) == 3
+    assert "ebay.com.au" in merged
+    assert "amazon.com.au" in merged
+    assert "temu.com" in merged
+
+
+def test_global_exclusions_only():
+    """Test filtering with only global exclusions (no per-product)."""
+    test_data_path = Path(__file__).parent.parent.parent / "docs" / "acceptance" / "test_data" / "buywisely" / "offers_multiple_domains.json"
+    with open(test_data_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    offers = data['offers']
+    global_excluded = ["www.ebay.com.au"]
+    per_product_excluded = []
+
+    # Merge and filter
+    all_excluded = list(set(global_excluded + per_product_excluded))
+    filtered_offers = [
+        offer for offer in offers
+        if extract_domain_from_url(offer.get('seller_product_url')) not in all_excluded
+    ]
+
+    # Should exclude only eBay (1 offer), leaving 3
+    assert len(filtered_offers) == 3
+    assert all('ebay' not in offer['seller']['name'].lower() for offer in filtered_offers)
+
+
+def test_per_product_exclusions_only():
+    """Test filtering with only per-product exclusions (no global)."""
+    test_data_path = Path(__file__).parent.parent.parent / "docs" / "acceptance" / "test_data" / "buywisely" / "offers_multiple_domains.json"
+    with open(test_data_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    offers = data['offers']
+    global_excluded = []
+    per_product_excluded = ["www.amazon.com.au"]
+
+    # Merge and filter
+    all_excluded = list(set(global_excluded + per_product_excluded))
+    filtered_offers = [
+        offer for offer in offers
+        if extract_domain_from_url(offer.get('seller_product_url')) not in all_excluded
+    ]
+
+    # Should exclude only Amazon (1 offer), leaving 3
+    assert len(filtered_offers) == 3
+    assert all('amazon' not in offer['seller']['name'].lower() for offer in filtered_offers)
+
+
+def test_combined_global_and_per_product_exclusions():
+    """Test filtering with both global and per-product exclusions."""
+    test_data_path = Path(__file__).parent.parent.parent / "docs" / "acceptance" / "test_data" / "buywisely" / "offers_multiple_domains.json"
+    with open(test_data_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    offers = data['offers']
+    global_excluded = ["www.ebay.com.au"]
+    per_product_excluded = ["www.amazon.com.au"]
+
+    # Merge and filter
+    all_excluded = list(set(global_excluded + per_product_excluded))
+    filtered_offers = [
+        offer for offer in offers
+        if extract_domain_from_url(offer.get('seller_product_url')) not in all_excluded
+    ]
+
+    # Should exclude both eBay and Amazon (2 offers), leaving 2
+    assert len(filtered_offers) == 2
+    assert all('ebay' not in offer['seller']['name'].lower() for offer in filtered_offers)
+    assert all('amazon' not in offer['seller']['name'].lower() for offer in filtered_offers)
+
+
+def test_empty_global_with_per_product_exclusions():
+    """Test that per-product exclusions work when global is empty."""
+    test_data_path = Path(__file__).parent.parent.parent / "docs" / "acceptance" / "test_data" / "buywisely" / "offers_multiple_domains.json"
+    with open(test_data_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    offers = data['offers']
+    global_excluded = []  # Empty global
+    per_product_excluded = ["www.ebay.com.au", "www.amazon.com.au"]
+
+    # Merge and filter
+    all_excluded = list(set(global_excluded + per_product_excluded))
+    filtered_offers = [
+        offer for offer in offers
+        if extract_domain_from_url(offer.get('seller_product_url')) not in all_excluded
+    ]
+
+    # Should exclude both eBay and Amazon (2 offers), leaving 2
+    assert len(filtered_offers) == 2
+
+
+def test_none_global_with_per_product_exclusions():
+    """Test that per-product exclusions work when global is None."""
+    test_data_path = Path(__file__).parent.parent.parent / "docs" / "acceptance" / "test_data" / "buywisely" / "offers_multiple_domains.json"
+    with open(test_data_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    offers = data['offers']
+    global_excluded = None  # None global
+    per_product_excluded = ["www.ebay.com.au"]
+
+    # Merge and filter (handle None)
+    all_excluded = list(set((global_excluded or []) + per_product_excluded))
+    filtered_offers = [
+        offer for offer in offers
+        if extract_domain_from_url(offer.get('seller_product_url')) not in all_excluded
+    ]
+
+    # Should exclude only eBay (1 offer), leaving 3
+    assert len(filtered_offers) == 3
