@@ -338,8 +338,14 @@ class PriceTrackerSetup:
         excluded_domains_key = f"global_excluded_domains_{service_type}"
         current_excluded_domains = options.get(excluded_domains_key, [])
 
-        # If user hasn't submitted yet, show the form
-        if user_input is None:
+        # If user hasn't submitted the form yet (initial navigation or only menu selection), show the form
+        # Check if user_input is None OR if it only contains the menu selection
+        is_initial_display = (
+            user_input is None
+            or ("add_excluded_domain" not in user_input and "remove_excluded_domain" not in user_input)
+        )
+
+        if is_initial_display:
             return self._option_flow.async_show_form(
                 step_id=self._step_setup,
                 description_placeholders={

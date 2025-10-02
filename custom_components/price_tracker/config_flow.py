@@ -29,7 +29,8 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._data: dict[str, Any] = {}
 
     async def async_step_reconfigure(self, user_input=None):
-        pass
+        """Handle reconfiguration of an existing entry."""
+        return self.async_abort(reason="reconfigure_not_supported")
 
     async def async_migrate_entry(
         self, hass: HomeAssistant, config_entry: ConfigEntry

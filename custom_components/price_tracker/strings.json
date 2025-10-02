@@ -2,16 +2,31 @@
   "config": {
     "step": {
       "setup": {
-  "title": "{title}",
-  "description": "{description}"
+        "title": "{title}",
+        "description": "{description}"
       }
     }
   },
   "options": {
     "step": {
       "setup": {
-  "title": "{title}",
-  "description": "{description}"
+        "title": "{title}",
+        "description": "{description}",
+        "data": {
+          "option_setup_select": "Select an option"
+        }
+      }
+    }
+  },
+  "selector": {
+    "option_setup_select": {
+      "options": {
+        "option_global_settings_select": "Global Settings",
+        "option_personal_select": "Personal Settings",
+        "option_proxy_select": "Proxy Configuration",
+        "option_selenium_select": "Selenium Configuration",
+        "option_modify_select": "Modify Entity",
+        "option_add_select": "Add Entity"
       }
     }
   }

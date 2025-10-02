@@ -67,12 +67,16 @@
       "proxy_updated": "Proxy updated.",
       "proxy_not_updated": "Proxy not updated.",
       "selenium_updated": "Selenium updated.",
-      "selenium_not_updated": "Selenium not updated."
+      "selenium_not_updated": "Selenium not updated.",
+      "global_settings_updated": "Global settings updated successfully.",
+      "global_settings_not_updated": "Global settings were not updated.",
+      "reconfigure_not_supported": "Reconfiguration is not supported. Please use the Configure option instead."
     }
   },
   "selector": {
     "option_setup_select": {
       "options": {
+        "option_global_settings_select": "Global Settings",
         "option_personal_select": "Personal Configuration",
         "option_proxy_select": "Proxy Configuration",
         "option_selenium_select": "Selenium Configuration",
