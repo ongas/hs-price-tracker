@@ -1,13 +1,19 @@
 # BuyWisely Error Handling & Edge Case Catalog
-## Definition of 'Current Offer'
-The 'current offers' are strictly defined as:
-1. Offers with the maximum `created_at` timestamp in the hydration data (excluding historical offers)
-2. Offers without affiliate tags (shopback/cashrewards must be None)
-3. Offers not from excluded domains (domain filtering applied with 'contains' matching)
-4. Sorted by total price (base_price + delivery) in ascending order
-5. Limited to the first 10 lowest-priced offers for validation
+## Definition of 'Initially Visible Offers'
+The integration processes offers exactly as BuyWisely displays them in their UI (the "initially visible offers"). The selection pipeline is:
 
-Historical offers (those with older `created_at` timestamps) are automatically filtered out. This includes out-of-stock offers, stale prices, or any offer that BuyWisely marks as non-current in their JSON data. Only the top 10 lowest-priced current offers (after all filtering) are processed for seller page validation.
+1. **Filter by timestamp**: Keep only offers with the maximum `created_at` timestamp (current offers, excluding historical)
+2. **Sort using BuyWisely's display logic**:
+   - Amazon offers first (sorted by total price among themselves)
+   - Then all other offers (sorted by total price)
+   - This matches BuyWisely's client-side JavaScript sorting
+3. **Take first 10**: Select the first 10 offers from this sorted list (the "initially visible offers" shown before "View More")
+4. **Apply domain filtering**: Remove offers matching user-configured excluded domains (using 'contains' matching)
+5. **Price validation**: Validate prices on seller pages for remaining offers
+
+Historical offers (those with older `created_at` timestamps) are automatically filtered out. This includes out-of-stock offers, stale prices, or any offer that BuyWisely marks as non-current in their JSON data. Only the initially visible offers (after domain filtering) are processed for seller page validation.
+
+**Note on Affiliate Filtering**: We do NOT filter out affiliate offers because the JSON data's `shopback`/`cashrewards` fields do not reliably indicate which offers have affiliate disclosures on BuyWisely's UI. Users can exclude specific domains (like "amazon.com.au", "ebay.com.au") via the excluded_domains configuration if desired.
 
 
 All error conditions and edge cases listed here are now handled by the robust, state-aware BuyWisely parser integrated in the price tracker component (see developer guide and user story 5).

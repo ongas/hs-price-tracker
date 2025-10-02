@@ -1,5 +1,10 @@
+"""Tests for offer selection and lowest price logic in BuyWiselyEngine."""
+
+import os
+from unittest.mock import AsyncMock, patch
 import pytest
-from unittest.mock import patch
+from custom_components.price_tracker.datas.item import ItemStatus
+from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
 
 
 @pytest.mark.asyncio
@@ -10,9 +15,10 @@ from unittest.mock import patch
 async def test_price_mismatch_moves_to_next_offer(
     mock_fetch_seller_price, mock_safe_request
 ):
-    """Test that if the price is mismatched, the engine moves to the next lowest offer and repeats validation."""
+    """Test that if the price is mismatched, the engine moves to the next initially visible offer and repeats validation."""
     # Simulate two offers: first is a mismatch, second matches
-    offers_html = """<html><body><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"product":{"title":"Test Product","slug":"test-product","availability":"In Stock","offers":[{"base_price":100.0,"currency":"AUD","seller_product_url":"http://example.com/offer1","created_at":"$D2025-09-28T22:34:51.002Z", "seller":{"shopback":null, "cashrewards":null}},{"base_price":120.0,"currency":"AUD","seller_product_url":"http://example.com/offer2","created_at":"$D2025-09-28T22:34:51.002Z", "seller":{"shopback":null, "cashrewards":null}}],"image":"http://example.com/test_image.jpg"}}}}</script></body></html>"""
+    # Note: Both offers will be in the initially visible list (sorted by BuyWisely logic)
+    offers_html = """<html><body><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"product":{"title":"Test Product","slug":"test-product","availability":"In Stock","offers":[{"base_price":100.0,"currency":"AUD","seller_product_url":"http://example.com/offer1","created_at":"$D2025-09-28T22:34:51.002Z", "seller":{"name":"Seller1","shopback":null, "cashrewards":null}},{"base_price":120.0,"currency":"AUD","seller_product_url":"http://example.com/offer2","created_at":"$D2025-09-28T22:34:51.002Z", "seller":{"name":"Seller2","shopback":null, "cashrewards":null}}],"image":"http://example.com/test_image.jpg"}}}}</script></body></html>"""
     mock_response = AsyncMock()
     mock_response.has = True
     mock_response.text = offers_html
@@ -41,15 +47,6 @@ async def test_price_mismatch_moves_to_next_offer(
     ), f"Expected url for second offer, got {getattr(result, 'url', None)}"
 
 
-"""Tests for offer selection and lowest price logic in BuyWiselyEngine."""
-
-import os
-from unittest.mock import AsyncMock, patch
-import pytest
-from custom_components.price_tracker.datas.item import ItemStatus
-from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
-
-
 def _read_fixture_html(filename: str) -> str:
     """Helper to read HTML content from a fixture file."""
     filepath = os.path.join(os.path.dirname(__file__), "fixtures", filename)
@@ -65,9 +62,9 @@ def _read_fixture_html(filename: str) -> str:
 async def test_get_product_details_multiple_prices(
     mock_fetch_seller_price, mock_safe_request
 ):
-    """Test retrieval of product details when multiple offers are present, ensuring the lowest price is selected."""
+    """Test retrieval of product details when multiple offers are present, ensuring the first initially visible offer is selected using BuyWisely's display logic."""
     mock_fetch_seller_price.return_value = (
-        277.0  # Simulate matching price (actual extracted value)
+        400.89  # Simulate matching price for Amazon.com.au (first in BuyWisely's sort order)
     )
     fixture_file = "real_buywisely_motorola-moto-g75-5g-256gb-grey-with-buds.html"
     print(f"[DIAG][TEST] Loading fixture: {fixture_file}")
@@ -99,7 +96,9 @@ async def test_get_product_details_multiple_prices(
     assert (
         (extracted_name or "").strip() == expected_name.strip()
     ), f"Name mismatch: {extracted_name!r} != {expected_name!r}"
-    expected_price = 373.008057  # Updated to match actual lowest base_price with delivery
+    # With BuyWisely's display logic (Amazon first, then by price, no affiliate filtering),
+    # the first initially visible offer is Amazon.com.au at 400.89
+    expected_price = 400.89
     expected_currency = "AUD"
     print(f"[DIAG][TEST] Expected price: {expected_price}")
     print(f"[DIAG][TEST] Expected currency: {expected_currency}")
@@ -113,10 +112,10 @@ async def test_get_product_details_multiple_prices(
     # Image may not match, so skip image assertion or update to match actual extracted value if needed
     status = getattr(result, "status", None)
     assert status is not None, "Status missing"
-    # Expect PRICE_MISMATCH status since mock returns 277.0 but actual lowest price is 373.008057
+    # Expect ACTIVE status since mock returns matching price (400.89 matches expected 400.89)
     print(f"[DIAG][TEST] Extracted status: {status.value}")
     assert (
-        status.value == ItemStatus.PRICE_MISMATCH.value
+        status.value == ItemStatus.ACTIVE.value
     ), f"Status value mismatch: {status.value}"
 
 
@@ -126,9 +125,9 @@ async def test_get_product_details_multiple_prices(
     "custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price"
 )
 async def test_lowest_price_selection(mock_fetch_seller_price, mock_safe_request):
-    """Test that the engine correctly selects the lowest price from multiple offers."""
+    """Test that the engine correctly selects the first initially visible offer using BuyWisely's display logic."""
     mock_fetch_seller_price.return_value = (
-        277.0  # Simulate matching price (actual extracted value)
+        309.99  # Simulate matching price for Amazon.com.au (first in BuyWisely's sort order)
     )
     fixture_file = "real_buywisely_motorola-moto-g85-5g-128gb-urban-grey-.html"
     print(f"[DIAG][TEST] Loading fixture: {fixture_file}")
@@ -159,10 +158,10 @@ async def test_lowest_price_selection(mock_fetch_seller_price, mock_safe_request
         f"[DIAG][TEST] Extracted status: {getattr(getattr(result, 'status', None), 'value', None)}"
     )
     expected_name = "Motorola Moto G85 5G 128GB (Urban Grey)"
-    # After filtering out affiliate offers (shopback/cashrewards populated),
-    # the lowest non-affiliate base price is VTech Industries at 337.0
+    # With BuyWisely's display logic (Amazon first, then by price, no affiliate filtering),
+    # the first initially visible offer is Amazon.com.au at 309.99
     assert (
-        getattr(getattr(result, "price", None), "price", None) == 337.0
+        getattr(getattr(result, "price", None), "price", None) == 309.99
     ), f"Lowest price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
     assert (
         getattr(getattr(result, "price", None), "currency", None) == "AUD"
@@ -172,7 +171,7 @@ async def test_lowest_price_selection(mock_fetch_seller_price, mock_safe_request
     ), f"Name mismatch: {extracted_name!r} != {expected_name!r}"
     status = getattr(result, "status", None)
     assert status is not None, "Status missing"
-    # Expect PRICE_MISMATCH status if extracted price does not match seller page price
+    # Expect ACTIVE status since mock returns matching price (309.99 matches expected 309.99)
     assert (
-        status.value == ItemStatus.PRICE_MISMATCH.value
+        status.value == ItemStatus.ACTIVE.value
     ), f"Status value mismatch: {getattr(status, 'value', None)}"

@@ -401,7 +401,7 @@ def _process_product_offers(
     excluded_domains = excluded_domains or []
     normalized_excluded_domains = [d.lower().strip() for d in excluded_domains if d and isinstance(d, str) and d.strip()]
 
-    # Filter to only current offers (exclude history offers and affiliates)
+    # Filter to only current offers (exclude history offers)
     # Current offers are those with the maximum created_at timestamp
     if offers:
         max_created_at = max(
@@ -420,22 +420,62 @@ def _process_product_offers(
             max_created_at, len(current_offers)
         )
 
-        # Filter out affiliate offers (those with shopback or cashrewards populated)
-        # BuyWisely shows "Affiliate Disclosure" for offers where seller has these fields
-        non_affiliate_offers = [
-            offer
-            for offer in current_offers
-            if isinstance(offer, dict) and isinstance(offer.get("seller"), dict)
-            and offer.get("seller", {}).get("shopback") is None
-            and offer.get("seller", {}).get("cashrewards") is None
-        ]
+        # Helper function to calculate total price for sorting
+        def _get_offer_total_price(offer):
+            """Calculate total price for sorting."""
+            if not isinstance(offer, dict):
+                return float('inf')
+            price = offer.get("price") or offer.get("base_price")
+            if price is None or price == "" or (isinstance(price, str) and not price.strip()):
+                return float('inf')
+            try:
+                price_val = float(price)
+            except (ValueError, TypeError):
+                return float('inf')
+            delivery = offer.get("delivery") or offer.get("shipping") or 0
+            try:
+                delivery_val = float(delivery)
+            except (ValueError, TypeError):
+                delivery_val = 0.0
+            return price_val + delivery_val
 
-        # Apply domain filtering (using 'contains' matching)
-        pre_domain_filter_count = len(non_affiliate_offers)
+        # Sort using BuyWisely's display logic: Amazon offers first, then by price
+        # This matches the client-side JavaScript sorting in BuyWisely's UI
+        def _buywisely_sort_key(offer):
+            """
+            Sort key matching BuyWisely's display order.
+            Returns (is_not_amazon, total_price) so Amazon offers come first, then sorted by price.
+            """
+            if not isinstance(offer, dict):
+                return (True, float('inf'))
+
+            seller = offer.get("seller", {})
+            seller_name = seller.get("name", "") if isinstance(seller, dict) else ""
+            is_amazon = "amazon" in seller_name.lower()
+
+            # Return tuple: (is_not_amazon, total_price)
+            # False (Amazon) sorts before True (non-Amazon)
+            # Within each group, sort by total price
+            return (not is_amazon, _get_offer_total_price(offer))
+
+        current_offers.sort(key=_buywisely_sort_key)
+
+        _LOGGER.info(
+            "[DIAG][html_extractor] Sorted current offers using BuyWisely's display logic (Amazon first, then by price)"
+        )
+
+        # Take first 10 "initially visible" offers (matching BuyWisely's UI)
+        initially_visible_offers = current_offers[:10]
+
+        _LOGGER.info(
+            "[DIAG][html_extractor] Selected first 10 initially visible offers (matching BuyWisely UI)"
+        )
+
+        # Now apply domain filtering to the initially visible offers
         if normalized_excluded_domains:
             domain_filtered_offers = []
             excluded_count = 0
-            for offer in non_affiliate_offers:
+            for offer in initially_visible_offers:
                 if not isinstance(offer, dict):
                     continue
                 seller_url = offer.get("seller_product_url")
@@ -459,43 +499,21 @@ def _process_product_offers(
                 if not is_excluded:
                     domain_filtered_offers.append(offer)
 
-            non_affiliate_offers = domain_filtered_offers
+            initially_visible_offers = domain_filtered_offers
             _LOGGER.info(
-                "[DIAG][html_extractor] Domain filtering: excluded %d offers, %d remaining",
+                "[DIAG][html_extractor] Domain filtering: excluded %d offers, %d remaining from initially visible",
                 excluded_count,
-                len(non_affiliate_offers),
+                len(initially_visible_offers),
             )
 
-        # Sort by total price (base_price + delivery) before taking top 10
-        def _get_offer_total_price(offer):
-            """Calculate total price for sorting."""
-            if not isinstance(offer, dict):
-                return float('inf')
-            price = offer.get("price") or offer.get("base_price")
-            if price is None or price == "" or (isinstance(price, str) and not price.strip()):
-                return float('inf')
-            try:
-                price_val = float(price)
-            except (ValueError, TypeError):
-                return float('inf')
-            delivery = offer.get("delivery") or offer.get("shipping") or 0
-            try:
-                delivery_val = float(delivery)
-            except (ValueError, TypeError):
-                delivery_val = 0.0
-            return price_val + delivery_val
-
-        non_affiliate_offers.sort(key=_get_offer_total_price)
-
-        # Take up to 10 lowest-priced non-affiliate offers
-        offers = non_affiliate_offers[:10]
+        # Final offers for validation (no affiliate filtering - JSON data is unreliable for this)
+        offers = initially_visible_offers
         _LOGGER.info(
-            "[DIAG][html_extractor] Filtered to %d non-affiliate current offers (max_created_at: %s) from %d total current offers (%d total offers, %d affiliate offers excluded)",
+            "[DIAG][html_extractor] Final offer selection: %d offers ready for price validation (from %d initially visible, %d total current, %d total offers)",
             len(offers),
-            max_created_at,
+            10,  # Always 10 initially visible by BuyWisely's design
             len(current_offers),
             len(product_data.get("offers", [])),
-            len(current_offers) - len(offers) if normalized_excluded_domains else len(current_offers) - pre_domain_filter_count,
         )
 
     all_seller_urls = [
