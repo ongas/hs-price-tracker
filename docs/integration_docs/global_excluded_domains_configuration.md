@@ -15,17 +15,21 @@ The Price Tracker integration supports **both global and per-product domain excl
 Configure global exclusions through the Home Assistant UI:
 
 1. Navigate to **Settings → Integrations**
-2. Find **Price Tracker** and click **Configure**
-3. Select **Global Settings** from the menu
-4. Add domains one at a time:
+2. Find **Price Tracker** (E-Commerce Integrator)
+3. Click on **any product entry** (e.g., "https://buywisely.com.au/product/...")
+4. Click the **⚙️ cog icon** (Configure button)
+5. Select **"Global Settings"** from the menu
+6. You will see currently excluded domains listed in the description
+7. **To add a domain**:
    - Enter domain in "Add Excluded Domain" field (e.g., `ebay.com.au`)
-   - Click Submit to add
-   - Repeat for each domain
-5. Remove domains:
+   - Click Submit
+   - The integration will reload and the domain will be added
+8. **To remove a domain**:
    - Select domain from "Remove Excluded Domain" dropdown
-   - Click Submit to remove
+   - Click Submit
+   - The integration will reload and the domain will be removed
 
-This will exclude offers from these domains for **all** products of that service type.
+**Note**: Global settings are shared across ALL product entries for the same service type (e.g., all BuyWisely products). You can access this from any product's configuration menu.
 
 ### Option 2: YAML Configuration
 

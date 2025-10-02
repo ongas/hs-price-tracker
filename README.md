@@ -47,20 +47,48 @@ You can add entity to your system by configure button in the integrations page. 
 
 #### Domain Filtering (BuyWisely)
 
-For BuyWisely products, you can exclude offers from specific domains. This is useful for filtering out affiliate offers or sellers you don't trust.
+For BuyWisely products, you can exclude offers from specific domains to filter out sellers you don't trust.
 
-**How it works:**
-- Enter domain names exactly as they appear in URLs (e.g., `www.ebay.com.au`, `amazon.com.au`)
-- Domain matching is case-insensitive but requires exact match (e.g., `ebay.com.au` won't match `www.ebay.com.au`)
-- Excluded domains are evaluated after affiliate filtering and before lowest price selection
+##### Global Domain Exclusions (Recommended)
 
-**Example:**
+Configure global exclusions that apply to **ALL** BuyWisely products via the UI:
+
+1. Go to **Settings → Integrations**
+2. Find **Price Tracker** (E-Commerce Integrator)
+3. Click on any product entry
+4. Click the **⚙️ cog icon** (Configure)
+5. Select **"Global Settings"**
+6. Add/remove domains using the form
+
+**Benefits:**
+- Configure once, applies to all BuyWisely products
+- Easy to manage via UI
+- No YAML editing required
+- Takes precedence over YAML configuration
+
+##### Per-Product Domain Exclusions
+
+You can also exclude domains for specific products when adding them:
+- Enter comma-separated domains in the `excluded_domains` field
+- Example: `ebay.com.au,amazon.com.au`
+
+##### YAML Configuration (Alternative)
+
 ```yaml
-excluded_domains:
-  - www.ebay.com.au
-  - www.amazon.com.au
-  - temu.com
+price_tracker:
+  buywisely:
+    global_excluded_domains:
+      - reebelo.com.au
+      - ebay.com.au
+      - amazon.com.au
 ```
+
+**How domain matching works:**
+- Case-insensitive "contains" matching
+- `ebay.com.au` matches both `ebay.com.au` and `www.ebay.com.au`
+- Excluded domains are filtered before lowest price selection
+
+For detailed documentation, see: [Global Excluded Domains Configuration](docs/integration_docs/global_excluded_domains_configuration.md)
 
 ### Types
 
