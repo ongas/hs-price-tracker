@@ -21,18 +21,21 @@ async def test_price_validation_loop_selects_matching_offer(
             "currency": "AUD",
             "seller_product_url": "http://example.com/seller1",
             "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
         },
         {
             "base_price": 99.50,
             "currency": "AUD",
             "seller_product_url": "http://example.com/seller2",
             "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
         },
         {
             "base_price": 120.00,
             "currency": "AUD",
             "seller_product_url": "http://example.com/seller3",
             "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
         },
     ]
     sample_html = (
@@ -91,12 +94,14 @@ async def test_price_validation_loop_handles_no_matching_offer(
             "currency": "AUD",
             "seller_product_url": "http://example.com/seller1",
             "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
         },
         {
             "base_price": 99.50,
             "currency": "AUD",
             "seller_product_url": "http://example.com/seller2",
             "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
         },
     ]
     sample_html = (

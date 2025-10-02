@@ -4,7 +4,7 @@ from custom_components.price_tracker.services.buywisely.parser import parse_prod
 async def test_parse_product_euro_currency():
     html = (
         '<html><body><script id="__NEXT_DATA__" type="application/json">'
-        '{"props":{"pageProps":{"product":{"title":"Euro Product","slug":"euro-product","availability":"In Stock","offers":[{"base_price":25.99,"currency":"EUR","created_at":"$D2025-09-28T22:34:51.002Z"}],"image":"http://example.com/euro_product.jpg"}}}}'
+        '{"props":{"pageProps":{"product":{"title":"Euro Product","slug":"euro-product","availability":"In Stock","offers":[{"base_price":25.99,"currency":"EUR","created_at":"$D2025-09-28T22:34:51.002Z", "seller":{"shopback":null, "cashrewards":null}}],"image":"http://example.com/euro_product.jpg"}}}}'
         "</script></body></html>"
     )
     result = await parse_product(html)

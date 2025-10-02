@@ -1,0 +1,86 @@
+{
+  "description": "Test data with offers from multiple domains for domain filtering tests",
+  "offers": [
+    {
+      "pid": 12345,
+      "seller_product_url": "https://www.ebay.com.au/itm/111111",
+      "created_at": "$D2025-10-01T10:00:00.000Z",
+      "offer_id": null,
+      "base_price": 200,
+      "shipping": 0,
+      "seller_id": 1001,
+      "condition": "new",
+      "country_code": null,
+      "seller": {
+        "seller_id": 1001,
+        "name": "eBay Seller Store",
+        "url": null,
+        "shopback": null,
+        "cashrewards": null
+      }
+    },
+    {
+      "pid": 12345,
+      "seller_product_url": "https://www.amazon.com.au/dp/AAAAAA",
+      "created_at": "$D2025-10-01T10:00:00.000Z",
+      "offer_id": null,
+      "base_price": 220,
+      "shipping": 0,
+      "seller_id": 1002,
+      "condition": "new",
+      "country_code": null,
+      "seller": {
+        "seller_id": 1002,
+        "name": "Amazon.com.au",
+        "url": "www.amazon.com.au",
+        "shopback": {
+          "sb_id": 8448,
+          "sb_name": "Amazon Australia",
+          "url": "www.shopback.com.au/amazon-australia",
+          "commission": "Up to 7% Cashback"
+        },
+        "cashrewards": {
+          "cr_id": 1003434,
+          "name": "Amazon Australia",
+          "commission_string": "Up to 7% cashback"
+        }
+      }
+    },
+    {
+      "pid": 12345,
+      "seller_product_url": "https://localretailer.com.au/products/item123",
+      "created_at": "$D2025-10-01T10:00:00.000Z",
+      "offer_id": null,
+      "base_price": 210,
+      "shipping": 5,
+      "seller_id": 1003,
+      "condition": "new",
+      "country_code": null,
+      "seller": {
+        "seller_id": 1003,
+        "name": "Local Retailer",
+        "url": "localretailer.com.au",
+        "shopback": null,
+        "cashrewards": null
+      }
+    },
+    {
+      "pid": 12345,
+      "seller_product_url": "https://techstore.com.au/motorola-phone",
+      "created_at": "$D2025-10-01T10:00:00.000Z",
+      "offer_id": null,
+      "base_price": 225,
+      "shipping": 0,
+      "seller_id": 1004,
+      "condition": "new",
+      "country_code": null,
+      "seller": {
+        "seller_id": 1004,
+        "name": "Tech Store Australia",
+        "url": "techstore.com.au",
+        "shopback": null,
+        "cashrewards": null
+      }
+    }
+  ]
+}

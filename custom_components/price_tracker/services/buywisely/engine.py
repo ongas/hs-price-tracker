@@ -34,6 +34,7 @@ class BuyWiselyEngine(PriceEngine):
         selenium: Optional[str] = None,
         selenium_proxy: Optional[list] = None,
         request_cls=None,
+        excluded_domains: Optional[list] = None,
     ):
         self.item_url = item_url
         product_id = BuyWiselyEngine.parse_id(item_url)["product_id"]
@@ -51,6 +52,7 @@ class BuyWiselyEngine(PriceEngine):
         self._selenium_proxy = selenium_proxy
         self._request_cls = request_cls or SafeRequest
         self._request = None  # Initialize _request here
+        self._excluded_domains = excluded_domains or []
 
     async def load(self) -> ItemData | None:
         _LOGGER.info("[DIAG][BuyWiselyEngine.load] START.")
@@ -127,7 +129,7 @@ class BuyWiselyEngine(PriceEngine):
                 self.item_url,
             )
         product_details = await parse_product(
-            html, product_id=self.product_id, item_url=self.item_url
+            html, product_id=self.product_id, item_url=self.item_url, excluded_domains=self._excluded_domains
         )
 
         # Validate that the extracted price is greater than zero

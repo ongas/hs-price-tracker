@@ -1,0 +1,32 @@
+
+================================================================================
+Processing URL 1/2: https://buywisely.com.au/product/motorola-moto-g75-5g-256gb-grey-with-buds
+================================================================================
+=== Fetching live HTML from: https://buywisely.com.au/product/motorola-moto-g75-5g-256gb-grey-with-buds ===
+
+[DIAG] Fetched https://buywisely.com.au/product/motorola-moto-g75-5g-256gb-grey-with-buds with status 200, body length: 355652
+[DIAG] Body sample: <!DOCTYPE html><html lang="en" class="__className_646807"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/><link rel="preload" as="ima
+=== Extracting RAW UNFILTERED offers from: motorola-moto-g75-5g-256gb-grey-with-buds ===
+
+Product Title: N/A
+
+Total RAW offers in hydration data: 67
+
+TSV output written to: /mnt/e/source/personal_repos/homeassistant/custom_components/price_tracker/scripts/motorola-moto-g75-5g-256gb-grey-with-buds_raw_offers.tsv
+Total offers written: 67
+
+================================================================================
+Processing URL 2/2: https://buywisely.com.au/product/motorola-moto-g85-5g-128gb-urban-grey-
+================================================================================
+=== Fetching live HTML from: https://buywisely.com.au/product/motorola-moto-g85-5g-128gb-urban-grey- ===
+
+[DIAG] Fetched https://buywisely.com.au/product/motorola-moto-g85-5g-128gb-urban-grey- with status 200, body length: 362687
+[DIAG] Body sample: <!DOCTYPE html><html lang="en" class="__className_646807"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/><link rel="preload" as="ima
+=== Extracting RAW UNFILTERED offers from: motorola-moto-g85-5g-128gb-urban-grey- ===
+
+Product Title: N/A
+
+Total RAW offers in hydration data: 91
+
+TSV output written to: /mnt/e/source/personal_repos/homeassistant/custom_components/price_tracker/scripts/motorola-moto-g85-5g-128gb-urban-grey-_raw_offers.tsv
+Total offers written: 91

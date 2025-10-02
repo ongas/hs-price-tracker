@@ -15,6 +15,7 @@ from .consts.confs import (
     CONF_SELENIUM_PROXY,
     CONF_DEBUG,
     CONF_ITEM_MANAGEMENT_CATEGORIES,
+    CONF_EXCLUDED_DOMAINS,
 )
 from .consts.defaults import DOMAIN
 from .datas.unit import ItemUnitType
@@ -75,12 +76,18 @@ async def async_setup_entry(
             proxy_opensource,
         )
 
+        # Get excluded_domains from config (per-product exclusions)
+        # Format: comma-separated string like "ebay.com.au,amazon.com.au"
+        excluded_domains_str = Lu.get_or_default(config, CONF_EXCLUDED_DOMAINS, "")
+        excluded_domains = [d.strip() for d in excluded_domains_str.split(",") if d.strip()] if excluded_domains_str else []
+
         engine = create_service_engine(service_type)(
             item_url=item_url,
             proxies=proxy,
             device=device,
             selenium=selenium,
             selenium_proxy=selenium_proxy,
+            excluded_domains=excluded_domains,
         )
         _LOGGER.info(
             "[DIAG][sensor.py] Created engine: %s, engine.id_str(): %s, engine.entity_id: %s",

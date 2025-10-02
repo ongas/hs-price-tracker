@@ -45,7 +45,7 @@ class PriceTrackerSensor(RestoreEntity):
         updated_at=datetime.now(),
         period_hour=30,
     )
-    _refresh_period: int = 30  # minutes
+    _refresh_period: int = 240  # minutes (4 hours)
     _unit_type: ItemUnitType = ItemUnitType.PIECE
     _unit_value: int = 1
     _updated_at: datetime | None = None
@@ -56,7 +56,7 @@ class PriceTrackerSensor(RestoreEntity):
         device: PriceTrackerDevice | None = None,
         unit_type: ItemUnitType = ItemUnitType.PIECE,
         unit_value: int = 1,
-        refresh_period: int = 30,
+        refresh_period: int = 240,
         management_category: str | None = None,
         management_categories: list[str] | None = None,
         debug: bool = False,
@@ -129,6 +129,7 @@ class PriceTrackerSensor(RestoreEntity):
             if self._item_data is not None:
                 return
 
+            # Always force update on startup to ensure fresh data
             if not state:
                 self._attr_available = False
                 await self.async_update(force=True)
@@ -137,6 +138,7 @@ class PriceTrackerSensor(RestoreEntity):
                 )  # Set to a very old date to ensure next update is not skipped
                 return
 
+            # Restore previous state temporarily
             if "updated_at" in state.attributes:
                 self._updated_at = datetime.fromisoformat(
                     state.attributes["updated_at"]
@@ -157,6 +159,9 @@ class PriceTrackerSensor(RestoreEntity):
                 "management_category": self._management_category,
                 "management_categories": self._management_categories,
             }
+
+            # Force update on startup to refresh data
+            await self.async_update(force=True)
 
             if "product_id" in state.attributes:
                 self._item_data = ItemData(

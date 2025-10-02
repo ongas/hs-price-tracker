@@ -11,6 +11,7 @@ This project maintains comprehensive reference documentation, specifications, us
     - `docs/acceptance/userstories/US06_Support_Multiple_Offers.md` (multiple offers)
     - `docs/acceptance/userstories/US07_Validate_Product_URLs.md` (URL validation)
     - `docs/acceptance/userstories/US08_Diagnostic_Logging.md` (diagnostic logging)
+    - `docs/acceptance/userstories/US09_Filter_Offers_By_Domain.md` (domain filtering)
 
 - **BDD Features:**
     - `docs/acceptance/features/US01_Add_BuyWisely_Product.feature`
@@ -21,6 +22,7 @@ This project maintains comprehensive reference documentation, specifications, us
     - `docs/acceptance/features/US06_Support_Multiple_Offers.feature`
     - `docs/acceptance/features/US07_Validate_Product_URLs.feature`
     - `docs/acceptance/features/US08_Diagnostic_Logging.feature`
+    - `docs/acceptance/features/US09_Filter_Offers_By_Domain.feature`
 
 - **Test Data & Fixtures:**
     - `docs/acceptance/test_data/buywisely/valid_multiple_offers.json` (multiple offers)
@@ -452,6 +454,59 @@ This scoring mechanism allows the system to intelligently weigh different contex
 - The input URL is a listing/search page; each line item has a unique product URL.
 - Extraction of the seller URL is always from the offers list in the hydration data for the specific product page, not from the listing page.
 - Only the *current* offers are considered for price and seller URL extraction, as per business logic and test coverage.
+
+**BuyWisely Affiliate Detection:**
+
+BuyWisely marks certain offers with an "Affiliate Disclosure" notice on their website. Through analysis of the rendered HTML and hydration data, the following findings were confirmed:
+
+- **Affiliate Rule**: An offer shows "Affiliate Disclosure" when the `seller_product_url` domain is either `amazon.com.au` or `ebay.com.au`
+- **Distinction from Cashback Programs**: The affiliate designation is separate from shopback/cashrewards integrations:
+  - `shopback` and `cashrewards` fields in the hydration data represent cashback affiliate programs
+  - BuyWisely's own affiliate partnerships (Amazon, eBay marketplaces) are indicated by direct product links to those domains
+  - An offer can have shopback/cashrewards AND still be a BuyWisely affiliate if the URL points to Amazon/eBay
+
+**Configurable Domain Filtering:**
+
+To provide users with flexible control over which offers to include, the system supports configurable domain filtering at two levels:
+
+1. **Global Excluded Domains** (Integration-level):
+   - Configured once and applied to ALL tracked products
+   - Useful for domains users never want to see (e.g., marketplaces, international sellers, untrusted sites)
+
+2. **Per-Product Excluded Domains** (Sensor-level):
+   - Configured individually for each product
+   - Useful for product-specific exclusions
+
+**Configuration Example:**
+
+```yaml
+# Global exclusions (applies to all products)
+price_tracker:
+  excluded_domains:
+    - ebay.com.au
+    - amazon.com.au
+    - temu.com
+
+# Per-product sensor with additional exclusions
+sensor:
+  - platform: price_tracker
+    name: "Motorola G85"
+    url: "https://buywisely.com.au/product/motorola-moto-g85-5g-128gb-urban-grey-"
+    excluded_domains:
+      - aliexpress.com  # Additional exclusion for this product only
+```
+
+**Filtering Logic:**
+- Domains are extracted from `seller_product_url` in the offer data
+- An offer is excluded if its domain matches ANY entry in the combined list of global + per-product excluded domains
+- Domain matching is exact (e.g., `ebay.com.au` matches only `ebay.com.au`, not `ebay.com` or `www.ebay.com.au`)
+- Subdomain variations should be listed separately if needed (e.g., both `amazon.com.au` and `www.amazon.com.au`)
+
+**Analysis Artifacts:**
+- Raw offer extraction utility: `scripts/extract_buywisely_offers.py`
+- Extracts ALL unfiltered hydration data to TSV files for analysis
+- Includes all nested shopback/cashrewards fields
+- Calculated fields are prefixed with `CALC_` for clarity
 
 **Outstanding Issues & Resolved Problems (BuyWisely):**
 - See previous sections for general issues. BuyWisely-specific issues and resolutions are tracked here as needed.

@@ -9,18 +9,18 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def parse_product(
-    html: str, product_id: str = "", item_url: str = "", context: Optional[str] = None
+    html: str, product_id: str = "", item_url: str = "", context: Optional[str] = None, excluded_domains: Optional[list] = None
 ) -> Union[dict, ItemData]:
     _LOGGER.info("[DIAG][parser] parse_product START.")  # <--- NEW LINE
     try:
-        raw_data = await extract_product_data_from_html(html)
+        raw_data = await extract_product_data_from_html(html, excluded_domains=excluded_domains)
     except TimeoutError:
         _LOGGER.warning(
             "TimeoutError encountered during HTML extraction. Falling back to BeautifulSoup."
         )
         from .html_extractor import extract_from_beautifulsoup
 
-        raw_data = extract_from_beautifulsoup(html)
+        raw_data = extract_from_beautifulsoup(html, excluded_domains=excluded_domains)
     product_id = product_id or ""
     item_url = item_url or ""
     result = await transform_raw_product_data(raw_data, product_id, item_url)

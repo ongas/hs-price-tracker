@@ -1,0 +1,59 @@
+{
+  "description": "Test data where all offers are from excluded domains (ebay.com.au and amazon.com.au)",
+  "offers": [
+    {
+      "pid": 12345,
+      "seller_product_url": "https://www.ebay.com.au/itm/111111",
+      "created_at": "$D2025-10-01T10:00:00.000Z",
+      "offer_id": null,
+      "base_price": 200,
+      "shipping": 0,
+      "seller_id": 1001,
+      "condition": "new",
+      "country_code": null,
+      "seller": {
+        "seller_id": 1001,
+        "name": "eBay Seller A",
+        "url": null,
+        "shopback": null,
+        "cashrewards": null
+      }
+    },
+    {
+      "pid": 12345,
+      "seller_product_url": "https://www.ebay.com.au/itm/222222",
+      "created_at": "$D2025-10-01T10:00:00.000Z",
+      "offer_id": null,
+      "base_price": 190,
+      "shipping": 0,
+      "seller_id": 1002,
+      "condition": "new",
+      "country_code": null,
+      "seller": {
+        "seller_id": 1002,
+        "name": "eBay Seller B",
+        "url": null,
+        "shopback": null,
+        "cashrewards": null
+      }
+    },
+    {
+      "pid": 12345,
+      "seller_product_url": "https://www.amazon.com.au/dp/AAAAAA",
+      "created_at": "$D2025-10-01T10:00:00.000Z",
+      "offer_id": null,
+      "base_price": 210,
+      "shipping": 0,
+      "seller_id": 1003,
+      "condition": "new",
+      "country_code": null,
+      "seller": {
+        "seller_id": 1003,
+        "name": "Amazon.com.au",
+        "url": "www.amazon.com.au",
+        "shopback": null,
+        "cashrewards": null
+      }
+    }
+  ]
+}

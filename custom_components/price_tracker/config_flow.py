@@ -73,19 +73,21 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         dynamic_schema_dict = {}
         if service_type == "buywisely":
-            # Add product_url and refresh_interval_minutes to the schema for BuyWisely
+            # Add product_url and refresh_interval_hours to the schema for BuyWisely
             dynamic_schema_dict["product_url"] = str
             # Use a user-friendly label and show unit for refresh interval by changing the key
             # For future: use translations for label if needed
             dynamic_schema_dict[
                 vol.Required(
-                    "refresh_interval_minutes",
-                    default=30,
+                    "refresh_interval_hours",
+                    default=12,
                 )
             ] = vol.All(
                 int,
                 vol.Range(min=1),
             )
+            # Add excluded_domains as optional list for per-product domain filtering
+            dynamic_schema_dict[vol.Optional("excluded_domains", default="")] = str
 
         data_schema = vol.Schema(
             {
@@ -95,7 +97,14 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         if user_input is not None:
-            combined_input = {**self._data, **user_input}
+            # Trim whitespace from string fields
+            trimmed_input = {}
+            for key, value in user_input.items():
+                if isinstance(value, str):
+                    trimmed_input[key] = value.strip()
+                else:
+                    trimmed_input[key] = value
+            combined_input = {**self._data, **trimmed_input}
             try:
                 service_type_val = price_tracker_setup_service_user_input(
                     combined_input
@@ -131,12 +140,12 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             if user_input is not None:
-                # Map refresh_interval_minutes to refresh_interval for internal logic
+                # Map refresh_interval_hours to refresh_interval_minutes for internal logic
                 mapped_input = dict(user_input)
-                if "refresh_interval_minutes" in mapped_input:
-                    mapped_input["refresh_interval"] = mapped_input[
-                        "refresh_interval_minutes"
-                    ]
+                if "refresh_interval_hours" in mapped_input:
+                    # Convert hours to minutes
+                    mapped_input["refresh_interval_minutes"] = mapped_input["refresh_interval_hours"] * 60
+                    mapped_input["refresh_interval"] = mapped_input["refresh_interval_minutes"]
                 combined_input = {**self._data, **mapped_input}
                 try:
                     service_type_val = price_tracker_setup_service_user_input(

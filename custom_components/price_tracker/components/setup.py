@@ -429,7 +429,7 @@ class PriceTrackerSetup:
                 ["auto"] + ItemUnitType.list()
             ),
             vol.Optional(self.conf_item_unit, default=0): cv.positive_int,
-            vol.Required(self.conf_item_refresh_interval, default=30): cv.positive_int,
+            vol.Required(self.conf_item_refresh_interval, default=240): cv.positive_int,
             vol.Required(
                 self.conf_item_price_change_interval_hour, default=24
             ): cv.positive_int,
@@ -492,7 +492,7 @@ class PriceTrackerSetup:
                     vol.Required(
                         self.conf_item_refresh_interval,
                         default=Lu.get_or_default(
-                            item, self.conf_item_refresh_interval, 30
+                            item, self.conf_item_refresh_interval, 240
                         ),
                     ): cv.positive_int,
                     vol.Required(
@@ -655,6 +655,15 @@ class PriceTrackerSetup:
 
         if "product_url" in user_input:
             data["product_url"] = user_input["product_url"]
+
+        if "excluded_domains" in user_input:
+            data["excluded_domains"] = user_input["excluded_domains"]
+
+        if "refresh_interval_hours" in user_input:
+            data["refresh_interval_hours"] = user_input["refresh_interval_hours"]
+
+        if "refresh_interval_minutes" in user_input:
+            data["refresh_interval_minutes"] = user_input["refresh_interval_minutes"]
 
         return data
 

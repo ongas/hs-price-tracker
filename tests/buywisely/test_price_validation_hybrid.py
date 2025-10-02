@@ -9,7 +9,7 @@ This test module verifies the new hybrid price validation logic that:
 """
 
 import pytest
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch
 
 
 @pytest.mark.asyncio

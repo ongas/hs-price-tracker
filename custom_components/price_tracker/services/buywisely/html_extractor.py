@@ -3,12 +3,24 @@ import re
 import demjson3
 import os
 from typing import Optional
+from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from .hydration_parser import extract_and_parse_all_hydration_data
 
 
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.WARNING)
+
+
+def _extract_domain_from_url(url: str) -> Optional[str]:
+    """Extract domain from URL for filtering purposes."""
+    if not url or not isinstance(url, str):
+        return None
+    try:
+        parsed = urlparse(url)
+        return parsed.netloc.lower() if parsed.netloc else None
+    except Exception:
+        return None
 
 
 def _find_product_data_recursive(data, path=""):
@@ -42,7 +54,7 @@ def _find_product_data_recursive(data, path=""):
     return None
 
 
-def extract_from_beautifulsoup(html: str) -> dict:
+def extract_from_beautifulsoup(html: str, excluded_domains: Optional[list] = None) -> dict:
     """Extracts product data using BeautifulSoup fallback."""
     soup = BeautifulSoup(html, "html.parser")
     price_val = None
@@ -178,7 +190,7 @@ def extract_from_beautifulsoup(html: str) -> dict:
     return raw_data
 
 
-async def extract_product_data_from_html(html: str) -> dict:
+async def extract_product_data_from_html(html: str, excluded_domains: Optional[list] = None) -> dict:
     """Extracts product data from BuyWisely HTML content."""
     parsed_data_list = []
     try:
@@ -279,7 +291,7 @@ async def extract_product_data_from_html(html: str) -> dict:
             filtered_offers if isinstance(filtered_offers, list) else []
         )
         offers, main_url, lowest_total, lowest_offer = _process_product_offers(
-            product_data, return_lowest_details=True
+            product_data, return_lowest_details=True, excluded_domains=excluded_domains
         )
         selected_delivery = None
         if lowest_offer and isinstance(lowest_offer, dict):
@@ -313,7 +325,7 @@ async def extract_product_data_from_html(html: str) -> dict:
         }
         return raw_data
     else:
-        raw_data = extract_from_beautifulsoup(html)
+        raw_data = extract_from_beautifulsoup(html, excluded_domains=excluded_domains)
         raw_data["html"] = html  # Always include the original HTML
         return raw_data
 
@@ -374,14 +386,22 @@ def _is_valid_seller_url(url: str, product_image_url: Optional[str]) -> bool:
 
 
 def _process_product_offers(
-    product_data: dict, return_lowest_details: bool = False
+    product_data: dict, return_lowest_details: bool = False, excluded_domains: Optional[list] = None
 ) -> tuple:
     """Processes product offers to find the main URL and filter offers. Optionally returns lowest price and offer."""
     offers = product_data.get("offers", [])
     if not isinstance(offers, list):
         offers = []
 
-    # Filter to only current offers (exclude history offers)
+    _LOGGER.info(
+        "[DIAG][html_extractor] TOTAL offers from BuyWisely JSON: %d", len(offers)
+    )
+
+    # Normalize excluded_domains to lowercase for case-insensitive matching
+    excluded_domains = excluded_domains or []
+    normalized_excluded_domains = [d.lower().strip() for d in excluded_domains if d and isinstance(d, str) and d.strip()]
+
+    # Filter to only current offers (exclude history offers and affiliates)
     # Current offers are those with the maximum created_at timestamp
     if offers:
         max_created_at = max(
@@ -394,13 +414,88 @@ def _process_product_offers(
             for offer in offers
             if isinstance(offer, dict) and offer.get("created_at") == max_created_at
         ]
-        # Limit to first 10 offers (initially visible offers)
-        offers = current_offers[:10]
+
         _LOGGER.info(
-            "[DIAG][html_extractor] Filtered to %d initially visible current offers (max_created_at: %s) from %d total offers",
+            "[DIAG][html_extractor] Filtered to current offers (max created_at=%s): %d offers",
+            max_created_at, len(current_offers)
+        )
+
+        # Filter out affiliate offers (those with shopback or cashrewards populated)
+        # BuyWisely shows "Affiliate Disclosure" for offers where seller has these fields
+        non_affiliate_offers = [
+            offer
+            for offer in current_offers
+            if isinstance(offer, dict) and isinstance(offer.get("seller"), dict)
+            and offer.get("seller", {}).get("shopback") is None
+            and offer.get("seller", {}).get("cashrewards") is None
+        ]
+
+        # Apply domain filtering (using 'contains' matching)
+        pre_domain_filter_count = len(non_affiliate_offers)
+        if normalized_excluded_domains:
+            domain_filtered_offers = []
+            excluded_count = 0
+            for offer in non_affiliate_offers:
+                if not isinstance(offer, dict):
+                    continue
+                seller_url = offer.get("seller_product_url")
+                domain = _extract_domain_from_url(seller_url)
+
+                # Check if any excluded domain is contained in the offer's domain
+                is_excluded = False
+                if domain:
+                    for excluded_domain in normalized_excluded_domains:
+                        if excluded_domain in domain:
+                            is_excluded = True
+                            excluded_count += 1
+                            _LOGGER.info(
+                                "[DIAG][html_extractor] Excluding offer from domain %s (matches filter '%s', seller_product_url: %s)",
+                                domain,
+                                excluded_domain,
+                                seller_url,
+                            )
+                            break
+
+                if not is_excluded:
+                    domain_filtered_offers.append(offer)
+
+            non_affiliate_offers = domain_filtered_offers
+            _LOGGER.info(
+                "[DIAG][html_extractor] Domain filtering: excluded %d offers, %d remaining",
+                excluded_count,
+                len(non_affiliate_offers),
+            )
+
+        # Sort by total price (base_price + delivery) before taking top 10
+        def _get_offer_total_price(offer):
+            """Calculate total price for sorting."""
+            if not isinstance(offer, dict):
+                return float('inf')
+            price = offer.get("price") or offer.get("base_price")
+            if price is None or price == "" or (isinstance(price, str) and not price.strip()):
+                return float('inf')
+            try:
+                price_val = float(price)
+            except (ValueError, TypeError):
+                return float('inf')
+            delivery = offer.get("delivery") or offer.get("shipping") or 0
+            try:
+                delivery_val = float(delivery)
+            except (ValueError, TypeError):
+                delivery_val = 0.0
+            return price_val + delivery_val
+
+        non_affiliate_offers.sort(key=_get_offer_total_price)
+
+        # Take up to 10 lowest-priced non-affiliate offers
+        offers = non_affiliate_offers[:10]
+        _LOGGER.info(
+            "[DIAG][html_extractor] Filtered to %d non-affiliate current offers (max_created_at: %s) from %d total current offers (%d total offers, %d affiliate offers excluded)",
             len(offers),
             max_created_at,
+            len(current_offers),
             len(product_data.get("offers", [])),
+            len(current_offers) - len(offers) if normalized_excluded_domains else len(current_offers) - pre_domain_filter_count,
         )
 
     all_seller_urls = [

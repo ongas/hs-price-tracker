@@ -12,7 +12,7 @@ async def test_price_mismatch_moves_to_next_offer(
 ):
     """Test that if the price is mismatched, the engine moves to the next lowest offer and repeats validation."""
     # Simulate two offers: first is a mismatch, second matches
-    offers_html = """<html><body><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"product":{"title":"Test Product","slug":"test-product","availability":"In Stock","offers":[{"base_price":100.0,"currency":"AUD","seller_product_url":"http://example.com/offer1","created_at":"$D2025-09-28T22:34:51.002Z"},{"base_price":120.0,"currency":"AUD","seller_product_url":"http://example.com/offer2","created_at":"$D2025-09-28T22:34:51.002Z"}],"image":"http://example.com/test_image.jpg"}}}}</script></body></html>"""
+    offers_html = """<html><body><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"product":{"title":"Test Product","slug":"test-product","availability":"In Stock","offers":[{"base_price":100.0,"currency":"AUD","seller_product_url":"http://example.com/offer1","created_at":"$D2025-09-28T22:34:51.002Z", "seller":{"shopback":null, "cashrewards":null}},{"base_price":120.0,"currency":"AUD","seller_product_url":"http://example.com/offer2","created_at":"$D2025-09-28T22:34:51.002Z", "seller":{"shopback":null, "cashrewards":null}}],"image":"http://example.com/test_image.jpg"}}}}</script></body></html>"""
     mock_response = AsyncMock()
     mock_response.has = True
     mock_response.text = offers_html
@@ -159,8 +159,10 @@ async def test_lowest_price_selection(mock_fetch_seller_price, mock_safe_request
         f"[DIAG][TEST] Extracted status: {getattr(getattr(result, 'status', None), 'value', None)}"
     )
     expected_name = "Motorola Moto G85 5G 128GB (Urban Grey)"
+    # After filtering out affiliate offers (shopback/cashrewards populated),
+    # the lowest non-affiliate base price is VTech Industries at 337.0
     assert (
-        getattr(getattr(result, "price", None), "price", None) == 322.0
+        getattr(getattr(result, "price", None), "price", None) == 337.0
     ), f"Lowest price mismatch: {getattr(getattr(result, 'price', None), 'price', None)}"
     assert (
         getattr(getattr(result, "price", None), "currency", None) == "AUD"

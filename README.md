@@ -43,6 +43,24 @@ You can add entity to your system by configure button in the integrations page. 
 - `Management Category Id`: Category Id of the product. Some providers support their own display categories.
 - `Refresh interval`: Interval in seconds to refresh the price of the product.
 - `Proxy URL`: URL of the proxy server to use for scraping the website. (Optional)
+- `Excluded Domains`: List of domain names to exclude from price comparison (e.g., `["ebay.com.au", "amazon.com.au"]`). (Optional, BuyWisely only)
+
+#### Domain Filtering (BuyWisely)
+
+For BuyWisely products, you can exclude offers from specific domains. This is useful for filtering out affiliate offers or sellers you don't trust.
+
+**How it works:**
+- Enter domain names exactly as they appear in URLs (e.g., `www.ebay.com.au`, `amazon.com.au`)
+- Domain matching is case-insensitive but requires exact match (e.g., `ebay.com.au` won't match `www.ebay.com.au`)
+- Excluded domains are evaluated after affiliate filtering and before lowest price selection
+
+**Example:**
+```yaml
+excluded_domains:
+  - www.ebay.com.au
+  - www.amazon.com.au
+  - temu.com
+```
 
 ### Types
 

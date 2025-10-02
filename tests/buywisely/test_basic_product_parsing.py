@@ -10,7 +10,7 @@ from custom_components.price_tracker.datas.item import ItemStatus
 async def test_parse_product_basic(mock_fetch_seller_price):
     html = (
         '<html><body><script id="__NEXT_DATA__" type="application/json">'
-        '{"props":{"pageProps":{"product":{"title":"Direct Parse Test","slug":"direct-parse-test","availability":"In Stock","offers":[{"base_price":50.00, "seller_product_url":"http://example.com/product", "created_at":"$D2025-09-28T22:34:51.002Z"}],"image":"http://example.com/direct_parse.jpg"}}}}'
+        '{"props":{"pageProps":{"product":{"title":"Direct Parse Test","slug":"direct-parse-test","availability":"In Stock","offers":[{"base_price":50.00, "seller_product_url":"http://example.com/product", "created_at":"$D2025-09-28T22:34:51.002Z", "seller":{"shopback":null, "cashrewards":null}}],"image":"http://example.com/direct_parse.jpg"}}}}'
         "</script></body></html>"
     )
     result = await parse_product(html)

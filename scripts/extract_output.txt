@@ -1,0 +1,36 @@
+
+================================================================================
+Processing URL 1/2: https://buywisely.com.au/product/motorola-moto-g75-5g-256gb-grey-with-buds
+================================================================================
+=== Fetching live HTML from: https://buywisely.com.au/product/motorola-moto-g75-5g-256gb-grey-with-buds ===
+
+[DIAG] Fetched https://buywisely.com.au/product/motorola-moto-g75-5g-256gb-grey-with-buds with status 200, body length: 355651
+[DIAG] Body sample: <!DOCTYPE html><html lang="en" class="__className_646807"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/><link rel="preload" as="ima
+=== Extracting offers from: motorola-moto-g75-5g-256gb-grey-with-buds ===
+
+Product Title: Motorola Moto G75 5G 256GB Grey with Buds
+Product Name: N/A
+Product ID: N/A
+
+Total offers extracted: 10
+
+TSV output written to: /mnt/e/source/personal_repos/homeassistant/custom_components/price_tracker/scripts/motorola-moto-g75-5g-256gb-grey-with-buds_offers.tsv
+Total offers written: 10
+
+================================================================================
+Processing URL 2/2: https://buywisely.com.au/product/motorola-moto-g85-5g-128gb-urban-grey-
+================================================================================
+=== Fetching live HTML from: https://buywisely.com.au/product/motorola-moto-g85-5g-128gb-urban-grey- ===
+
+[DIAG] Fetched https://buywisely.com.au/product/motorola-moto-g85-5g-128gb-urban-grey- with status 200, body length: 362773
+[DIAG] Body sample: <!DOCTYPE html><html lang="en" class="__className_646807"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/><link rel="preload" as="ima
+=== Extracting offers from: motorola-moto-g85-5g-128gb-urban-grey- ===
+
+Product Title: Motorola Moto G85 5G 128GB (Urban Grey)
+Product Name: N/A
+Product ID: N/A
+
+Total offers extracted: 10
+
+TSV output written to: /mnt/e/source/personal_repos/homeassistant/custom_components/price_tracker/scripts/motorola-moto-g85-5g-128gb-urban-grey-_offers.tsv
+Total offers written: 10

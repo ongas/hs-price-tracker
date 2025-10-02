@@ -1,0 +1,79 @@
+title: Price Tracker
+icon: mdi:cart
+views:
+  - title: Tracked Products
+    icon: mdi:cart
+    cards:
+      - type: markdown
+        content: |
+          # Price Tracker Dashboard
+
+          Click on any product card to open the seller's product page.
+
+          **Note:** To use clickable cards, you need to install custom components from HACS:
+          - Option 1: Install `button-card` (Recommended)
+          - Option 2: Install `multiple-entity-row`
+          - Option 3: Use the markdown card below (no installation needed)
+
+      # Example: Button Card (requires button-card from HACS)
+      # Uncomment after installing button-card
+      # - type: custom:button-card
+      #   entity: sensor.price_buywisely_type_motorola_moto_g75_5g_256gb_grey_with_buds
+      #   name: "[[[ return entity.attributes.name ]]]"
+      #   show_state: true
+      #   show_icon: false
+      #   show_entity_picture: true
+      #   entity_picture: "[[[ return entity.attributes.image ]]]"
+      #   state_display: "[[[ return entity.state + ' ' + entity.attributes.unit_of_measurement ]]]"
+      #   tap_action:
+      #     action: url
+      #     url_path: "[[[ return entity.attributes.url ]]]"
+      #   styles:
+      #     card:
+      #       - height: 80px
+      #       - padding: 10px
+      #     name:
+      #       - font-size: 14px
+      #       - text-align: left
+      #       - padding-left: 10px
+      #     state:
+      #       - font-size: 20px
+      #       - font-weight: bold
+      #       - text-align: left
+      #       - padding-left: 10px
+      #     img_cell:
+      #       - width: 60px
+      #       - height: 60px
+
+      # Markdown card with clickable links (no custom components needed)
+      - type: markdown
+        title: Tracked Products (Clickable Links)
+        content: |
+          {% for entity in states.sensor | selectattr('entity_id', 'match', 'sensor.price_buywisely_.*') | sort(attribute='attributes.name') %}
+          {% if entity.state != 'unavailable' and entity.state != 'unknown' %}
+          ### [{{ state_attr(entity.entity_id, 'name') }}]({{ state_attr(entity.entity_id, 'url') }})
+          **Price:** {{ states(entity.entity_id) }} {{ state_attr(entity.entity_id, 'unit_of_measurement') }}
+          **Seller:** {{ state_attr(entity.entity_id, 'url') | regex_findall_index('https?://(?:www\.)?([^/]+)') }}
+          **Status:** {{ state_attr(entity.entity_id, 'status') }}
+
+          ---
+          {% endif %}
+          {% endfor %}
+
+      # Entity list (basic, not clickable without custom components)
+      - type: entities
+        title: All Tracked Products
+        entities:
+          - type: custom:auto-entities
+            filter:
+              include:
+                - entity_id: "sensor.price_buywisely_*"
+            card:
+              type: entities
+            # To make these clickable, install multiple-entity-row from HACS
+            # Then uncomment the lines below:
+            # options:
+            #   type: custom:multiple-entity-row
+            #   tap_action:
+            #     action: url
+            #     url_path: "[[[ return entity.attributes.url ]]]"

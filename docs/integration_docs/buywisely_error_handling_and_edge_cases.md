@@ -2,9 +2,12 @@
 ## Definition of 'Current Offer'
 The 'current offers' are strictly defined as:
 1. Offers with the maximum `created_at` timestamp in the hydration data (excluding historical offers)
-2. Limited to the first 10 offers from the filtered list (initially visible offers on the BuyWisely product page)
+2. Offers without affiliate tags (shopback/cashrewards must be None)
+3. Offers not from excluded domains (domain filtering applied with 'contains' matching)
+4. Sorted by total price (base_price + delivery) in ascending order
+5. Limited to the first 10 lowest-priced offers for validation
 
-Historical offers (those with older `created_at` timestamps) below the "See n more history offers" section must be completely ignored for all logic and diagnostics. Only the first 10 current offers (with the max `created_at`) are processed for price selection.
+Historical offers (those with older `created_at` timestamps) are automatically filtered out. This includes out-of-stock offers, stale prices, or any offer that BuyWisely marks as non-current in their JSON data. Only the top 10 lowest-priced current offers (after all filtering) are processed for seller page validation.
 
 
 All error conditions and edge cases listed here are now handled by the robust, state-aware BuyWisely parser integrated in the price tracker component (see developer guide and user story 5).

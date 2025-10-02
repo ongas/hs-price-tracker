@@ -5,7 +5,7 @@ async def test_buywisely_currency_price_format_handling():
     # Unusual currency symbol
     html_currency = """
     <html><body>
-    <script id=\"__NEXT_DATA__\" type=\"application/json\">{"props": {"pageProps": {"product": {"title": "Product X", "offers": [{"base_price": 12.34, "currency": "XYZ$", "created_at": "$D2025-09-28T22:34:51.002Z"}]}}}}</script>
+    <script id=\"__NEXT_DATA__\" type=\"application/json\">{"props": {"pageProps": {"product": {"title": "Product X", "offers": [{"base_price": 12.34, "currency": "XYZ$", "created_at": "$D2025-09-28T22:34:51.002Z", "seller":{"shopback":null, "cashrewards":null}}]}}}}</script>
     </body></html>
     """
     result = await parse_product(html_currency, product_id="currency-1")
@@ -24,7 +24,7 @@ async def test_buywisely_currency_price_format_handling():
     # Price as string with comma
     html_price_str = """
     <html><body>
-    <script id=\"__NEXT_DATA__\" type=\"application/json\">{"props": {"pageProps": {"product": {"title": "Product Y", "offers": [{"base_price": "1,234.56", "currency": "AUD", "created_at": "$D2025-09-28T22:34:51.002Z"}]}}}}</script>
+    <script id=\"__NEXT_DATA__\" type=\"application/json\">{"props": {"pageProps": {"product": {"title": "Product Y", "offers": [{"base_price": "1,234.56", "currency": "AUD", "created_at": "$D2025-09-28T22:34:51.002Z", "seller":{"shopback":null, "cashrewards":null}}]}}}}</script>
     </body></html>
     """
     result = await parse_product(html_price_str, product_id="currency-2")
