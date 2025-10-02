@@ -42,6 +42,7 @@ class PriceTrackerSetup:
     const_option_add_select: str = "option_add_select"
     const_option_entity_select: str = "option_entity_select"
     const_option_entity_delete: str = "option_entity_delete"
+    const_option_global_settings_select: str = "option_global_settings_select"
 
     const_option_select_device: str = "service_device"
     const_option_select_entity: str = "service_entity"
@@ -132,6 +133,7 @@ class PriceTrackerSetup:
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
                             options=[
+                                self.const_option_global_settings_select,
                                 self.const_option_personal_select,
                                 self.const_option_proxy_select,
                                 self.const_option_selenium_select,
@@ -320,6 +322,110 @@ class PriceTrackerSetup:
 
         return self._option_flow.async_abort(
             reason="selenium_updated" if flag else "selenium_not_updated"
+        )
+
+    async def option_global_settings(self, user_input: dict = None):
+        """Configure global settings like excluded domains per service."""
+        _LOGGER.debug("Global settings option: %s", user_input)
+
+        # Get current global settings from options
+        options = dict(self._config_entry.options) if self._config_entry.options else {}
+
+        # Get service type from config_entry
+        service_type = self._config_entry.data.get("service_type", "buywisely")
+
+        # Build key for this service's excluded domains
+        excluded_domains_key = f"global_excluded_domains_{service_type}"
+        current_excluded_domains = options.get(excluded_domains_key, [])
+
+        # If user hasn't submitted yet, show the form
+        if user_input is None:
+            return self._option_flow.async_show_form(
+                step_id=self._step_setup,
+                description_placeholders={
+                    **Lang(self._option_flow.hass).f(
+                        key="title",
+                        items={
+                            "en": f"Global Settings - {service_type.title()}",
+                            "ja": f"グローバル設定 - {service_type.title()}",
+                            "ko": f"전역 설정 - {service_type.title()}",
+                        },
+                    ),
+                    **Lang(self._option_flow.hass).f(
+                        key="description",
+                        items={
+                            "en": f"Configure excluded domains for ALL {service_type} products.\nCurrent excluded domains: {', '.join(current_excluded_domains) if current_excluded_domains else 'None'}",
+                            "ja": f"すべての{service_type}製品の除外ドメインを設定します。\n現在の除外ドメイン: {', '.join(current_excluded_domains) if current_excluded_domains else 'なし'}",
+                            "ko": f"모든 {service_type} 제품에 대한 제외 도메인을 설정합니다.\n현재 제외 도메인: {', '.join(current_excluded_domains) if current_excluded_domains else '없음'}",
+                        },
+                    ),
+                },
+                data_schema=vol.Schema(
+                    {
+                        vol.Optional(
+                            self.const_option_setup_select,
+                            default=self.const_option_global_settings_select,
+                        ): vol.In(
+                            {
+                                self.const_option_global_settings_select: self.const_option_global_settings_select
+                            }
+                        ),
+                        vol.Optional(
+                            "add_excluded_domain",
+                            description={"suggested_value": ""},
+                            default="",
+                        ): cv.string,
+                        vol.Optional(
+                            "remove_excluded_domain",
+                            description={"suggested_value": ""},
+                        ): selector.SelectSelector(
+                            selector.SelectSelectorConfig(
+                                options=current_excluded_domains if current_excluded_domains else [""],
+                                mode=selector.SelectSelectorMode.DROPDOWN,
+                            )
+                        ),
+                    }
+                ),
+                errors={},
+            )
+
+        # Process user input
+        add_domain = user_input.get("add_excluded_domain", "").strip()
+        remove_domain = user_input.get("remove_excluded_domain", "").strip()
+
+        # Start with current list
+        updated_domains = list(current_excluded_domains) if current_excluded_domains else []
+
+        # Add new domain if provided and not already in list
+        if add_domain and add_domain not in updated_domains:
+            # Validate domain (no http://, no paths, etc.)
+            if not add_domain.startswith(("http://", "https://")) and "/" not in add_domain:
+                updated_domains.append(add_domain)
+                _LOGGER.info(f"Added excluded domain '{add_domain}' to {service_type}")
+
+        # Remove domain if selected
+        if remove_domain and remove_domain in updated_domains:
+            updated_domains.remove(remove_domain)
+            _LOGGER.info(f"Removed excluded domain '{remove_domain}' from {service_type}")
+
+        # Update options
+        options[excluded_domains_key] = updated_domains
+
+        # Save to config entry
+        flag = self._option_flow.hass.config_entries.async_update_entry(
+            entry=self._config_entry,
+            options=options,
+        )
+
+        _LOGGER.debug(
+            "Global settings updated for %s: %s (flag: %s)",
+            service_type,
+            updated_domains,
+            flag
+        )
+
+        return self._option_flow.async_abort(
+            reason="global_settings_updated" if flag else "global_settings_not_updated"
         )
 
     async def option_modify(self, device, entity, user_input: dict = None):

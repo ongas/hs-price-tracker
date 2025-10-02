@@ -78,8 +78,14 @@ async def async_setup_entry(
 
         # Get global excluded_domains from hass.data for this specific service type
         service_config = hass.data.get(DOMAIN, {}).get("global_config", {}).get(service_type, {})
-        global_excluded_str = service_config.get("global_excluded_domains", "")
-        global_excluded = [d.strip() for d in global_excluded_str.split(",") if d.strip()] if global_excluded_str else []
+        global_excluded_raw = service_config.get("global_excluded_domains", [])
+        # Support both list format (from Options Flow or YAML list) and string format (legacy)
+        if isinstance(global_excluded_raw, list):
+            global_excluded = global_excluded_raw
+        elif isinstance(global_excluded_raw, str):
+            global_excluded = [d.strip() for d in global_excluded_raw.split(",") if d.strip()]
+        else:
+            global_excluded = []
 
         # Get per-product excluded_domains from config entry
         # Format: comma-separated string like "ebay.com.au,amazon.com.au"

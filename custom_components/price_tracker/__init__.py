@@ -38,19 +38,22 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.data[DOMAIN].setdefault("global_config", {})
 
     # Read per-service global_excluded_domains from configuration.yaml if provided
-    # Format: price_tracker: { buywisely: { global_excluded_domains: "..." } }
+    # Format: price_tracker: { buywisely: { global_excluded_domains: [...] } }
     domain_config = config.get(DOMAIN, {})
 
-    # Store per-service global configurations
+    # Store per-service global configurations from YAML
     for service_type, service_config in domain_config.items():
         if isinstance(service_config, dict):
-            global_excluded_domains = service_config.get("global_excluded_domains", "")
+            global_excluded_domains = service_config.get("global_excluded_domains", [])
+            # Support both list format (preferred) and comma-separated string (legacy)
+            if isinstance(global_excluded_domains, str):
+                global_excluded_domains = [d.strip() for d in global_excluded_domains.split(",") if d.strip()]
             if global_excluded_domains:
                 hass.data[DOMAIN]["global_config"][service_type] = {
                     "global_excluded_domains": global_excluded_domains
                 }
                 _LOGGER.info(
-                    "[DIAG][__init__.py] Global excluded_domains configured for service '%s': %s",
+                    "[DIAG][__init__.py] Global excluded_domains configured via YAML for service '%s': %s",
                     service_type,
                     global_excluded_domains
                 )
@@ -62,6 +65,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("[DIAG][__init__.py] Setting up entry: %s", entry)
     _LOGGER.info("[DIAG][__init__.py] entry.data: %s", entry.data)
     _LOGGER.info("[DIAG][__init__.py] entry.options: %s", entry.options)
+
+    # Check if this entry has options flow global configuration that overrides YAML
+    service_type = entry.data.get("service_type")
+    if service_type and entry.options:
+        excluded_domains_key = f"global_excluded_domains_{service_type}"
+        options_excluded_domains = entry.options.get(excluded_domains_key, [])
+        if options_excluded_domains:
+            # Options Flow takes precedence over YAML
+            hass.data[DOMAIN]["global_config"][service_type] = {
+                "global_excluded_domains": options_excluded_domains
+            }
+            _LOGGER.info(
+                "[DIAG][__init__.py] Global excluded_domains configured via Options Flow for service '%s': %s (overrides YAML)",
+                service_type,
+                options_excluded_domains
+            )
 
     # Define service for manual update
     SERVICE_UPDATE_ENTITY = "update_entity"

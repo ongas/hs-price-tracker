@@ -10,17 +10,37 @@ The Price Tracker integration supports **both global and per-product domain excl
 
 ## Configuration
 
-### Global Excluded Domains
+### Option 1: UI Configuration (Recommended)
 
-Configure global exclusions per service in your `configuration.yaml`:
+Configure global exclusions through the Home Assistant UI:
+
+1. Navigate to **Settings → Integrations**
+2. Find **Price Tracker** and click **Configure**
+3. Select **Global Settings** from the menu
+4. Add domains one at a time:
+   - Enter domain in "Add Excluded Domain" field (e.g., `ebay.com.au`)
+   - Click Submit to add
+   - Repeat for each domain
+5. Remove domains:
+   - Select domain from "Remove Excluded Domain" dropdown
+   - Click Submit to remove
+
+This will exclude offers from these domains for **all** products of that service type.
+
+### Option 2: YAML Configuration
+
+Alternatively, configure global exclusions in your `configuration.yaml`:
 
 ```yaml
 price_tracker:
   buywisely:
-    global_excluded_domains: "ebay.com.au,amazon.com.au,temu.com"
+    global_excluded_domains:
+      - ebay.com.au
+      - amazon.com.au
+      - temu.com
 ```
 
-This will exclude offers from these domains for **all** BuyWisely products. Other services can have their own global exclusions configured separately.
+**Note**: UI configuration takes precedence over YAML configuration. If you configure via UI, the YAML setting will be ignored.
 
 ### Per-Product Excluded Domains
 
@@ -37,7 +57,9 @@ This will exclude offers from these domains for **only that specific product**.
 ```yaml
 price_tracker:
   buywisely:
-    global_excluded_domains: "ebay.com.au,amazon.com.au"
+    global_excluded_domains:
+      - ebay.com.au
+      - amazon.com.au
 ```
 
 **Product 1 config:**
