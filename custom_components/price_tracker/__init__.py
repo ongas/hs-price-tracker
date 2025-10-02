@@ -34,6 +34,26 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the price tracker component."""
     _LOGGER.debug("Setting up price tracker component {}".format(config))
     hass.data.setdefault(DOMAIN, {})
+    # Initialize global configuration storage
+    hass.data[DOMAIN].setdefault("global_config", {})
+
+    # Read per-service global_excluded_domains from configuration.yaml if provided
+    # Format: price_tracker: { buywisely: { global_excluded_domains: "..." } }
+    domain_config = config.get(DOMAIN, {})
+
+    # Store per-service global configurations
+    for service_type, service_config in domain_config.items():
+        if isinstance(service_config, dict):
+            global_excluded_domains = service_config.get("global_excluded_domains", "")
+            if global_excluded_domains:
+                hass.data[DOMAIN]["global_config"][service_type] = {
+                    "global_excluded_domains": global_excluded_domains
+                }
+                _LOGGER.info(
+                    "[DIAG][__init__.py] Global excluded_domains configured for service '%s': %s",
+                    service_type,
+                    global_excluded_domains
+                )
 
     return True
 

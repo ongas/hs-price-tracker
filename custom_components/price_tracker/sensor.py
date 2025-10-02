@@ -76,10 +76,24 @@ async def async_setup_entry(
             proxy_opensource,
         )
 
-        # Get excluded_domains from config (per-product exclusions)
+        # Get global excluded_domains from hass.data for this specific service type
+        service_config = hass.data.get(DOMAIN, {}).get("global_config", {}).get(service_type, {})
+        global_excluded_str = service_config.get("global_excluded_domains", "")
+        global_excluded = [d.strip() for d in global_excluded_str.split(",") if d.strip()] if global_excluded_str else []
+
+        # Get per-product excluded_domains from config entry
         # Format: comma-separated string like "ebay.com.au,amazon.com.au"
-        excluded_domains_str = Lu.get_or_default(config, CONF_EXCLUDED_DOMAINS, "")
-        excluded_domains = [d.strip() for d in excluded_domains_str.split(",") if d.strip()] if excluded_domains_str else []
+        per_product_excluded_str = Lu.get_or_default(config, CONF_EXCLUDED_DOMAINS, "")
+        per_product_excluded = [d.strip() for d in per_product_excluded_str.split(",") if d.strip()] if per_product_excluded_str else []
+
+        # Merge global and per-product exclusions (deduplicate)
+        excluded_domains = list(set(global_excluded + per_product_excluded))
+        _LOGGER.info(
+            "[DIAG][sensor.py] Excluded domains - Global: %s, Per-product: %s, Merged: %s",
+            global_excluded,
+            per_product_excluded,
+            excluded_domains
+        )
 
         engine = create_service_engine(service_type)(
             item_url=item_url,
