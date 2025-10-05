@@ -25,5 +25,5 @@ logger:
 price_tracker:
   buywisely:
     global_excluded_domains:
-  - reebelo.com.au
+  - example.com
 
