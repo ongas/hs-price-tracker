@@ -21,3 +21,9 @@ logger:
     custom_components.price_tracker_response_ncnc: debug
     custom_components.price_tracker_response_rankingdak: info
 
+# Global domain exclusion for BuyWisely
+price_tracker:
+  buywisely:
+    global_excluded_domains:
+  - reebelo.com.au
+

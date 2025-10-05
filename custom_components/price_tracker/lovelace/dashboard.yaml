@@ -60,6 +60,7 @@ views:
           {% endif %}
           {% endfor %}
 
+
       # Entity list (basic, not clickable without custom components)
       - type: entities
         title: All Tracked Products
@@ -77,3 +78,18 @@ views:
             #   tap_action:
             #     action: url
             #     url_path: "[[[ return entity.attributes.url ]]]"
+
+      # Generic reload button for Price Tracker integration (user must update entry_id)
+      - type: button
+        name: Reload Price Tracker Integration
+        icon: mdi:reload
+        tap_action:
+          action: call-service
+          service: homeassistant.reload_config_entry
+          service_data:
+            entry_id: YOUR_PRICE_TRACKER_CONFIG_ENTRY_ID
+        show_state: false
+        show_icon: true
+        show_name: true
+        # Instructions: Replace YOUR_PRICE_TRACKER_CONFIG_ENTRY_ID with the actual entry_id for your integration.
+        # To add more reload buttons, duplicate this card and update the entry_id for each integration instance.
