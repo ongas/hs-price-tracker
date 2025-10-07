@@ -297,7 +297,7 @@ async def test_lowest_price_populates_ha_entity(monkeypatch):
             print("DIAGNOSTIC: sensor_entity._item_data is None")
 
         # Assert the state and attributes
-        assert sensor_entity.state == mock_lowest_price
+        assert sensor_entity.state == round(mock_lowest_price, 1)
         assert sensor_entity.unit_of_measurement == mock_currency
         assert sensor_entity.name == mock_product_name
         assert sensor_entity.entity_picture == mock_image_url

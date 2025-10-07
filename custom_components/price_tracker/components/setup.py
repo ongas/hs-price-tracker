@@ -340,9 +340,9 @@ class PriceTrackerSetup:
 
         # If user hasn't submitted the form yet (initial navigation or only menu selection), show the form
         # Check if user_input is None OR if it only contains the menu selection
-        is_initial_display = (
-            user_input is None
-            or ("add_excluded_domain" not in user_input and "remove_excluded_domain" not in user_input)
+        is_initial_display = user_input is None or (
+            "add_excluded_domain" not in user_input
+            and "remove_excluded_domain" not in user_input
         )
 
         if is_initial_display:
@@ -386,7 +386,9 @@ class PriceTrackerSetup:
                             description={"suggested_value": ""},
                         ): selector.SelectSelector(
                             selector.SelectSelectorConfig(
-                                options=current_excluded_domains if current_excluded_domains else [""],
+                                options=current_excluded_domains
+                                if current_excluded_domains
+                                else [""],
                                 mode=selector.SelectSelectorMode.DROPDOWN,
                             )
                         ),
@@ -400,19 +402,26 @@ class PriceTrackerSetup:
         remove_domain = user_input.get("remove_excluded_domain", "").strip()
 
         # Start with current list
-        updated_domains = list(current_excluded_domains) if current_excluded_domains else []
+        updated_domains = (
+            list(current_excluded_domains) if current_excluded_domains else []
+        )
 
         # Add new domain if provided and not already in list
         if add_domain and add_domain not in updated_domains:
             # Validate domain (no http://, no paths, etc.)
-            if not add_domain.startswith(("http://", "https://")) and "/" not in add_domain:
+            if (
+                not add_domain.startswith(("http://", "https://"))
+                and "/" not in add_domain
+            ):
                 updated_domains.append(add_domain)
                 _LOGGER.info(f"Added excluded domain '{add_domain}' to {service_type}")
 
         # Remove domain if selected
         if remove_domain and remove_domain in updated_domains:
             updated_domains.remove(remove_domain)
-            _LOGGER.info(f"Removed excluded domain '{remove_domain}' from {service_type}")
+            _LOGGER.info(
+                f"Removed excluded domain '{remove_domain}' from {service_type}"
+            )
 
         # Update options
         options[excluded_domains_key] = updated_domains
@@ -427,7 +436,7 @@ class PriceTrackerSetup:
             "Global settings updated for %s: %s (flag: %s)",
             service_type,
             updated_domains,
-            flag
+            flag,
         )
 
         return self._option_flow.async_abort(

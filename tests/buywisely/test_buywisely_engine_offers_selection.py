@@ -63,9 +63,7 @@ async def test_get_product_details_multiple_prices(
     mock_fetch_seller_price, mock_safe_request
 ):
     """Test retrieval of product details when multiple offers are present, ensuring the first initially visible offer is selected using BuyWisely's display logic."""
-    mock_fetch_seller_price.return_value = (
-        400.89  # Simulate matching price for Amazon.com.au (first in BuyWisely's sort order)
-    )
+    mock_fetch_seller_price.return_value = 400.89  # Simulate matching price for Amazon.com.au (first in BuyWisely's sort order)
     fixture_file = "real_buywisely_motorola-moto-g75-5g-256gb-grey-with-buds.html"
     print(f"[DIAG][TEST] Loading fixture: {fixture_file}")
     sample_html = _read_fixture_html(fixture_file)
@@ -126,9 +124,7 @@ async def test_get_product_details_multiple_prices(
 )
 async def test_lowest_price_selection(mock_fetch_seller_price, mock_safe_request):
     """Test that the engine correctly selects the first initially visible offer using BuyWisely's display logic."""
-    mock_fetch_seller_price.return_value = (
-        309.99  # Simulate matching price for Amazon.com.au (first in BuyWisely's sort order)
-    )
+    mock_fetch_seller_price.return_value = 309.99  # Simulate matching price for Amazon.com.au (first in BuyWisely's sort order)
     fixture_file = "real_buywisely_motorola-moto-g85-5g-128gb-urban-grey-.html"
     print(f"[DIAG][TEST] Loading fixture: {fixture_file}")
     sample_html = _read_fixture_html(fixture_file)

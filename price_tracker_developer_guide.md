@@ -373,22 +373,53 @@ To avoid hitting processing size limitations with verbose pytest output, you can
 ## 9. Future Improvements
 ## 10. Manual Update via Dashboard
 
-To allow users to force a manual price update for a specific product, add a button to your Home Assistant dashboard. This button should call the appropriate update service for the target entity. Example YAML for a dashboard button:
+### Manual Price Update Service: `price_tracker.update_entity`
 
+This service allows you to manually trigger a price refresh for one or more tracked products. You can use it in automations, scripts, or dashboard buttons.
+
+**Usage:**
+
+- To update a specific entity:
+    ```yaml
+    service: price_tracker.update_entity
+    service_data:
+        entity_id: sensor.price_buywisely_type_motorola_moto_g75_5g_256gb_grey_with_buds
+    ```
+
+- To update multiple entities:
+    ```yaml
+    service: price_tracker.update_entity
+    service_data:
+        entity_id:
+            - sensor.price_buywisely_type_motorola_moto_g75_5g_256gb_grey_with_buds
+            - sensor.price_buywisely_type_motorola_moto_g85_5g_128gb_cobalt_blue
+    ```
+
+- To update all BuyWisely sensors:
+    ```yaml
+    service: price_tracker.update_entity
+    service_data:
+        entity_id: ALL
+    ```
+    (Case-insensitive: 'ALL', 'all', etc. will work)
+
+**Dashboard Button Example:**
 ```yaml
-type: grid
-cards:
-    - type: button
-        name: Force Price Update
-        icon: mdi:cart
-        tap_action:
-            action: call-service
-            service: price_tracker.update_entity
-            service_data:
-                entity_id: sensor.price_buywisely_type_motorola_moto_g75_5g_256gb_grey_with_buds
+type: button
+name: Force Price Update
+icon: mdi:cart
+tap_action:
+    action: call-service
+    service: price_tracker.update_entity
+    service_data:
+        entity_id: ALL
 ```
 
-Replace `entity_id` with the correct sensor/entity for your product. This button will appear in your dashboard and, when pressed, will trigger an immediate update for the specified product.
+**Notes:**
+- If `entity_id` is omitted or invalid, no update is performed and a diagnostic log is generated.
+- The service is documented in `services.yaml` and this guide.
+
+Replace `entity_id` with the correct sensor/entity for your product. This button will appear in your dashboard and, when pressed, will trigger an immediate update for the specified product(s).
 
 - Detect service website changes and alert developers.
 - Implement more robust parsing techniques.

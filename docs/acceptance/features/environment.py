@@ -19,14 +19,14 @@ from custom_components.price_tracker.components.error import InvalidItemUrlError
 
 # Configure logging for BDD tests
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 
 # ============================================================================
 # Shared Helper Functions
 # ============================================================================
+
 
 async def add_product_helper(context):
     """
@@ -40,7 +40,7 @@ async def add_product_helper(context):
         context.product_id = parsed_id["product_id"]
 
         # Check if this is a zero-price scenario
-        if hasattr(context, 'has_zero_prices') and context.has_zero_prices:
+        if hasattr(context, "has_zero_prices") and context.has_zero_prices:
             # For zero-price scenarios, we expect the product to fail validation
             # Create a mock result with INACTIVE status
             from custom_components.price_tracker.datas.item import ItemData, ItemStatus
@@ -62,7 +62,8 @@ async def add_product_helper(context):
 
         # Load real HTML fixture for valid URLs
         fixture_path = (
-            context.fixtures_dir / "real_buywisely_motorola-moto-g75-5g-256gb-grey-with-buds.html"
+            context.fixtures_dir
+            / "real_buywisely_motorola-moto-g75-5g-256gb-grey-with-buds.html"
         )
 
         if context.is_valid_url and fixture_path.exists():
@@ -93,10 +94,12 @@ async def add_product_helper(context):
             context.error = None
 
             # Simulate config entry creation
-            context.config_entries.append({
-                "product_url": context.product_url,
-                "entry_id": f"entry_{len(context.config_entries) + 1}",
-            })
+            context.config_entries.append(
+                {
+                    "product_url": context.product_url,
+                    "entry_id": f"entry_{len(context.config_entries) + 1}",
+                }
+            )
 
         else:
             context.result = None
@@ -119,7 +122,9 @@ def before_all(context):
     """
     context.project_root = project_root
     context.fixtures_dir = project_root / "tests" / "buywisely" / "fixtures"
-    context.test_data_dir = project_root / "docs" / "acceptance" / "test_data" / "buywisely"
+    context.test_data_dir = (
+        project_root / "docs" / "acceptance" / "test_data" / "buywisely"
+    )
 
     # Initialize log capture
     context.captured_logs = []

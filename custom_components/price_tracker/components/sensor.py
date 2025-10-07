@@ -6,19 +6,19 @@ from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .device import PriceTrackerDevice
-from .engine import PriceEngine
-from .id import IdGenerator
-from ..consts.defaults import DATA_UPDATED
-from ..datas.item import ItemData, ItemStatus
-from ..datas.price import (
+from custom_components.price_tracker.components.device import PriceTrackerDevice
+from custom_components.price_tracker.components.engine import PriceEngine
+from custom_components.price_tracker.components.id import IdGenerator
+from custom_components.price_tracker.consts.defaults import DATA_UPDATED
+from custom_components.price_tracker.datas.item import ItemData, ItemStatus
+from custom_components.price_tracker.datas.price import (
     ItemPriceChangeData,
     create_item_price_change,
     ItemPriceChangeStatus,
     ItemPriceData,
 )
-from ..datas.unit import ItemUnitData, ItemUnitType
-from ..utilities.list import Lu
+from custom_components.price_tracker.datas.unit import ItemUnitData, ItemUnitType
+from custom_components.price_tracker.utilities.list import Lu
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -228,6 +228,11 @@ class PriceTrackerSensor(RestoreEntity):
     async def async_update(self, *args, **kwargs):
         # Accept force as a kwarg for compatibility with service/manual calls
         force = kwargs.get("force", False)
+        # Log the exclusion list used by the engine for runtime verification
+        exclusion_list = getattr(self._engine, "_excluded_domains", None)
+        _LOGGER.info(
+            f"[DIAG][sensor.py] async_update for {self.entity_id}: engine exclusion list: {exclusion_list}"
+        )
         _LOGGER.debug(
             f"[DIAG][sensor.py] async_update called for {self.entity_id} with force={force}"
         )

@@ -19,13 +19,9 @@ from .consts.defaults import DOMAIN, PLATFORMS
 from .services.factory import (
     create_service_item_url_parser,
     create_service_item_target_parser,
-    create_service_device_parser_and_parse,
-    has_service_item_target_parser,
 )
 from .utilities.list import Lu
 
-
-import voluptuous as vol
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,20 +40,123 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     # Store per-service global configurations from YAML
     for service_type, service_config in domain_config.items():
         if isinstance(service_config, dict):
-            global_excluded_domains = service_config.get("global_excluded_domains", [])
+            yaml_excluded_domains = service_config.get("global_excluded_domains", [])
             # Support both list format (preferred) and comma-separated string (legacy)
-            if isinstance(global_excluded_domains, str):
-                global_excluded_domains = [d.strip() for d in global_excluded_domains.split(",") if d.strip()]
-            if global_excluded_domains:
-                hass.data[DOMAIN]["global_config"][service_type] = {
-                    "global_excluded_domains": global_excluded_domains
-                }
-                _LOGGER.info(
-                    "[DIAG][__init__.py] Global excluded_domains configured via YAML for service '%s': %s",
-                    service_type,
-                    global_excluded_domains
-                )
+            if isinstance(yaml_excluded_domains, str):
+                yaml_excluded_domains = [
+                    d.strip() for d in yaml_excluded_domains.split(",") if d.strip()
+                ]
+            # Merge with any existing exclusions (from options flow)
+            existing = (
+                hass.data[DOMAIN]["global_config"]
+                .get(service_type, {})
+                .get("global_excluded_domains", [])
+            )
+            if isinstance(existing, str):
+                existing = [d.strip() for d in existing.split(",") if d.strip()]
+            merged = list(set(existing + yaml_excluded_domains))
+            hass.data[DOMAIN]["global_config"][service_type] = {
+                "global_excluded_domains": merged
+            }
+            _LOGGER.info(
+                "[DIAG][__init__.py] Global excluded_domains merged for service '%s': %s",
+                service_type,
+                merged,
+            )
+    # Log full global exclusion config after YAML load
+    _LOGGER.info(
+        "[DIAG][__init__.py] Full global_config after YAML load: %r",
+        hass.data[DOMAIN]["global_config"],
+    )
 
+    # Register the update_entity service globally
+    async def handle_update_entity(call):
+        _LOGGER.debug(
+            f"[DIAG][__init__.py] handle_update_entity called with call.data: {call.data}"
+        )
+        entity_ids = call.data.get("entity_id")
+        entity_registry = er.async_get(hass)
+        # If entity_id is 'ALL' (case-insensitive), update all matching entities
+        if isinstance(entity_ids, str) and entity_ids.strip().upper() == "ALL":
+            all_entities = entity_registry.entities
+            entity_ids = [
+                eid for eid in all_entities if eid.startswith("sensor.price_buywisely")
+            ]
+            _LOGGER.info(
+                f"[DIAG][__init__.py] entity_id='ALL' provided, updating all: {entity_ids}"
+            )
+        elif entity_ids is None:
+            _LOGGER.info(
+                "[DIAG][__init__.py] No entity_id provided, no update performed."
+            )
+            return
+        elif isinstance(entity_ids, str):
+            entity_ids = [entity_ids]
+        elif not isinstance(entity_ids, list):
+            _LOGGER.warning(
+                f"[DIAG][__init__.py] Invalid entity_id type: {type(entity_ids)}"
+            )
+            return
+        for entity_id in entity_ids:
+            _LOGGER.debug(
+                f"[DIAG][__init__.py] Service call to update entity: {entity_id}"
+            )
+            entity_entry = entity_registry.async_get(entity_id)
+            _LOGGER.debug(
+                f"[DIAG][__init__.py] entity_entry for {entity_id}: {entity_entry}"
+            )
+            # Retrieve entity from hass.data
+            entity = None
+            try:
+                entities_dict = hass.data.get("price_tracker", {}).get("entities", {})
+                _LOGGER.debug(
+                    f"[DIAG][__init__.py] hass.data['price_tracker']['entities'] keys at lookup: {list(entities_dict.keys())}"
+                )
+                entity = entities_dict.get(entity_id)
+            except Exception as e:
+                _LOGGER.warning(
+                    f"[DIAG][__init__.py] Exception while retrieving entity from hass.data: {e}"
+                )
+            # Fallback: try entity_component registry if not found in price_tracker dict
+            if not entity:
+                try:
+                    entity_component = hass.data.get("entity_component", {}).get(
+                        "sensor"
+                    )
+                    if entity_component and hasattr(entity_component, "get_entity"):
+                        entity = entity_component.get_entity(entity_id)
+                        _LOGGER.debug(
+                            f"[DIAG][__init__.py] Fallback: Found entity via entity_component.get_entity: {entity}"
+                        )
+                except Exception as e:
+                    _LOGGER.warning(
+                        f"[DIAG][__init__.py] Exception in fallback entity_component lookup: {e}"
+                    )
+            if not entity:
+                _LOGGER.warning(
+                    f"[DIAG][__init__.py] Could not find entity object for {entity_id} in hass.data['price_tracker']['entities'] or entity_component."
+                )
+            else:
+                _LOGGER.debug(
+                    f"[DIAG][__init__.py] Found entity object: {entity} (type: {type(entity)})"
+                )
+                if hasattr(entity, "async_manual_update"):
+                    _LOGGER.info(
+                        f"[DIAG][__init__.py] Manually triggering manual update for {entity_id} (entity: {entity})"
+                    )
+                    await entity.async_manual_update()
+                elif hasattr(entity, "async_update"):
+                    _LOGGER.info(
+                        f"[DIAG][__init__.py] Manually triggering update for {entity_id} (entity: {entity})"
+                    )
+                    await entity.async_update()
+                else:
+                    _LOGGER.warning(
+                        f"[DIAG][__init__.py] Entity {entity_id} does not have async_update/manual_update method. Entity: {entity}"
+                    )
+
+    hass.services.async_register(DOMAIN, "update_entity", handle_update_entity)
+    _LOGGER.info("[DIAG][__init__.py] Registered service: %s.update_entity", DOMAIN)
     return True
 
 
@@ -68,123 +167,128 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Check if this entry has options flow global configuration that overrides YAML
     service_type = entry.data.get("service_type")
-    if service_type and entry.options:
+    if service_type:
         excluded_domains_key = f"global_excluded_domains_{service_type}"
-        options_excluded_domains = entry.options.get(excluded_domains_key, [])
-        if options_excluded_domains:
-            # Options Flow takes precedence over YAML
-            hass.data[DOMAIN]["global_config"][service_type] = {
-                "global_excluded_domains": options_excluded_domains
-            }
-            _LOGGER.info(
-                "[DIAG][__init__.py] Global excluded_domains configured via Options Flow for service '%s': %s (overrides YAML)",
-                service_type,
-                options_excluded_domains
-            )
+        options_excluded_domains = (
+            entry.options.get(excluded_domains_key, []) if entry.options else []
+        )
+        if isinstance(options_excluded_domains, str):
+            options_excluded_domains = [
+                d.strip() for d in options_excluded_domains.split(",") if d.strip()
+            ]
+        yaml_excluded_domains = (
+            hass.data[DOMAIN]["global_config"]
+            .get(service_type, {})
+            .get("global_excluded_domains", [])
+        )
+        if isinstance(yaml_excluded_domains, str):
+            yaml_excluded_domains = [
+                d.strip() for d in yaml_excluded_domains.split(",") if d.strip()
+            ]
+        merged = list(set(yaml_excluded_domains + options_excluded_domains))
+        hass.data[DOMAIN]["global_config"][service_type] = {
+            "global_excluded_domains": merged
+        }
+        _LOGGER.info(
+            "[DIAG][__init__.py] Global excluded_domains merged for service '%s' (YAML + Options Flow): %s",
+            service_type,
+            merged,
+        )
+    # Log full global exclusion config after merge
+    _LOGGER.info(
+        "[DIAG][__init__.py] Full global_config after merge: %r",
+        hass.data[DOMAIN]["global_config"],
+    )
 
     # Define service for manual update
-    SERVICE_UPDATE_ENTITY = "update_entity"
-    SERVICE_SCHEMA_UPDATE_ENTITY = vol.Schema(
-        {
-            vol.Required("entity_id"): str,
-        }
-    )
 
     async def handle_update_entity(call):
         _LOGGER.debug(
             f"[DIAG][__init__.py] handle_update_entity called with call.data: {call.data}"
         )
-        entity_id = call.data.get("entity_id")
-        _LOGGER.debug(f"[DIAG][__init__.py] Service call to update entity: {entity_id}")
-
+        entity_ids = call.data.get("entity_id")
         entity_registry = er.async_get(hass)
-        entity_entry = entity_registry.async_get(entity_id)
-        _LOGGER.debug(
-            f"[DIAG][__init__.py] entity_entry for {entity_id}: {entity_entry}"
-        )
-
-        # Retrieve entity from hass.data
-        entity = None
-        try:
-            entities_dict = hass.data.get("price_tracker", {}).get("entities", {})
-            _LOGGER.debug(
-                f"[DIAG][__init__.py] hass.data['price_tracker']['entities'] keys at lookup: {list(entities_dict.keys())}"
+        # If entity_id is 'ALL' (case-insensitive), update all matching entities
+        if isinstance(entity_ids, str) and entity_ids.strip().upper() == "ALL":
+            all_entities = entity_registry.entities
+            entity_ids = [
+                eid for eid in all_entities if eid.startswith("sensor.price_buywisely")
+            ]
+            _LOGGER.info(
+                f"[DIAG][__init__.py] entity_id='ALL' provided, updating all: {entity_ids}"
             )
-            entity = entities_dict.get(entity_id)
-        except Exception as e:
+        elif entity_ids is None:
+            _LOGGER.info(
+                "[DIAG][__init__.py] No entity_id provided, no update performed."
+            )
+            return
+        elif isinstance(entity_ids, str):
+            entity_ids = [entity_ids]
+        elif not isinstance(entity_ids, list):
             _LOGGER.warning(
-                f"[DIAG][__init__.py] Exception while retrieving entity from hass.data: {e}"
+                f"[DIAG][__init__.py] Invalid entity_id type: {type(entity_ids)}"
             )
-
-        # Fallback: try entity_component registry if not found in price_tracker dict
-        if not entity:
+            return
+        for entity_id in entity_ids:
+            _LOGGER.debug(
+                f"[DIAG][__init__.py] Service call to update entity: {entity_id}"
+            )
+            entity_entry = entity_registry.async_get(entity_id)
+            _LOGGER.debug(
+                f"[DIAG][__init__.py] entity_entry for {entity_id}: {entity_entry}"
+            )
+            # Retrieve entity from hass.data
+            entity = None
             try:
-                entity_component = hass.data.get("entity_component", {}).get("sensor")
-                if entity_component and hasattr(entity_component, "get_entity"):
-                    entity = entity_component.get_entity(entity_id)
-                    _LOGGER.debug(
-                        f"[DIAG][__init__.py] Fallback: Found entity via entity_component.get_entity: {entity}"
-                    )
+                entities_dict = hass.data.get("price_tracker", {}).get("entities", {})
+                _LOGGER.debug(
+                    f"[DIAG][__init__.py] hass.data['price_tracker']['entities'] keys at lookup: {list(entities_dict.keys())}"
+                )
+                entity = entities_dict.get(entity_id)
             except Exception as e:
                 _LOGGER.warning(
-                    f"[DIAG][__init__.py] Exception in fallback entity_component lookup: {e}"
+                    f"[DIAG][__init__.py] Exception while retrieving entity from hass.data: {e}"
                 )
-
-        if not entity:
-            _LOGGER.warning(
-                f"[DIAG][__init__.py] Could not find entity object for {entity_id} in hass.data['price_tracker']['entities'] or entity_component."
-            )
-        else:
-            _LOGGER.debug(
-                f"[DIAG][__init__.py] Found entity object: {entity} (type: {type(entity)})"
-            )
-            if hasattr(entity, "async_manual_update"):
-                _LOGGER.info(
-                    f"[DIAG][__init__.py] Manually triggering manual update for {entity_id} (entity: {entity})"
-                )
-                await entity.async_manual_update()
-            elif hasattr(entity, "async_update"):
-                _LOGGER.info(
-                    f"[DIAG][__init__.py] Manually triggering update for {entity_id} (entity: {entity})"
-                )
-                await entity.async_update()
-            else:
+            # Fallback: try entity_component registry if not found in price_tracker dict
+            if not entity:
+                try:
+                    entity_component = hass.data.get("entity_component", {}).get(
+                        "sensor"
+                    )
+                    if entity_component and hasattr(entity_component, "get_entity"):
+                        entity = entity_component.get_entity(entity_id)
+                        _LOGGER.debug(
+                            f"[DIAG][__init__.py] Fallback: Found entity via entity_component.get_entity: {entity}"
+                        )
+                except Exception as e:
+                    _LOGGER.warning(
+                        f"[DIAG][__init__.py] Exception in fallback entity_component lookup: {e}"
+                    )
+            if not entity:
                 _LOGGER.warning(
-                    f"[DIAG][__init__.py] Entity {entity_id} does not have async_update/manual_update method. Entity: {entity}"
+                    f"[DIAG][__init__.py] Could not find entity object for {entity_id} in hass.data['price_tracker']['entities'] or entity_component."
                 )
+            else:
+                _LOGGER.debug(
+                    f"[DIAG][__init__.py] Found entity object: {entity} (type: {type(entity)})"
+                )
+                if hasattr(entity, "async_manual_update"):
+                    _LOGGER.info(
+                        f"[DIAG][__init__.py] Manually triggering manual update for {entity_id} (entity: {entity})"
+                    )
+                    await entity.async_manual_update()
+                elif hasattr(entity, "async_update"):
+                    _LOGGER.info(
+                        f"[DIAG][__init__.py] Manually triggering update for {entity_id} (entity: {entity})"
+                    )
+                    await entity.async_update()
+                else:
+                    _LOGGER.warning(
+                        f"[DIAG][__init__.py] Entity {entity_id} does not have async_update/manual_update method. Entity: {entity}"
+                    )
 
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_UPDATE_ENTITY,
-        handle_update_entity,
-        schema=SERVICE_SCHEMA_UPDATE_ENTITY,
-    )
-
-    # For upgrade options (1.4.0)
-    if not has_service_item_target_parser(entry.data["service_type"]):
-        return False
-
-    # For upgrade options (1.0.0)
-    if entry.data is not None and "device" in entry.data:
-        # Update device_id safely
-        def safe_device_id(x):
-            device_target = create_service_device_parser_and_parse(
-                entry.data["service_type"], x
-            )
-            return {
-                **x,
-                CONF_ITEM_DEVICE_ID: IdGenerator.generate_device_id(device_target)
-                if device_target is not None
-                else None,
-            }
-
-        data = {
-            **entry.data,
-            "device": Lu.map(entry.data["device"], safe_device_id),
-        }
-    else:
-        data = entry.data
-
+    # Restore correct assignment for data and options
+    data = entry.data
     if entry.options is not None and "target" in entry.options:
         options = {
             **entry.options,
@@ -199,7 +303,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             ),
         }
 
-        """Update item_url (item_unique_id)"""
+        # Update item_url (item_unique_id)
         options = {
             **options,
             "target": Lu.map(
@@ -226,6 +330,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         }
     else:
         options = {"target": []}
+
+    # ...existing code...
 
     hass.config_entries.async_update_entry(entry=entry, data=data, options=options)
 

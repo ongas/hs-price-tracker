@@ -1,6 +1,7 @@
 """Tests for Price Tracker Options Flow - Global Excluded Domains configuration."""
+
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from homeassistant import config_entries
 from custom_components.price_tracker.consts.defaults import DOMAIN
 
@@ -13,14 +14,19 @@ def mock_config_entry():
         minor_version=0,
         domain=DOMAIN,
         title="Price Tracker - BuyWisely",
-        data={"service_type": "buywisely", "product_url": "https://buywisely.com.au/product/test"},
+        data={
+            "service_type": "buywisely",
+            "product_url": "https://buywisely.com.au/product/test",
+        },
         options={},
         source="user",
         entry_id="test_entry_id",
     )
 
 
-async def test_options_flow_shows_global_excluded_domains_field(hass, mock_config_entry):
+async def test_options_flow_shows_global_excluded_domains_field(
+    hass, mock_config_entry
+):
     """Test that the options flow shows the global_excluded_domains field."""
     # Add the config entry to hass
     mock_config_entry.add_to_hass(hass)
@@ -47,15 +53,20 @@ async def test_options_flow_save_global_excluded_domains(hass, mock_config_entry
     # Submit with global excluded domains
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        user_input={"global_excluded_domains_buywisely": "ebay.com.au,amazon.com.au"}
+        user_input={"global_excluded_domains_buywisely": "ebay.com.au,amazon.com.au"},
     )
 
     # Check that it completes successfully
     assert result["type"] == "create_entry"
-    assert result["data"]["global_excluded_domains_buywisely"] == "ebay.com.au,amazon.com.au"
+    assert (
+        result["data"]["global_excluded_domains_buywisely"]
+        == "ebay.com.au,amazon.com.au"
+    )
 
 
-async def test_options_flow_update_existing_global_excluded_domains(hass, mock_config_entry):
+async def test_options_flow_update_existing_global_excluded_domains(
+    hass, mock_config_entry
+):
     """Test updating existing global excluded domains."""
     # Set initial options
     mock_config_entry.options = {"global_excluded_domains_buywisely": "ebay.com.au"}
@@ -70,24 +81,30 @@ async def test_options_flow_update_existing_global_excluded_domains(hass, mock_c
     # Update with new value
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        user_input={"global_excluded_domains_buywisely": "ebay.com.au,amazon.com.au,temu.com"}
+        user_input={
+            "global_excluded_domains_buywisely": "ebay.com.au,amazon.com.au,temu.com"
+        },
     )
 
     assert result["type"] == "create_entry"
-    assert result["data"]["global_excluded_domains_buywisely"] == "ebay.com.au,amazon.com.au,temu.com"
+    assert (
+        result["data"]["global_excluded_domains_buywisely"]
+        == "ebay.com.au,amazon.com.au,temu.com"
+    )
 
 
 async def test_options_flow_clear_global_excluded_domains(hass, mock_config_entry):
     """Test clearing global excluded domains."""
-    mock_config_entry.options = {"global_excluded_domains_buywisely": "ebay.com.au,amazon.com.au"}
+    mock_config_entry.options = {
+        "global_excluded_domains_buywisely": "ebay.com.au,amazon.com.au"
+    }
     mock_config_entry.add_to_hass(hass)
 
     result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
 
     # Clear the field
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        user_input={"global_excluded_domains_buywisely": ""}
+        result["flow_id"], user_input={"global_excluded_domains_buywisely": ""}
     )
 
     assert result["type"] == "create_entry"
@@ -103,7 +120,9 @@ async def test_options_flow_whitespace_trimming(hass, mock_config_entry):
     # Submit with extra whitespace
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        user_input={"global_excluded_domains_buywisely": " ebay.com.au , amazon.com.au , temu.com "}
+        user_input={
+            "global_excluded_domains_buywisely": " ebay.com.au , amazon.com.au , temu.com "
+        },
     )
 
     # Whitespace should be trimmed
@@ -124,7 +143,9 @@ async def test_options_flow_empty_entries_filtered(hass, mock_config_entry):
     # Submit with empty entries
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        user_input={"global_excluded_domains_buywisely": "ebay.com.au,,amazon.com.au, ,temu.com"}
+        user_input={
+            "global_excluded_domains_buywisely": "ebay.com.au,,amazon.com.au, ,temu.com"
+        },
     )
 
     # Empty entries should be filtered
@@ -139,11 +160,13 @@ async def test_options_flow_integration_reload_triggered(hass, mock_config_entry
     mock_config_entry.add_to_hass(hass)
 
     with patch.object(hass.config_entries, "async_reload") as mock_reload:
-        result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
+        result = await hass.config_entries.options.async_init(
+            mock_config_entry.entry_id
+        )
 
         result = await hass.config_entries.options.async_configure(
             result["flow_id"],
-            user_input={"global_excluded_domains_buywisely": "ebay.com.au"}
+            user_input={"global_excluded_domains_buywisely": "ebay.com.au"},
         )
 
         assert result["type"] == "create_entry"
@@ -155,7 +178,9 @@ async def test_options_flow_integration_reload_triggered(hass, mock_config_entry
 def test_parse_and_normalize_excluded_domains():
     """Test utility function for parsing and normalizing domain list."""
     # This tests a utility function that should exist to parse the input
-    from custom_components.price_tracker.utilities.domain_utils import parse_excluded_domains
+    from custom_components.price_tracker.utilities.domain_utils import (
+        parse_excluded_domains,
+    )
 
     # Test normal input
     result = parse_excluded_domains("ebay.com.au,amazon.com.au")

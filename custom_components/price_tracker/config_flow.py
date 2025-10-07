@@ -145,8 +145,12 @@ class PriceTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 mapped_input = dict(user_input)
                 if "refresh_interval_hours" in mapped_input:
                     # Convert hours to minutes
-                    mapped_input["refresh_interval_minutes"] = mapped_input["refresh_interval_hours"] * 60
-                    mapped_input["refresh_interval"] = mapped_input["refresh_interval_minutes"]
+                    mapped_input["refresh_interval_minutes"] = (
+                        mapped_input["refresh_interval_hours"] * 60
+                    )
+                    mapped_input["refresh_interval"] = mapped_input[
+                        "refresh_interval_minutes"
+                    ]
                 combined_input = {**self._data, **mapped_input}
                 try:
                     service_type_val = price_tracker_setup_service_user_input(

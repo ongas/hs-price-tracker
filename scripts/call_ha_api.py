@@ -70,13 +70,23 @@ if __name__ == "__main__":
     secrets_file_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), config.get("secrets_file_path"))
     )
-    entity_id = config.get("entity_id")
     ha_instance = config.get("ha_instance")
 
-    if not all([secrets_file_path, entity_id, ha_instance]):
+    # Support both 'entity_id' (single) and 'entity_ids' (list)
+    entity_ids = config.get("entity_ids")
+    if not entity_ids:
+        entity_id = config.get("entity_id")
+        if entity_id:
+            entity_ids = [entity_id]
+        else:
+            entity_ids = []
+
+    if not all([secrets_file_path, entity_ids, ha_instance]) or not entity_ids:
         print("Error: Missing configuration values in config.yaml")
         exit(1)
 
     api_token = get_api_token(secrets_file_path)
     if api_token:
-        run_curl_command(api_token, ha_instance, entity_id)
+        for eid in entity_ids:
+            print(f"\n--- Retrieving entity: {eid} ---")
+            run_curl_command(api_token, ha_instance, eid)

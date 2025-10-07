@@ -15,13 +15,26 @@ _LOGGER = logging.getLogger(__name__)
 # US03: Track Lowest Price
 # ============================================================================
 
+
 @given("a BuyWisely product has multiple offers")
 def step_given_multiple_offers(context):
     """Set up product with multiple offers."""
     context.offers = [
-        {"base_price": 100.0, "currency": "AUD", "seller_product_url": "https://seller1.com/product"},
-        {"base_price": 95.0, "currency": "AUD", "seller_product_url": "https://seller2.com/product"},
-        {"base_price": 110.0, "currency": "AUD", "seller_product_url": "https://seller3.com/product"},
+        {
+            "base_price": 100.0,
+            "currency": "AUD",
+            "seller_product_url": "https://seller1.com/product",
+        },
+        {
+            "base_price": 95.0,
+            "currency": "AUD",
+            "seller_product_url": "https://seller2.com/product",
+        },
+        {
+            "base_price": 110.0,
+            "currency": "AUD",
+            "seller_product_url": "https://seller3.com/product",
+        },
     ]
 
 
@@ -35,7 +48,9 @@ def step_when_product_tracked(context):
         context.lowest_offer = None
 
 
-@then("the lowest price (which must be greater than 0.0) and its corresponding seller_product_url are selected and displayed (no fallback logic). Zero-priced offers must be ignored during this selection. If all current offers are zero-priced, it indicates an extraction bug and the product should be marked as inactive or an exception should be raised.")
+@then(
+    "the lowest price (which must be greater than 0.0) and its corresponding seller_product_url are selected and displayed (no fallback logic). Zero-priced offers must be ignored during this selection. If all current offers are zero-priced, it indicates an extraction bug and the product should be marked as inactive or an exception should be raised."
+)
 def step_then_lowest_price_selected(context):
     """Verify lowest non-zero price is selected."""
     if context.lowest_offer:
@@ -61,11 +76,13 @@ def step_when_fetch_seller_page(context):
         str(context.expected_price),
         str(int(context.expected_price)),
         f"${context.expected_price}",
-        f"AUD {context.expected_price}"
+        f"AUD {context.expected_price}",
     ]
 
 
-@then("the system extracts all prices from the page and normalizes the expected price into variants")
+@then(
+    "the system extracts all prices from the page and normalizes the expected price into variants"
+)
 def step_then_extract_and_normalize(context):
     """Verify extraction and normalization."""
     assert_that(context.extracted_prices, not_none())
@@ -75,7 +92,9 @@ def step_then_extract_and_normalize(context):
 @then("the system matches extracted prices against normalized variants")
 def step_then_match_prices(context):
     """Verify price matching."""
-    context.matched_prices = [p for p in context.extracted_prices if str(p) in context.normalized_variants]
+    context.matched_prices = [
+        p for p in context.extracted_prices if str(p) in context.normalized_variants
+    ]
     assert_that(len(context.matched_prices), greater_than(0))
 
 
@@ -93,14 +112,18 @@ def step_then_accept_high_medium(context):
     assert_that(context.confidence, equal_to("HIGH"))
 
 
-@then("low confidence or non-product context matches cause the offer to be skipped and next offer tried")
+@then(
+    "low confidence or non-product context matches cause the offer to be skipped and next offer tried"
+)
 def step_then_skip_low_confidence(context):
     """Verify skipping of low confidence matches."""
     # This would be tested with different context setup
     pass
 
 
-@then("comprehensive diagnostics are logged including all extracted prices, normalized variants, matching prices with contexts, confidence scores, and final decision")
+@then(
+    "comprehensive diagnostics are logged including all extracted prices, normalized variants, matching prices with contexts, confidence scores, and final decision"
+)
 def step_then_log_diagnostics(context):
     """Verify comprehensive diagnostics logging."""
     # This would check logs in real implementation
@@ -116,7 +139,9 @@ def step_given_only_zero_offers(context):
     ]
 
 
-@then("an error is logged indicating an extraction bug (e.g., \"Extracted price cannot be zero or less.\")")
+@then(
+    'an error is logged indicating an extraction bug (e.g., "Extracted price cannot be zero or less.")'
+)
 def step_then_log_zero_price_error(context):
     """Verify zero price error logging."""
     # Filter zero offers
@@ -165,13 +190,16 @@ def step_then_refresh_interval_respected(context):
 # US06: Support Multiple Offers
 # ============================================================================
 
+
 @when("I view the product details")
 def step_when_view_details(context):
     """View product details."""
     context.viewed_offers = context.offers[:10]  # Up to 10 offers
 
 
-@then("*current* offers are displayed, each with price (which must be greater than 0.0) and currency information. Zero-priced offers must be ignored. If all current offers are zero-priced, it indicates an extraction bug and an exception should be raised.")
+@then(
+    "*current* offers are displayed, each with price (which must be greater than 0.0) and currency information. Zero-priced offers must be ignored. If all current offers are zero-priced, it indicates an extraction bug and an exception should be raised."
+)
 def step_then_current_offers_displayed(context):
     """Verify current offers display."""
     for offer in context.viewed_offers:
@@ -179,7 +207,9 @@ def step_then_current_offers_displayed(context):
             assert_that(offer["base_price"], greater_than(0.0))
 
 
-@then("the lowest price and its seller_product_url are always selected for tracking (no fallback logic)")
+@then(
+    "the lowest price and its seller_product_url are always selected for tracking (no fallback logic)"
+)
 def step_then_lowest_selected_no_fallback(context):
     """Verify lowest offer selection."""
     if context.offers:
@@ -187,11 +217,13 @@ def step_then_lowest_selected_no_fallback(context):
         assert_that(lowest["base_price"], greater_than(0.0))
 
 
-@then("only current offers (max created_at timestamp, first 10) are displayed, each with price greater than 0.0 and currency information")
+@then(
+    "only current offers (max created_at timestamp, first 10) are displayed, each with price greater than 0.0 and currency information"
+)
 def step_then_only_current_offers_displayed(context):
     """Verify only current offers (max created_at, first 10) are displayed."""
     # Simulate filtering by max created_at
-    if hasattr(context, 'offers') and context.offers:
+    if hasattr(context, "offers") and context.offers:
         # In real implementation, would filter by max created_at
         context.current_offers = context.offers[:10]  # First 10
         for offer in context.current_offers:
@@ -204,14 +236,14 @@ def step_then_only_current_offers_displayed(context):
 def step_then_historical_ignored(context):
     """Verify historical offers are ignored."""
     # In real implementation, would verify offers with older created_at are filtered out
-    if hasattr(context, 'current_offers'):
+    if hasattr(context, "current_offers"):
         assert_that(len(context.current_offers), equal_to(min(10, len(context.offers))))
 
 
 @then("zero-priced offers are ignored")
 def step_then_zero_priced_ignored(context):
     """Verify zero-priced offers are ignored."""
-    if hasattr(context, 'current_offers'):
+    if hasattr(context, "current_offers"):
         for offer in context.current_offers:
             if "base_price" in offer:
                 assert_that(offer["base_price"], greater_than(0.0))
@@ -220,8 +252,10 @@ def step_then_zero_priced_ignored(context):
 @then("the lowest price and its seller_product_url are selected for tracking")
 def step_then_lowest_selected_for_tracking(context):
     """Verify lowest price and URL are selected."""
-    if hasattr(context, 'current_offers') and context.current_offers:
-        lowest = min(context.current_offers, key=lambda o: o.get("base_price", float('inf')))
+    if hasattr(context, "current_offers") and context.current_offers:
+        lowest = min(
+            context.current_offers, key=lambda o: o.get("base_price", float("inf"))
+        )
         assert_that(lowest.get("base_price"), greater_than(0.0))
         assert_that(lowest.get("seller_product_url"), not_none())
 
@@ -229,8 +263,10 @@ def step_then_lowest_selected_for_tracking(context):
 @then("the price is rounded to 1 decimal place")
 def step_then_price_rounded(context):
     """Verify price is rounded to 1 decimal place."""
-    if hasattr(context, 'current_offers') and context.current_offers:
-        lowest = min(context.current_offers, key=lambda o: o.get("base_price", float('inf')))
+    if hasattr(context, "current_offers") and context.current_offers:
+        lowest = min(
+            context.current_offers, key=lambda o: o.get("base_price", float("inf"))
+        )
         rounded_price = round(lowest.get("base_price", 0.0), 1)
         # In real implementation, would verify the entity state has the rounded price
         assert_that(rounded_price, not_none())

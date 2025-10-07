@@ -5,7 +5,9 @@ import os
 from typing import Optional
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
-from .hydration_parser import extract_and_parse_all_hydration_data
+from custom_components.price_tracker.services.buywisely.hydration_parser import (
+    extract_and_parse_all_hydration_data,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,7 +56,9 @@ def _find_product_data_recursive(data, path=""):
     return None
 
 
-def extract_from_beautifulsoup(html: str, excluded_domains: Optional[list] = None) -> dict:
+def extract_from_beautifulsoup(
+    html: str, excluded_domains: Optional[list] = None
+) -> dict:
     """Extracts product data using BeautifulSoup fallback."""
     soup = BeautifulSoup(html, "html.parser")
     price_val = None
@@ -164,8 +168,8 @@ def extract_from_beautifulsoup(html: str, excluded_domains: Optional[list] = Non
 
     raw_data = {"html": html}
     if price_val is not None:
-        raw_data["price"] = price_val
-        raw_data["currency"] = currency_val
+        raw_data["price"] = str(price_val)
+        raw_data["currency"] = str(currency_val)
         raw_data["availability"] = "In Stock"
         raw_data["brand"] = ""
         raw_data["title"] = title_val if title_val else ""
@@ -176,9 +180,10 @@ def extract_from_beautifulsoup(html: str, excluded_domains: Optional[list] = Non
         if seller_url:
             offer["seller_product_url"] = seller_url
         if price_val is not None:
-            offer["base_price"] = price_val
+            offer["base_price"] = str(price_val)
         if currency_val:
-            offer["currency"] = currency_val
+            offer["currency"] = str(currency_val)
+        # Store offers as a list of dicts for type safety
         raw_data["offers"] = [offer] if offer else []
     else:
         raw_data["availability"] = "Out of Stock"
@@ -190,7 +195,9 @@ def extract_from_beautifulsoup(html: str, excluded_domains: Optional[list] = Non
     return raw_data
 
 
-async def extract_product_data_from_html(html: str, excluded_domains: Optional[list] = None) -> dict:
+async def extract_product_data_from_html(
+    html: str, excluded_domains: Optional[list] = None
+) -> dict:
     """Extracts product data from BuyWisely HTML content."""
     parsed_data_list = []
     try:
@@ -386,7 +393,9 @@ def _is_valid_seller_url(url: str, product_image_url: Optional[str]) -> bool:
 
 
 def _process_product_offers(
-    product_data: dict, return_lowest_details: bool = False, excluded_domains: Optional[list] = None
+    product_data: dict,
+    return_lowest_details: bool = False,
+    excluded_domains: Optional[list] = None,
 ) -> tuple:
     """Processes product offers to find the main URL and filter offers. Optionally returns lowest price and offer."""
     offers = product_data.get("offers", [])
@@ -399,15 +408,21 @@ def _process_product_offers(
 
     # Normalize excluded_domains to lowercase for case-insensitive matching
     excluded_domains = excluded_domains or []
-    normalized_excluded_domains = [d.lower().strip() for d in excluded_domains if d and isinstance(d, str) and d.strip()]
+    normalized_excluded_domains = [
+        d.lower().strip()
+        for d in excluded_domains
+        if d and isinstance(d, str) and d.strip()
+    ]
+    _LOGGER.info(
+        "[DIAG][html_extractor] Merged exclusion list (normalized): %r",
+        normalized_excluded_domains,
+    )
 
     # Filter to only current offers (exclude history offers)
     # Current offers are those with the maximum created_at timestamp
     if offers:
         max_created_at = max(
-            offer.get("created_at", "")
-            for offer in offers
-            if isinstance(offer, dict)
+            offer.get("created_at", "") for offer in offers if isinstance(offer, dict)
         )
         current_offers = [
             offer
@@ -417,21 +432,26 @@ def _process_product_offers(
 
         _LOGGER.info(
             "[DIAG][html_extractor] Filtered to current offers (max created_at=%s): %d offers",
-            max_created_at, len(current_offers)
+            max_created_at,
+            len(current_offers),
         )
 
         # Helper function to calculate total price for sorting
         def _get_offer_total_price(offer):
             """Calculate total price for sorting."""
             if not isinstance(offer, dict):
-                return float('inf')
+                return float("inf")
             price = offer.get("price") or offer.get("base_price")
-            if price is None or price == "" or (isinstance(price, str) and not price.strip()):
-                return float('inf')
+            if (
+                price is None
+                or price == ""
+                or (isinstance(price, str) and not price.strip())
+            ):
+                return float("inf")
             try:
                 price_val = float(price)
             except (ValueError, TypeError):
-                return float('inf')
+                return float("inf")
             delivery = offer.get("delivery") or offer.get("shipping") or 0
             try:
                 delivery_val = float(delivery)
@@ -447,7 +467,7 @@ def _process_product_offers(
             Returns (is_not_amazon, total_price) so Amazon offers come first, then sorted by price.
             """
             if not isinstance(offer, dict):
-                return (True, float('inf'))
+                return (True, float("inf"))
 
             seller = offer.get("seller", {})
             seller_name = seller.get("name", "") if isinstance(seller, dict) else ""
@@ -473,14 +493,26 @@ def _process_product_offers(
 
         # Now apply domain filtering to the initially visible offers
         if normalized_excluded_domains:
+            _LOGGER.warning(
+                "[DIAG][html_extractor] Domain filtering enabled. Exclusion list: %r",
+                normalized_excluded_domains,
+            )
+            _LOGGER.warning(
+                "[DIAG][html_extractor] Offers before domain filtering: %r",
+                initially_visible_offers,
+            )
             domain_filtered_offers = []
             excluded_count = 0
             for offer in initially_visible_offers:
                 if not isinstance(offer, dict):
                     continue
                 seller_url = offer.get("seller_product_url")
-                domain = _extract_domain_from_url(seller_url)
-
+                domain = _extract_domain_from_url(str(seller_url) if seller_url else "")
+                _LOGGER.warning(
+                    "[DIAG][html_extractor] Considering offer: seller_url=%r, extracted_domain=%r",
+                    seller_url,
+                    domain,
+                )
                 # Check if any excluded domain is contained in the offer's domain
                 is_excluded = False
                 if domain:
@@ -488,22 +520,24 @@ def _process_product_offers(
                         if excluded_domain in domain:
                             is_excluded = True
                             excluded_count += 1
-                            _LOGGER.info(
+                            _LOGGER.warning(
                                 "[DIAG][html_extractor] Excluding offer from domain %s (matches filter '%s', seller_product_url: %s)",
                                 domain,
                                 excluded_domain,
                                 seller_url,
                             )
                             break
-
                 if not is_excluded:
                     domain_filtered_offers.append(offer)
-
             initially_visible_offers = domain_filtered_offers
-            _LOGGER.info(
+            _LOGGER.warning(
                 "[DIAG][html_extractor] Domain filtering: excluded %d offers, %d remaining from initially visible",
                 excluded_count,
                 len(initially_visible_offers),
+            )
+            _LOGGER.warning(
+                "[DIAG][html_extractor] Offers after domain filtering: %r",
+                initially_visible_offers,
             )
 
         # Final offers for validation (no affiliate filtering - JSON data is unreliable for this)

@@ -7,15 +7,18 @@ from requests.exceptions import (
     Timeout,
 )  # Specific exceptions for network errors
 
-from ...components.engine import PriceEngine
-from ...components.error import InvalidItemUrlError
-from ...consts.confs import CONF_ITEM_URL
-from ...datas.item import ItemData, ItemStatus
-from ...datas.category import ItemCategoryData
-from ...datas.price import ItemPriceData
-from .const import NAME, CODE
-from .parser import parse_product
-from ...utilities.safe_request import SafeRequest, SafeRequestMethod
+from custom_components.price_tracker.components.engine import PriceEngine
+from custom_components.price_tracker.components.error import InvalidItemUrlError
+from custom_components.price_tracker.consts.confs import CONF_ITEM_URL
+from custom_components.price_tracker.datas.item import ItemData, ItemStatus
+from custom_components.price_tracker.datas.category import ItemCategoryData
+from custom_components.price_tracker.datas.price import ItemPriceData
+from custom_components.price_tracker.services.buywisely.const import NAME, CODE
+from custom_components.price_tracker.services.buywisely.parser import parse_product
+from custom_components.price_tracker.utilities.safe_request import (
+    SafeRequest,
+    SafeRequestMethod,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -129,7 +132,10 @@ class BuyWiselyEngine(PriceEngine):
                 self.item_url,
             )
         product_details = await parse_product(
-            html, product_id=self.product_id, item_url=self.item_url, excluded_domains=self._excluded_domains
+            html,
+            product_id=self.product_id,
+            item_url=self.item_url,
+            excluded_domains=self._excluded_domains,
         )
 
         # Validate that the extracted price is greater than zero

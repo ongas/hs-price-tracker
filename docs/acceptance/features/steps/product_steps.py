@@ -18,10 +18,13 @@ _LOGGER = logging.getLogger(__name__)
 # US01: Add a BuyWisely Product for Price Tracking
 # ============================================================================
 
+
 @given("I have a valid BuyWisely product URL")
 def step_given_valid_buywisely_url(context):
     """Set up a valid BuyWisely product URL."""
-    context.product_url = "https://www.buywisely.com.au/product/motorola-moto-g75-5g-256gb-grey-with-buds"
+    context.product_url = (
+        "https://www.buywisely.com.au/product/motorola-moto-g75-5g-256gb-grey-with-buds"
+    )
     context.is_valid_url = True
 
 
@@ -71,26 +74,34 @@ async def step_when_add_second_product(context):
     await environment.add_product_helper(context)
 
 
-@then("the product is added to the tracked items list with its current price (which must be greater than 0.0), name, brand, image, and the seller_product_url from the lowest-priced offer")
+@then(
+    "the product is added to the tracked items list with its current price (which must be greater than 0.0), name, brand, image, and the seller_product_url from the lowest-priced offer"
+)
 def step_then_product_added_successfully(context):
     """Verify product was added with valid data."""
     assert_that(context.result, is_(not_none()), "Product data should not be None")
     assert_that(context.result.name, not_none(), "Product name should be extracted")
     assert_that(context.result.price, not_none(), "Product price should be extracted")
-    assert_that(context.result.price.price, greater_than(0.0), "Price must be greater than 0.0")
+    assert_that(
+        context.result.price.price, greater_than(0.0), "Price must be greater than 0.0"
+    )
     assert_that(context.result.image, not_none(), "Product image should be extracted")
     assert_that(context.result.url, not_none(), "Seller product URL should be set")
-    assert_that(len(context.result.url), greater_than(0), "Seller URL should not be empty")
+    assert_that(
+        len(context.result.url), greater_than(0), "Seller URL should not be empty"
+    )
 
 
-@then("if the extracted price is 0.0, it indicates an extraction bug and the product should not be added as a valid entity")
+@then(
+    "if the extracted price is 0.0, it indicates an extraction bug and the product should not be added as a valid entity"
+)
 def step_then_zero_price_indicates_bug(context):
     """Verify zero price handling."""
-    if context.result and hasattr(context.result, 'price'):
+    if context.result and hasattr(context.result, "price"):
         assert_that(
             context.result.price.price,
             greater_than(0.0),
-            "Extracted price should never be 0.0 for valid products"
+            "Extracted price should never be 0.0 for valid products",
         )
 
 
@@ -120,28 +131,36 @@ def step_then_refresh_interval_default(context):
 def step_then_error_invalid_url(context):
     """Verify error for invalid URL."""
     from hamcrest import contains_string
+
     assert_that(context.error, not_none(), "Error should be set")
-    assert_that(context.error, contains_string("Invalid"), "Error should mention invalid URL")
+    assert_that(
+        context.error, contains_string("Invalid"), "Error should mention invalid URL"
+    )
 
 
-@then("I receive an error message indicating an extraction bug (e.g., \"Extracted price cannot be zero or less.\")")
+@then(
+    'I receive an error message indicating an extraction bug (e.g., "Extracted price cannot be zero or less.")'
+)
 def step_then_error_zero_price(context):
     """Verify error for zero-priced products."""
     from custom_components.price_tracker.datas.item import ItemStatus
-    if hasattr(context, 'has_zero_prices') and context.has_zero_prices:
+
+    if hasattr(context, "has_zero_prices") and context.has_zero_prices:
         # Should either error or have status INACTIVE
         if context.result:
             assert_that(
                 context.result.status in [ItemStatus.INACTIVE, ItemStatus.DELETED],
                 is_(True),
-                "Zero-priced products should be marked inactive or deleted"
+                "Zero-priced products should be marked inactive or deleted",
             )
 
 
 @then("the second product is also added to the tracked items list")
 def step_then_second_product_added(context):
     """Verify second product was added."""
-    assert_that(len(context.config_entries), equal_to(2), "Should have 2 config entries")
+    assert_that(
+        len(context.config_entries), equal_to(2), "Should have 2 config entries"
+    )
 
 
 @then("I have two tracked BuyWisely products")
@@ -153,6 +172,7 @@ def step_then_two_products_tracked(context):
 # ============================================================================
 # US02: View BuyWisely Product Details
 # ============================================================================
+
 
 @given("I have added a BuyWisely product to the price tracker")
 async def step_given_added_product_for_viewing(context):
@@ -195,35 +215,44 @@ def step_when_view_tracked_products_list(context):
     context.viewed_products = [context.result] if context.result else []
 
 
-@then("I see the product's name, brand, image, current price (which must be greater than 0.0), and availability status")
+@then(
+    "I see the product's name, brand, image, current price (which must be greater than 0.0), and availability status"
+)
 def step_then_see_product_details_with_status(context):
     """Verify all product details including status are visible."""
-    product = context.result if hasattr(context, 'result') else context.viewed_product
+    product = context.result if hasattr(context, "result") else context.viewed_product
     assert_that(product, not_none(), "Product should exist")
     assert_that(product.name, not_none(), "Name should be visible")
     assert_that(product.brand, not_none(), "Brand should be visible")
     assert_that(product.image, not_none(), "Image should be visible")
     assert_that(product.price, not_none(), "Price should be visible")
-    assert_that(product.price.price, greater_than(0.0), "Price must be greater than 0.0")
+    assert_that(
+        product.price.price, greater_than(0.0), "Price must be greater than 0.0"
+    )
     assert_that(product.status, not_none(), "Status should be visible")
 
 
 @then("if the displayed price is 0.0, it indicates an extraction bug")
 def step_then_zero_price_is_bug(context):
     """Verify zero price is treated as a bug."""
-    if context.result and hasattr(context.result, 'price'):
+    if context.result and hasattr(context.result, "price"):
         assert_that(
             context.result.price.price,
             greater_than(0.0),
-            "Displayed price of 0.0 indicates an extraction bug"
+            "Displayed price of 0.0 indicates an extraction bug",
         )
 
 
-@then("the product's tracked URL points to the seller_product_url of the lowest price offer (never a fallback or hydration field)")
+@then(
+    "the product's tracked URL points to the seller_product_url of the lowest price offer (never a fallback or hydration field)"
+)
 def step_then_url_is_seller_url(context):
     """Verify URL comes from seller_product_url in offers."""
-    product = context.result if hasattr(context, 'result') else context.viewed_product
+    product = context.result if hasattr(context, "result") else context.viewed_product
     assert_that(product.url, not_none(), "URL should be set")
     # Verify it's not a BuyWisely URL (which would indicate fallback)
-    assert_that("buywisely.com.au" not in product.url.lower(), is_(True),
-                "URL should be seller_product_url, not BuyWisely URL")
+    assert_that(
+        "buywisely.com.au" not in product.url.lower(),
+        is_(True),
+        "URL should be seller_product_url, not BuyWisely URL",
+    )

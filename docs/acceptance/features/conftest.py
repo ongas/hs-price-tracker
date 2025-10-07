@@ -55,7 +55,9 @@ def load_test_data(filename: str) -> str:
 
 
 # Common test URLs
-VALID_BUYWISELY_URL = "https://www.buywisely.com.au/product/motorola-moto-g75-5g-256gb-grey-with-buds"
+VALID_BUYWISELY_URL = (
+    "https://www.buywisely.com.au/product/motorola-moto-g75-5g-256gb-grey-with-buds"
+)
 INVALID_URL = "not-a-valid-url"
 INVALID_DOMAIN_URL = "https://www.google.com/product/some-product"
 INVALID_NO_PRODUCT_URL = "https://www.buywisely.com.au/category/some-category"

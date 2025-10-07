@@ -1,3 +1,5 @@
 secrets_file_path: ../../../Docker/config/secrets.yaml
-entity_id: sensor.price_buywisely_type_motorola_moto_g75_5g_256gb_grey_with_buds
+entity_ids:
+  - sensor.price_buywisely_type_motorola_moto_g75_5g_256gb_grey_with_buds
+  - sensor.price_buywisely_type_motorola_moto_g84_5g_256gb_midnight_blue_12gb_ram_global_version_at_etoren
 ha_instance: localhost:8123

@@ -26,6 +26,7 @@ _LOGGER = logging.getLogger(__name__)
 # US04: Handle Unavailable Products
 # ============================================================================
 
+
 @given("I am tracking a BuyWisely product")
 def step_given_tracking_product(context):
     """Set up tracked product."""
@@ -38,7 +39,9 @@ def step_when_product_unavailable(context):
     context.product_status = ItemStatus.DELETED
 
 
-@when("a network error (timeout, connection error, or non-404/410 HTTP error) occurs while loading the product")
+@when(
+    "a network error (timeout, connection error, or non-404/410 HTTP error) occurs while loading the product"
+)
 def step_when_network_error(context):
     """Simulate network error during product loading."""
     context.product_status = ItemStatus.INACTIVE
@@ -49,8 +52,7 @@ def step_when_network_error(context):
 def step_then_status_set(context):
     """Verify status update."""
     assert_that(
-        context.product_status in [ItemStatus.DELETED, ItemStatus.INACTIVE],
-        is_(True)
+        context.product_status in [ItemStatus.DELETED, ItemStatus.INACTIVE], is_(True)
     )
 
 
@@ -66,14 +68,14 @@ def step_then_status_set_deleted(context):
     assert_that(context.product_status, is_(ItemStatus.DELETED))
 
 
-@then("its name is prefixed with \"Unavailable \"")
+@then('its name is prefixed with "Unavailable "')
 def step_then_name_prefixed_unavailable(context):
     """Verify name has unavailable prefix."""
     # In real implementation, this would check the entity's friendly name
     pass
 
 
-@then("its name is prefixed with \"Deleted \"")
+@then('its name is prefixed with "Deleted "')
 def step_then_name_prefixed_deleted(context):
     """Verify name has deleted prefix."""
     # In real implementation, this would check the entity's friendly name
@@ -117,7 +119,9 @@ def step_when_price_extracted_zero(context):
     context.product_status = ItemStatus.INACTIVE
 
 
-@then("an appropriate error is logged (e.g., \"Extracted price cannot be zero or less.\")")
+@then(
+    'an appropriate error is logged (e.g., "Extracted price cannot be zero or less.")'
+)
 def step_then_error_logged_zero_price(context):
     """Verify error logging for zero price."""
     # In real implementation, would check logs
@@ -141,6 +145,7 @@ def step_when_page_returns_404_410(context):
 # US05: Parse and Display Product Info
 # ============================================================================
 
+
 @when("the system parses the product page")
 async def step_when_parse_page(context):
     """Parse product page."""
@@ -153,7 +158,9 @@ async def step_when_parse_page_robust(context):
     await environment.add_product_helper(context)
 
 
-@then("the product's name, brand, image, price, and offers are extracted and shown to me")
+@then(
+    "the product's name, brand, image, price, and offers are extracted and shown to me"
+)
 def step_then_data_extracted(context):
     """Verify extraction."""
     assert_that(context.result, not_none())
@@ -163,7 +170,9 @@ def step_then_data_extracted(context):
     assert_that(context.result.price, not_none())
 
 
-@then("the product's user-friendly name (not the full HTML <title>), brand, image, price (which must be greater than 0.0), and offers are extracted and shown to me")
+@then(
+    "the product's user-friendly name (not the full HTML <title>), brand, image, price (which must be greater than 0.0), and offers are extracted and shown to me"
+)
 def step_then_user_friendly_data_extracted(context):
     """Verify user-friendly extraction."""
     assert_that(context.result, not_none())
@@ -179,11 +188,11 @@ def step_then_user_friendly_data_extracted(context):
 @then("if the extracted price is 0.0, it indicates an extraction bug")
 def step_then_extracted_zero_price_is_bug(context):
     """Verify zero price extraction is a bug."""
-    if context.result and hasattr(context.result, 'price'):
+    if context.result and hasattr(context.result, "price"):
         assert_that(
             context.result.price.price,
             greater_than(0.0),
-            "Extracted price of 0.0 indicates an extraction bug"
+            "Extracted price of 0.0 indicates an extraction bug",
         )
 
 
@@ -195,10 +204,12 @@ def step_then_edge_cases_handled(context):
     pass
 
 
-@then("the seller URL is always extracted from the offers list (never from fallback or hydration fields)")
+@then(
+    "the seller URL is always extracted from the offers list (never from fallback or hydration fields)"
+)
 def step_then_seller_url_from_offers(context):
     """Verify seller URL comes from offers."""
-    if context.result and hasattr(context.result, 'url'):
+    if context.result and hasattr(context.result, "url"):
         # Verify it's not a BuyWisely URL
         assert_that("buywisely.com.au" not in context.result.url.lower(), is_(True))
 
@@ -223,6 +234,7 @@ def step_then_parsing_failure_notified(context):
 # US08: Diagnostic Logging
 # ============================================================================
 
+
 @given("the BuyWisely integration is running")
 def step_given_integration_running(context):
     """Set up integration."""
@@ -240,13 +252,17 @@ async def step_when_product_loaded(context):
     context.logs.append("Data extracted")
 
 
-@then("diagnostic logs are generated including product URLs, IDs, extracted data, error messages")
+@then(
+    "diagnostic logs are generated including product URLs, IDs, extracted data, error messages"
+)
 def step_then_logs_generated(context):
     """Verify log generation."""
     assert_that(len(context.logs), greater_than(0))
 
 
-@then("diagnostic logs are generated including product URLs, IDs, extracted data, error messages, the full hydration data, offers list, all candidate seller_product_url values, and the final url set in the entity. Logs must also include messages when zero-priced offers are encountered and ignored, or when an exception is raised due to all offers being zero-priced.")
+@then(
+    "diagnostic logs are generated including product URLs, IDs, extracted data, error messages, the full hydration data, offers list, all candidate seller_product_url values, and the final url set in the entity. Logs must also include messages when zero-priced offers are encountered and ignored, or when an exception is raised due to all offers being zero-priced."
+)
 def step_then_comprehensive_logs_generated(context):
     """Verify comprehensive diagnostic log generation."""
     assert_that(len(context.logs), greater_than(0))

@@ -74,24 +74,33 @@ def _extract_all_prices_from_html(html: str) -> list[dict]:
             if isinstance(data, dict):
                 for key, value in data.items():
                     current_path = f"{path}.{key}" if path else key
-                    if isinstance(key, str) and key.lower() in ["price", "base_price", "amount", "priceamount"]:
+                    if isinstance(key, str) and key.lower() in [
+                        "price",
+                        "base_price",
+                        "amount",
+                        "priceamount",
+                    ]:
                         if isinstance(value, (int, float)) and value > 0:
-                            prices.append({
-                                "price": float(value),
-                                "text": str(value),
-                                "context": f"JSON path: {current_path}",
-                                "source": "json"
-                            })
+                            prices.append(
+                                {
+                                    "price": float(value),
+                                    "text": str(value),
+                                    "context": f"JSON path: {current_path}",
+                                    "source": "json",
+                                }
+                            )
                         elif isinstance(value, str):
                             try:
                                 parsed = parse_float(value)
                                 if parsed > 0:
-                                    prices.append({
-                                        "price": parsed,
-                                        "text": value,
-                                        "context": f"JSON path: {current_path}",
-                                        "source": "json"
-                                    })
+                                    prices.append(
+                                        {
+                                            "price": parsed,
+                                            "text": value,
+                                            "context": f"JSON path: {current_path}",
+                                            "source": "json",
+                                        }
+                                    )
                             except (ValueError, TypeError):
                                 pass
                     prices.extend(_find_prices_in_json(value, current_path))
@@ -103,10 +112,19 @@ def _extract_all_prices_from_html(html: str) -> list[dict]:
         all_prices.extend(_find_prices_in_json(data))
 
     # 2. Extract from HTML text
-    price_regex = re.compile(r"(?:\$|AUD|€|£|USD)?\s*\d{1,3}(?:[,.]\d{3})*(?:[,.]\d{2})?")
+    price_regex = re.compile(
+        r"(?:\$|AUD|€|£|USD)?\s*\d{1,3}(?:[,.]\d{3})*(?:[,.]\d{2})?"
+    )
 
     for text_node in soup.find_all(string=True):
-        if text_node.parent.name in ["script", "style", "head", "title", "meta", "[document]"]:
+        if text_node.parent.name in [
+            "script",
+            "style",
+            "head",
+            "title",
+            "meta",
+            "[document]",
+        ]:
             continue
 
         for match in price_regex.finditer(text_node):
@@ -127,14 +145,16 @@ def _extract_all_prices_from_html(html: str) -> list[dict]:
                         if p and hasattr(p, "get") and p.get("class"):
                             classes.extend(p.get("class", []))
 
-                    all_prices.append({
-                        "price": price_value,
-                        "text": price_text,
-                        "context": f"Text: '{parent_text[:50]}...', Classes: {','.join(classes[:3])}",
-                        "source": "html",
-                        "parent_text": parent_text,
-                        "classes": classes
-                    })
+                    all_prices.append(
+                        {
+                            "price": price_value,
+                            "text": price_text,
+                            "context": f"Text: '{parent_text[:50]}...', Classes: {','.join(classes[:3])}",
+                            "source": "html",
+                            "parent_text": parent_text,
+                            "classes": classes,
+                        }
+                    )
             except (ValueError, TypeError):
                 continue
 
@@ -153,14 +173,34 @@ def _score_price_match(price_info: dict, expected_price: float) -> tuple[str, in
     source = price_info.get("source", "")
 
     # Check for non-product contexts (reject)
-    non_product_keywords = ["shipping", "delivery", "from $", "save $", "save up to", "was $", "discount", "related", "also bought", "similar"]
+    non_product_keywords = [
+        "shipping",
+        "delivery",
+        "from $",
+        "save $",
+        "save up to",
+        "was $",
+        "discount",
+        "related",
+        "also bought",
+        "similar",
+    ]
     for keyword in non_product_keywords:
         if keyword in parent_text:
             return ("REJECT", 1, f"Found in non-product context: '{keyword}'")
 
     # Check for product price context (high/medium confidence)
-    product_price_keywords = ["product-price", "price", "sale-price", "current-price", "our-price", "buy-price"]
-    has_product_context = any(keyword in " ".join(classes) for keyword in product_price_keywords)
+    product_price_keywords = [
+        "product-price",
+        "price",
+        "sale-price",
+        "current-price",
+        "our-price",
+        "buy-price",
+    ]
+    has_product_context = any(
+        keyword in " ".join(classes) for keyword in product_price_keywords
+    )
 
     # JSON source gets medium confidence by default (structured data)
     if source == "json":
@@ -168,13 +208,19 @@ def _score_price_match(price_info: dict, expected_price: float) -> tuple[str, in
 
     # High confidence: clear product price context
     if has_product_context:
-        return ("HIGH", 1, f"Found in product price context. Classes: {','.join(classes[:3])}")
+        return (
+            "HIGH",
+            1,
+            f"Found in product price context. Classes: {','.join(classes[:3])}",
+        )
 
     # Low confidence: found but no clear context
     return ("LOW", 1, "Found price but no clear product price context")
 
 
-async def _fetch_and_parse_seller_price(url: str, expected_price: float) -> Optional[float]:
+async def _fetch_and_parse_seller_price(
+    url: str, expected_price: float
+) -> Optional[float]:
     """
     Hybrid price validation: Extract all prices from seller page, match against expected price,
     and score by context to verify it's the product price.
@@ -187,7 +233,9 @@ async def _fetch_and_parse_seller_price(url: str, expected_price: float) -> Opti
             method=SafeRequestMethod.GET, url=url, post_try_callables=[]
         )
         if not response.has:
-            _LOGGER.error("Price validation failed: Failed to fetch seller page: %s", url)
+            _LOGGER.error(
+                "Price validation failed: Failed to fetch seller page: %s", url
+            )
             return None
 
         html_text = response.text if response.text is not None else ""
@@ -196,37 +244,48 @@ async def _fetch_and_parse_seller_price(url: str, expected_price: float) -> Opti
         all_prices = _extract_all_prices_from_html(html_text)
 
         if not all_prices:
-            _LOGGER.warning("Price validation failed: Could not extract any prices from seller page %s", url)
+            _LOGGER.warning(
+                "Price validation failed: Could not extract any prices from seller page %s",
+                url,
+            )
             # Accept BuyWisely data but log for investigation
             return expected_price
 
         # Step 2: Normalize expected price into variants
         price_variants = _normalize_price_for_matching(expected_price)
-        _LOGGER.info(f"[DIAG] Expected price: {expected_price}, Variants: {price_variants[:5]}...")
+        _LOGGER.info(
+            f"[DIAG] Expected price: {expected_price}, Variants: {price_variants[:5]}..."
+        )
 
         # Step 3: Match extracted prices against variants
         matched_prices = []
         for extracted in all_prices:
             extracted_str = str(extracted["price"])
             # Check if extracted price matches any variant (with tolerance)
-            if any(variant in extracted["text"] or abs(extracted["price"] - expected_price) <= 0.01 for variant in price_variants):
+            if any(
+                variant in extracted["text"]
+                or abs(extracted["price"] - expected_price) <= 0.01
+                for variant in price_variants
+            ):
                 matched_prices.append(extracted)
 
-        _LOGGER.info(f"[DIAG] Extracted {len(all_prices)} prices, {len(matched_prices)} matched expected price")
+        _LOGGER.info(
+            f"[DIAG] Extracted {len(all_prices)} prices, {len(matched_prices)} matched expected price"
+        )
 
         if not matched_prices:
-            _LOGGER.error(f"Price validation failed: Expected price {expected_price} not found on seller page {url}. Extracted prices: {[p['price'] for p in all_prices[:10]]}")
+            _LOGGER.error(
+                f"Price validation failed: Expected price {expected_price} not found on seller page {url}. Extracted prices: {[p['price'] for p in all_prices[:10]]}"
+            )
             return None
 
         # Step 4: Score matches by context
         scored_matches = []
         for match in matched_prices:
             confidence, count, reasoning = _score_price_match(match, expected_price)
-            scored_matches.append({
-                **match,
-                "confidence": confidence,
-                "reasoning": reasoning
-            })
+            scored_matches.append(
+                {**match, "confidence": confidence, "reasoning": reasoning}
+            )
 
         # Step 5: Make decision based on confidence
         # Sort by confidence priority: HIGH > MEDIUM > LOW, reject REJECT
@@ -234,21 +293,31 @@ async def _fetch_and_parse_seller_price(url: str, expected_price: float) -> Opti
         valid_matches = [m for m in scored_matches if m["confidence"] != "REJECT"]
 
         if not valid_matches:
-            _LOGGER.error(f"Price validation uncertain: Found {expected_price} on seller page but context suggests it's not the product price. Context: {scored_matches[0]['reasoning'] if scored_matches else 'N/A'}")
+            _LOGGER.error(
+                f"Price validation uncertain: Found {expected_price} on seller page but context suggests it's not the product price. Context: {scored_matches[0]['reasoning'] if scored_matches else 'N/A'}"
+            )
             return None
 
         # Use highest confidence match
-        valid_matches.sort(key=lambda x: confidence_order[x["confidence"]], reverse=True)
+        valid_matches.sort(
+            key=lambda x: confidence_order[x["confidence"]], reverse=True
+        )
         best_match = valid_matches[0]
 
         if best_match["confidence"] == "HIGH":
-            _LOGGER.info(f"Price validation succeeded: Found {expected_price} on seller page with HIGH confidence. Context: {best_match['reasoning']}")
+            _LOGGER.info(
+                f"Price validation succeeded: Found {expected_price} on seller page with HIGH confidence. Context: {best_match['reasoning']}"
+            )
             return best_match["price"]
         elif best_match["confidence"] == "MEDIUM":
-            _LOGGER.info(f"Price validation succeeded: Found {expected_price} on seller page with MEDIUM confidence. Context: {best_match['reasoning']}")
+            _LOGGER.info(
+                f"Price validation succeeded: Found {expected_price} on seller page with MEDIUM confidence. Context: {best_match['reasoning']}"
+            )
             return best_match["price"]
         else:  # LOW
-            _LOGGER.warning(f"Price validation low confidence: Found {expected_price} once on seller page with no product context. Accepting with warning. Context: {best_match['reasoning']}")
+            _LOGGER.warning(
+                f"Price validation low confidence: Found {expected_price} once on seller page with no product context. Accepting with warning. Context: {best_match['reasoning']}"
+            )
             return best_match["price"]
 
     except Exception as e:
@@ -298,7 +367,9 @@ async def transform_raw_product_data(
                 continue
             valid_offer_found = True
             expected_price = parse_float(offer_price)
-            seller_page_price = await _fetch_and_parse_seller_price(seller_product_url, expected_price)
+            seller_page_price = await _fetch_and_parse_seller_price(
+                seller_product_url, expected_price
+            )
             _LOGGER.info(
                 f"[DIAG][data_transformer] Validating offer: {offer}, seller_page_price: {seller_page_price}"
             )
@@ -330,7 +401,9 @@ async def transform_raw_product_data(
                 product_link = fallback_offer.get("seller_product_url", "")
                 lowest_price_value = fallback_offer.get("base_price")
                 lowest_currency_value = fallback_offer.get("currency", "AUD")
-                _LOGGER.info(f"Fallback: using lowest base_price offer's seller_product_url: {product_link}")
+                _LOGGER.info(
+                    f"Fallback: using lowest base_price offer's seller_product_url: {product_link}"
+                )
             else:
                 # No valid seller_product_url in any offer: use item_url as URL
                 # But still try to use offer prices if available
@@ -339,7 +412,9 @@ async def transform_raw_product_data(
                 if fallback_offer and fallback_offer.get("base_price"):
                     lowest_price_value = fallback_offer.get("base_price")
                     lowest_currency_value = fallback_offer.get("currency", "AUD")
-                    _LOGGER.info(f"Fallback: using lowest base_price {lowest_price_value} from offers despite no seller_product_url")
+                    _LOGGER.info(
+                        f"Fallback: using lowest base_price {lowest_price_value} from offers despite no seller_product_url"
+                    )
                 else:
                     # No prices in offers either: fallback to extracting price and currency from HTML
                     html = raw_data.get("html", "")
@@ -349,7 +424,9 @@ async def transform_raw_product_data(
                         soup = BeautifulSoup(html, "html.parser")
                         price_candidates = []
                         # Regex to match price and currency (captures currency symbol and value)
-                        price_currency_regex = re.compile(r"(?P<currency>\$|AUD|€|£|USD)?\s*(?P<price>\d{1,3}(?:[,.]?\d{3})*(?:[,.]\d{2})?)")
+                        price_currency_regex = re.compile(
+                            r"(?P<currency>\$|AUD|€|£|USD)?\s*(?P<price>\d{1,3}(?:[,.]?\d{3})*(?:[,.]\d{2})?)"
+                        )
                         for text_node in soup.find_all(string=True):
                             if text_node.parent.name in [
                                 "script",
@@ -369,32 +446,47 @@ async def transform_raw_product_data(
                                 try:
                                     price_value = parse_float(cleaned_price_text)
                                     if price_value > 0:
-                                        price_candidates.append({
-                                            "price": price_value,
-                                            "currency": currency_text,
-                                            "text": match.group(0)
-                                        })
+                                        price_candidates.append(
+                                            {
+                                                "price": price_value,
+                                                "currency": currency_text,
+                                                "text": match.group(0),
+                                            }
+                                        )
                                 except Exception:
                                     continue
                         if price_candidates:
                             # Prefer candidate with a currency symbol, else fallback to first
-                            best = next((c for c in price_candidates if c["currency"]), price_candidates[0])
+                            best = next(
+                                (c for c in price_candidates if c["currency"]),
+                                price_candidates[0],
+                            )
                             price_from_html = best["price"]
-                            currency_symbol = best["currency"] or raw_data.get("currency") or "$"
+                            currency_symbol = (
+                                best["currency"] or raw_data.get("currency") or "$"
+                            )
                             # Normalize currency symbols to ISO codes
                             currency_map = {"$": "AUD", "€": "EUR", "£": "GBP"}
-                            currency_from_html = currency_map.get(currency_symbol, currency_symbol)
+                            currency_from_html = currency_map.get(
+                                currency_symbol, currency_symbol
+                            )
                             lowest_price_value = price_from_html
                             lowest_currency_value = currency_from_html
-                            _LOGGER.info(f"Fallback: extracted price from HTML: {price_from_html}, currency: {currency_from_html}")
+                            _LOGGER.info(
+                                f"Fallback: extracted price from HTML: {price_from_html}, currency: {currency_from_html}"
+                            )
                         else:
                             lowest_price_value = 0.0
                             lowest_currency_value = raw_data.get("currency") or "AUD"
-                            _LOGGER.error("Fallback: could not extract price from HTML. Setting price to 0.0.")
+                            _LOGGER.error(
+                                "Fallback: could not extract price from HTML. Setting price to 0.0."
+                            )
                     else:
                         lowest_price_value = 0.0
                         lowest_currency_value = raw_data.get("currency") or "AUD"
-                        _LOGGER.error("Fallback: no HTML available. Setting price to 0.0.")
+                        _LOGGER.error(
+                            "Fallback: no HTML available. Setting price to 0.0."
+                        )
 
     from custom_components.price_tracker.utilities.parser import parse_float
 

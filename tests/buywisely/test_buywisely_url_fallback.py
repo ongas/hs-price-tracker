@@ -4,7 +4,9 @@ from custom_components.price_tracker.services.buywisely.data_transformer import 
 )
 
 
-@patch("custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price")
+@patch(
+    "custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price"
+)
 async def test_url_no_fallback_to_seller_product_url(mock_fetch_price):
     # Mock the seller page price validation to return matching prices
     async def mock_price_fetch(url, expected_price):

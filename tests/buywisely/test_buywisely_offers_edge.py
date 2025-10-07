@@ -5,17 +5,72 @@ from custom_components.price_tracker.services.buywisely.parser import parse_prod
 async def test_buywisely_offers_edge_cases():
     # More than 10 offers, lowest price is not the first in the list
     offers = [
-        {"base_price": 20.0, "currency": "AUD", "created_at": "$D2025-09-28T22:34:51.002Z", "seller":{"shopback":None, "cashrewards":None}},
-        {"base_price": 30.0, "currency": "AUD", "created_at": "$D2025-09-28T22:34:51.002Z", "seller":{"shopback":None, "cashrewards":None}},
-        {"base_price": 40.0, "currency": "AUD", "created_at": "$D2025-09-28T22:34:51.002Z", "seller":{"shopback":None, "cashrewards":None}},
-        {"base_price": 50.0, "currency": "AUD", "created_at": "$D2025-09-28T22:34:51.002Z", "seller":{"shopback":None, "cashrewards":None}},
-        {"base_price": 60.0, "currency": "AUD", "created_at": "$D2025-09-28T22:34:51.002Z", "seller":{"shopback":None, "cashrewards":None}},
-        {"base_price": 70.0, "currency": "AUD", "created_at": "$D2025-09-28T22:34:51.002Z", "seller":{"shopback":None, "cashrewards":None}},
-        {"base_price": 80.0, "currency": "AUD", "created_at": "$D2025-09-28T22:34:51.002Z", "seller":{"shopback":None, "cashrewards":None}},
-        {"base_price": 90.0, "currency": "AUD", "created_at": "$D2025-09-28T22:34:51.002Z", "seller":{"shopback":None, "cashrewards":None}},
-        {"base_price": 100.0, "currency": "AUD", "created_at": "$D2025-09-28T22:34:51.002Z", "seller":{"shopback":None, "cashrewards":None}},
-        {"base_price": 110.0, "currency": "AUD", "created_at": "$D2025-09-28T22:34:51.002Z", "seller":{"shopback":None, "cashrewards":None}},
-        {"base_price": 5.0, "currency": "AUD", "created_at": "$D2025-06-20T16:42:06.111Z", "seller":{"shopback":None, "cashrewards":None}},  # Should be ignored - older timestamp
+        {
+            "base_price": 20.0,
+            "currency": "AUD",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
+        },
+        {
+            "base_price": 30.0,
+            "currency": "AUD",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
+        },
+        {
+            "base_price": 40.0,
+            "currency": "AUD",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
+        },
+        {
+            "base_price": 50.0,
+            "currency": "AUD",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
+        },
+        {
+            "base_price": 60.0,
+            "currency": "AUD",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
+        },
+        {
+            "base_price": 70.0,
+            "currency": "AUD",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
+        },
+        {
+            "base_price": 80.0,
+            "currency": "AUD",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
+        },
+        {
+            "base_price": 90.0,
+            "currency": "AUD",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
+        },
+        {
+            "base_price": 100.0,
+            "currency": "AUD",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
+        },
+        {
+            "base_price": 110.0,
+            "currency": "AUD",
+            "created_at": "$D2025-09-28T22:34:51.002Z",
+            "seller": {"shopback": None, "cashrewards": None},
+        },
+        {
+            "base_price": 5.0,
+            "currency": "AUD",
+            "created_at": "$D2025-06-20T16:42:06.111Z",
+            "seller": {"shopback": None, "cashrewards": None},
+        },  # Should be ignored - older timestamp
     ]
     offers_json = ",".join([json.dumps(offer) for offer in offers])
     html = f"""
