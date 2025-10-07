@@ -77,20 +77,36 @@ async def async_setup_entry(
         )
 
         # Get global excluded_domains from hass.data for this specific service type
-        service_config = hass.data.get(DOMAIN, {}).get("global_config", {}).get(service_type, {})
+        service_config = (
+            hass.data.get(DOMAIN, {}).get("global_config", {}).get(service_type, {})
+        )
         global_excluded_raw = service_config.get("global_excluded_domains", [])
+        _LOGGER.info(
+            "[DIAG][sensor.py] Raw global_excluded_domains from config: %r",
+            global_excluded_raw,
+        )
         # Support both list format (from Options Flow or YAML list) and string format (legacy)
         if isinstance(global_excluded_raw, list):
             global_excluded = global_excluded_raw
         elif isinstance(global_excluded_raw, str):
-            global_excluded = [d.strip() for d in global_excluded_raw.split(",") if d.strip()]
+            global_excluded = [
+                d.strip() for d in global_excluded_raw.split(",") if d.strip()
+            ]
         else:
             global_excluded = []
+        _LOGGER.info(
+            "[DIAG][sensor.py] Parsed global_excluded_domains (list): %r",
+            global_excluded,
+        )
 
         # Get per-product excluded_domains from config entry
         # Format: comma-separated string like "ebay.com.au,amazon.com.au"
         per_product_excluded_str = Lu.get_or_default(config, CONF_EXCLUDED_DOMAINS, "")
-        per_product_excluded = [d.strip() for d in per_product_excluded_str.split(",") if d.strip()] if per_product_excluded_str else []
+        per_product_excluded = (
+            [d.strip() for d in per_product_excluded_str.split(",") if d.strip()]
+            if per_product_excluded_str
+            else []
+        )
 
         # Merge global and per-product exclusions (deduplicate)
         excluded_domains = list(set(global_excluded + per_product_excluded))
@@ -98,7 +114,11 @@ async def async_setup_entry(
             "[DIAG][sensor.py] Excluded domains - Global: %s, Per-product: %s, Merged: %s",
             global_excluded,
             per_product_excluded,
-            excluded_domains
+            excluded_domains,
+        )
+        # Log the excluded_domains as passed to the engine
+        _LOGGER.info(
+            "[DIAG][sensor.py] Passing excluded_domains to engine: %r", excluded_domains
         )
 
         engine = create_service_engine(service_type)(
