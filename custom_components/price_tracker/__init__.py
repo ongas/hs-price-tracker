@@ -5,22 +5,9 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import (
-    device_registry as dr,
-    entity_registry as er,
-)
+from homeassistant.helpers import entity_registry as er
 
-from .components.id import IdGenerator
-from .consts.confs import (
-    CONF_ITEM_DEVICE_ID,
-    CONF_ITEM_UNIQUE_ID,
-)
 from .consts.defaults import DOMAIN, PLATFORMS
-from .services.factory import (
-    create_service_item_url_parser,
-    create_service_item_target_parser,
-)
-from .utilities.list import Lu
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -75,6 +62,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             f"[DIAG][__init__.py] handle_update_entity called with call.data: {call.data}"
         )
         entity_ids = call.data.get("entity_id")
+        force_update = call.data.get("force", False)
         entity_registry = er.async_get(hass)
         # If entity_id is 'ALL' (case-insensitive), update all matching entities
         if isinstance(entity_ids, str) and entity_ids.strip().upper() == "ALL":
@@ -89,17 +77,17 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             _LOGGER.info(
                 "[DIAG][__init__.py] No entity_id provided, no update performed."
             )
-            return
+            return False
         elif isinstance(entity_ids, str):
             entity_ids = [entity_ids]
         elif not isinstance(entity_ids, list):
             _LOGGER.warning(
                 f"[DIAG][__init__.py] Invalid entity_id type: {type(entity_ids)}"
             )
-            return
+            return False
         for entity_id in entity_ids:
             _LOGGER.debug(
-                f"[DIAG][__init__.py] Service call to update entity: {entity_id}"
+                f"[DIAG][__init__.py] Service call to update entity: {entity_id} (force={force_update})"
             )
             entity_entry = entity_registry.async_get(entity_id)
             _LOGGER.debug(
@@ -140,21 +128,18 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                 _LOGGER.debug(
                     f"[DIAG][__init__.py] Found entity object: {entity} (type: {type(entity)})"
                 )
-                if hasattr(entity, "async_manual_update"):
+                # Always call async_update with force parameter
+                if hasattr(entity, "async_update"):
                     _LOGGER.info(
-                        f"[DIAG][__init__.py] Manually triggering manual update for {entity_id} (entity: {entity})"
+                        f"[DIAG][__init__.py] Manually triggering update for {entity_id} (entity: {entity}, force={force_update})"
                     )
-                    await entity.async_manual_update()
-                elif hasattr(entity, "async_update"):
-                    _LOGGER.info(
-                        f"[DIAG][__init__.py] Manually triggering update for {entity_id} (entity: {entity})"
-                    )
-                    await entity.async_update()
+                    await entity.async_update(force=force_update)
                 else:
                     _LOGGER.warning(
-                        f"[DIAG][__init__.py] Entity {entity_id} does not have async_update/manual_update method. Entity: {entity}"
+                        f"[DIAG][__init__.py] Entity {entity_id} does not have async_update method. Entity: {entity}"
                     )
 
+    return True
     hass.services.async_register(DOMAIN, "update_entity", handle_update_entity)
     _LOGGER.info("[DIAG][__init__.py] Registered service: %s.update_entity", DOMAIN)
     return True
@@ -272,91 +257,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 _LOGGER.debug(
                     f"[DIAG][__init__.py] Found entity object: {entity} (type: {type(entity)})"
                 )
-                if hasattr(entity, "async_manual_update"):
-                    _LOGGER.info(
-                        f"[DIAG][__init__.py] Manually triggering manual update for {entity_id} (entity: {entity})"
-                    )
-                    await entity.async_manual_update()
-                elif hasattr(entity, "async_update"):
-                    _LOGGER.info(
-                        f"[DIAG][__init__.py] Manually triggering update for {entity_id} (entity: {entity})"
-                    )
-                    await entity.async_update()
-                else:
-                    _LOGGER.warning(
-                        f"[DIAG][__init__.py] Entity {entity_id} does not have async_update/manual_update method. Entity: {entity}"
-                    )
-
-    # Restore correct assignment for data and options
-    data = entry.data
-    if entry.options is not None and "target" in entry.options:
-        options = {
-            **entry.options,
-            "target": Lu.map(
-                entry.options["target"],
-                lambda x: {
-                    **x,
-                    CONF_ITEM_DEVICE_ID: Lu.get(x, "device")
-                    if Lu.get(x, "device") is not None
-                    else Lu.get(x, CONF_ITEM_DEVICE_ID),
-                },
-            ),
-        }
-
-        # Update item_url (item_unique_id)
-        options = {
-            **options,
-            "target": Lu.map(
-                options["target"],
-                lambda x: {
-                    **x,
-                    CONF_ITEM_UNIQUE_ID: IdGenerator.generate_entity_id(
-                        service_type=entry.data["service_type"],
-                        entity_target=create_service_item_target_parser(
-                            entry.data["service_type"]
-                        )(
-                            create_service_item_url_parser(entry.data["service_type"])(
-                                x["item_url"]
-                            )
-                        ),
-                        device_id=IdGenerator.get_device_target_from_id(
-                            Lu.get(x, CONF_ITEM_DEVICE_ID)
-                        )
-                        if Lu.get(x, CONF_ITEM_DEVICE_ID) is not None
-                        else None,
-                    ),
-                },
-            ),
-        }
-    else:
-        options = {"target": []}
-
-    # ...existing code...
-
-    hass.config_entries.async_update_entry(entry=entry, data=data, options=options)
-
-    data = dict(data)
-    listeners = entry.add_update_listener(options_update_listener)
-    _LOGGER.info(
-        "[DIAG][__init__.py] Storing in hass.data[%s][%s]: %s",
-        DOMAIN,
-        entry.entry_id,
-        data,
-    )
-    hass.data[DOMAIN][entry.entry_id] = data
-
-    entry.async_on_unload(listeners)
-
-    entity_registry = er.async_get(hass)
-    entities = er.async_entries_for_config_entry(entity_registry, entry.entry_id)
-    for e in entities:
-        entity_registry.async_remove(e.entity_id)
-
-    device_registry = dr.async_get(hass)
-    devices = dr.async_entries_for_config_entry(device_registry, entry.entry_id)
-
-    for d in devices:
-        device_registry.async_update_device(d.id, remove_config_entry_id=entry.entry_id)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
