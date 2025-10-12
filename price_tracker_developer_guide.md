@@ -9,7 +9,7 @@ This project maintains comprehensive reference documentation, specifications, us
     - `docs/acceptance/userstories/US04_Handle_Unavailable_Products.md` (handle unavailable/deleted)
     - `docs/acceptance/userstories/US05_Parse_Display_Product_Info.md` (parse/display info)
     - `docs/acceptance/userstories/US06_Support_Multiple_Offers.md` (multiple offers)
-    - `docs/acceptance/userstories/US07_Validate_Product_URLs.md` (URL validation)
+    - `docs/acceptance/userstories/US07_Validate_Product_URLs.md` (seller product URL validation)
     - `docs/acceptance/userstories/US08_Diagnostic_Logging.md` (diagnostic logging)
     - `docs/acceptance/userstories/US09_Filter_Offers_By_Domain.md` (domain filtering)
 
@@ -20,7 +20,7 @@ This project maintains comprehensive reference documentation, specifications, us
     - `docs/acceptance/features/US04_Handle_Unavailable_Products.feature`
     - `docs/acceptance/features/US05_Parse_Display_Product_Info.feature`
     - `docs/acceptance/features/US06_Support_Multiple_Offers.feature`
-    - `docs/acceptance/features/US07_Validate_Product_URLs.feature`
+    - `docs/acceptance/features/US07_Validate_Product_URLs.feature` (seller product URL validation)
     - `docs/acceptance/features/US08_Diagnostic_Logging.feature`
     - `docs/acceptance/features/US09_Filter_Offers_By_Domain.feature`
 
@@ -426,6 +426,30 @@ Replace `entity_id` with the correct sensor/entity for your product. This button
 - Add rate limiting/throttling to avoid IP blocking.
 - Enhance error reporting for parsing failures.
 
+## 10. Seller Product URL Validation
+
+### Seller Product URL Validation Logic
+
+The system validates the selected seller product URL against the expected product model from the BuyWisely product listing page. This ensures that the chosen offer's URL actually corresponds to the intended product, preventing mismatches (e.g., wrong model, color, or configuration).
+
+**Validation Strategy:**
+- The product model (and key attributes) are extracted from the BuyWisely listing and hydration data.
+- The selected seller product URL is checked to ensure it contains the product model or a unique identifier in its path or query string.
+- If the URL does not match the expected product, the offer is excluded and diagnostics are logged.
+- This logic is covered by user story US07 and BDD feature US07_Validate_Product_URLs.feature.
+- Diagnostics for mismatches are logged at every extraction and selection step.
+- All requirements and edge cases are mapped in the traceability matrix.
+
+**Implementation Artefacts:**
+- `services/buywisely/engine.py`, `services/buywisely/parser.py`, and `services/buywisely/data_transformer.py` implement the validation logic.
+- Tests: `tests/buywisely/test_buywisely_engine_parsing.py`, `tests/buywisely/test_buywisely_engine_price_validation.py`.
+- User story: `docs/acceptance/userstories/US07_Validate_Product_URLs.md`.
+- BDD feature: `docs/acceptance/features/US07_Validate_Product_URLs.feature`.
+
+**Business Rule:**
+- Only offers whose seller product URL matches the expected product model are considered valid. All others are excluded and logged.
+
+---
 ## 10. Services
 
 ### 10.1 BuyWisely Service
@@ -440,13 +464,13 @@ Replace `entity_id` with the correct sensor/entity for your product. This button
 
 
 **Business Requirements:**
-All business requirements for BuyWisely—including seller URL and lowest price extraction, display name rules, and seller page price validation—are defined in the following project artefacts:
+All business requirements for BuyWisely—including seller URL and lowest price extraction, display name rules, seller product URL validation, and seller page price validation—are defined in the following project artefacts:
 
-- User Stories & Acceptance Criteria: `docs/acceptance/userstories/`
-- BDD Features: `docs/acceptance/features/`
-- API/Data Contract: `docs/integration_docs/buywisely_product_api_contract.md`
-- Implementation Checklist: `docs/integration_docs/buywisely_implementation_checklist.md`
-- Error/Edge Case Catalog: `docs/integration_docs/buywisely_error_handling_and_edge_cases.md`
+    - User Stories & Acceptance Criteria: `docs/acceptance/userstories/` (see US07 for URL validation)
+    - BDD Features: `docs/acceptance/features/` (see US07 for URL validation)
+    - API/Data Contract: `docs/integration_docs/buywisely_product_api_contract.md`
+    - Implementation Checklist: `docs/integration_docs/buywisely_implementation_checklist.md`
+    - Error/Edge Case Catalog: `docs/integration_docs/buywisely_error_handling_and_edge_cases.md`
 
 All implementation, extraction logic, and tests **must** strictly adhere to these artefacts. If any requirement is not met, it is a regression and must be fixed immediately. Always consult these artefacts for the latest requirements and acceptance criteria.
 
@@ -456,7 +480,7 @@ All implementation, extraction logic, and tests **must** strictly adhere to thes
 - If the BuyWisely website changes the structure or naming of the offers list, diagnostics will log the full hydration data and extraction failure, making debugging straightforward.
 - Parsing logic may still break if the site layout or hydration data format changes significantly; always check logs for extraction diagnostics.
 
-**Seller Price Extraction Strategy:**
+**Seller Price Extraction & URL Validation Strategy:**
 
 To ensure robust and accurate price validation, the `_fetch_and_parse_seller_price` function in `custom_components/price_tracker/services/buywisely/data_transformer.py` implements a sophisticated, context-aware scoring mechanism. This approach is designed to be resilient to variations in seller page HTML layouts.
 
@@ -474,6 +498,10 @@ The process is as follows:
 4.  **Final Price:** The price from the highest-scoring candidate is selected as the validated seller price.
 
 This scoring mechanism allows the system to intelligently weigh different contextual clues, making the price extraction process more reliable and less dependent on a fixed page structure.
+
+**Seller Product URL Validation:**
+- After price extraction, the selected offer's seller product URL is validated against the expected product model.
+- If the URL does not match the product model, the offer is excluded and diagnostics are logged.
 
 **Entity Management:**
 
@@ -540,4 +568,14 @@ sensor:
 - Calculated fields are prefixed with `CALC_` for clarity
 
 **Outstanding Issues & Resolved Problems (BuyWisely):**
+
+#### Seller Product URL Validation (October 2025)
+- **Issue:** Seller product URLs selected for offers sometimes did not match the expected product model, leading to incorrect product tracking and user confusion.
+- **Root Cause:** The extraction logic did not validate that the seller product URL contained the product model or unique identifier, allowing mismatches.
+- **Actions Taken:**
+    - Implemented validation logic to check that the seller product URL matches the expected product model.
+    - Updated diagnostics to log mismatches and exclusions.
+    - Added tests and BDD features to cover this requirement.
+- **Verification:** Diagnostics and tests confirm that only valid seller product URLs are selected and mismatches are excluded.
+- **Status:** Fully resolved. Seller product URL validation is now robust and regression-proof.
 - See previous sections for general issues. BuyWisely-specific issues and resolutions are tracked here as needed.

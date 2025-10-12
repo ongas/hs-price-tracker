@@ -9,8 +9,10 @@ from custom_components.price_tracker.services.buywisely.engine import BuyWiselyE
 
 
 @pytest.mark.asyncio
+@patch("custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price", new_callable=AsyncMock)
 @patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
-async def test_real_html_hydration_extraction(mock_safe_request):
+async def test_real_html_hydration_extraction(mock_fetch_seller_price, mock_safe_request):
+    mock_fetch_seller_price.return_value = None
     """
     Integration test: Use real BuyWisely HTML fixture to validate Next.js hydration extraction logic.
     """

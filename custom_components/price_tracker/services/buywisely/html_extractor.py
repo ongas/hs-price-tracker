@@ -319,19 +319,12 @@ async def extract_product_data_from_html(
             else product_data.get("currency", "AUD")
         )
         raw_data = {
-            "title": name_value,
-            "price": price_val,
-            "image": product_data.get("image") if product_data else None,
-            "currency": currency_val,
-            "availability": "In Stock" if offers else "Out of Stock",
-            "brand": brand if "brand" in locals() else "",
-            "url": main_url,
-            "offers": offers,
-            "delivery_price": selected_delivery,
-            "html": html,  # Always include the original HTML
+            "html": html,
         }
+        _LOGGER.debug(f"[DIAG][html_extractor] Raw data after hydration processing: {raw_data}")
         return raw_data
     else:
+        _LOGGER.debug("[DIAG][html_extractor] Hydration parsing failed, falling back to BeautifulSoup extraction.")
         raw_data = extract_from_beautifulsoup(html, excluded_domains=excluded_domains)
         raw_data["html"] = html  # Always include the original HTML
         return raw_data

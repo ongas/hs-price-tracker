@@ -49,20 +49,20 @@ _SERVICE_ITEM_TARGET_PARSER = {
 }
 
 _SERVICE_ITEM_ENGINE = {
-    BuyWiselyEngine.engine_code(): lambda **cfg: BuyWiselyEngine(**cfg),
-    CoupangEngine.engine_code(): lambda **cfg: CoupangEngine(**cfg),
-    GsTheFreshEngine.engine_code(): lambda **cfg: GsTheFreshEngine(**cfg),
-    IdusEngine.engine_code(): lambda **cfg: IdusEngine(**cfg),
-    KurlyEngine.engine_code(): lambda **cfg: KurlyEngine(**cfg),
-    NcncEngine.engine_code(): lambda **cfg: NcncEngine(**cfg),
-    OasisEngine.engine_code(): lambda **cfg: OasisEngine(**cfg),
-    OliveyoungEngine.engine_code(): lambda **cfg: OliveyoungEngine(**cfg),
-    SmartstoreEngine.engine_code(): lambda **cfg: SmartstoreEngine(**cfg),
-    SsgEngine.engine_code(): lambda **cfg: SsgEngine(**cfg),
-    RankingdakEngine.engine_code(): lambda **cfg: RankingdakEngine(**cfg),
-    LotteOnEngine.engine_code(): lambda **cfg: LotteOnEngine(**cfg),
-    HomeplusEngine.engine_code(): lambda **cfg: HomeplusEngine(**cfg),
-    DaisoKrEngine.engine_code(): lambda **cfg: DaisoKrEngine(**cfg),
+    BuyWiselyEngine.engine_code(): lambda hass, **cfg: BuyWiselyEngine(hass=hass, **cfg),
+    CoupangEngine.engine_code(): lambda hass, **cfg: CoupangEngine(hass=hass, **cfg),
+    GsTheFreshEngine.engine_code(): lambda hass, **cfg: GsTheFreshEngine(hass=hass, **cfg),
+    IdusEngine.engine_code(): lambda hass, **cfg: IdusEngine(hass=hass, **cfg),
+    KurlyEngine.engine_code(): lambda hass, **cfg: KurlyEngine(hass=hass, **cfg),
+    NcncEngine.engine_code(): lambda hass, **cfg: NcncEngine(hass=hass, **cfg),
+    OasisEngine.engine_code(): lambda hass, **cfg: OasisEngine(hass=hass, **cfg),
+    OliveyoungEngine.engine_code(): lambda hass, **cfg: OliveyoungEngine(hass=hass, **cfg),
+    SmartstoreEngine.engine_code(): lambda hass, **cfg: SmartstoreEngine(hass=hass, **cfg),
+    SsgEngine.engine_code(): lambda hass, **cfg: SsgEngine(hass=hass, **cfg),
+    RankingdakEngine.engine_code(): lambda hass, **cfg: RankingdakEngine(hass=hass, **cfg),
+    LotteOnEngine.engine_code(): lambda hass, **cfg: LotteOnEngine(hass=hass, **cfg),
+    HomeplusEngine.engine_code(): lambda hass, **cfg: HomeplusEngine(hass=hass, **cfg),
+    DaisoKrEngine.engine_code(): lambda hass, **cfg: DaisoKrEngine(hass=hass, **cfg),
 }
 
 _SERVICE_DEVICE_PARSER = {
@@ -108,5 +108,5 @@ def create_service_device_generator(service_code):
     return _SERVICE_DEVICE_GENERATOR[service_code]
 
 
-def create_service_engine(service_code):
-    return _SERVICE_ITEM_ENGINE[service_code]
+def create_service_engine(hass, service_code, **kwargs):
+    return _SERVICE_ITEM_ENGINE[service_code](hass=hass, **kwargs)

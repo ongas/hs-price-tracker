@@ -1,0 +1,81 @@
+{
+  "rules": [
+    {
+      "type": "command_pattern",
+      "value": "pytest",
+      "description": "Shell command: pytest",
+      "id": "1760237988823-kzcqitvmv",
+      "createdAt": 1760237988823,
+      "lastUsed": 1760300113623
+    },
+    {
+      "type": "command_pattern",
+      "value": "1",
+      "description": "Shell command: 1",
+      "id": "1760237988899-wmi2zw4jq",
+      "createdAt": 1760237988900,
+      "lastUsed": 1760301123196
+    },
+    {
+      "type": "command_pattern",
+      "value": "tail",
+      "description": "Shell command: tail",
+      "id": "1760237988930-tiimnahz4",
+      "createdAt": 1760237988930,
+      "lastUsed": 1760305354133
+    },
+    {
+      "type": "command_pattern",
+      "value": "ruff",
+      "description": "Shell command: ruff",
+      "id": "1760238098477-78ocdl8jg",
+      "createdAt": 1760238098477,
+      "lastUsed": 1760300129310
+    },
+    {
+      "type": "command_pattern",
+      "value": "cp",
+      "description": "Shell command: cp",
+      "id": "1760258386177-vqi104swp",
+      "createdAt": 1760258386177
+    },
+    {
+      "type": "command_pattern",
+      "value": "pylint",
+      "description": "Shell command: pylint",
+      "id": "1760260250221-up15dqxmy",
+      "createdAt": 1760260250221,
+      "lastUsed": 1760298684467
+    },
+    {
+      "type": "command_pattern",
+      "value": "python",
+      "description": "Shell command: python",
+      "id": "1760260255383-naxq1xq12",
+      "createdAt": 1760260255383,
+      "lastUsed": 1760301929680
+    },
+    {
+      "type": "command_pattern",
+      "value": "conda",
+      "description": "Shell command: conda",
+      "id": "1760260620835-s8s47dva1",
+      "createdAt": 1760260620835,
+      "lastUsed": 1760298205945
+    },
+    {
+      "type": "command_pattern",
+      "value": "which",
+      "description": "Shell command: which",
+      "id": "1760298656596-ajf5twwr3",
+      "createdAt": 1760298656596
+    },
+    {
+      "type": "tool_kind",
+      "value": "edit",
+      "description": "Always allow edit operations",
+      "id": "1760304305008-4k5njvdfd",
+      "createdAt": 1760304305008
+    }
+  ]
+}

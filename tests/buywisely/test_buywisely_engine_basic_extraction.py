@@ -3,9 +3,12 @@
 import os
 from unittest.mock import AsyncMock, patch
 import pytest
+import logging
 
 from custom_components.price_tracker.datas.item import ItemStatus
 from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _read_fixture_html(filename: str) -> str:
@@ -17,12 +20,18 @@ def _read_fixture_html(filename: str) -> str:
 
 @pytest.mark.asyncio
 @patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
-@patch(
-    "custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price"
-)
-async def test_get_product_details_success(mock_fetch_seller_price, mock_safe_request):
+@patch("requests.Session.get")
+async def test_get_product_details_success(mock_get, mock_safe_request):
     """Test successful retrieval of product details from a BuyWisely page."""
-    mock_fetch_seller_price.return_value = 123.45  # Simulate matching price
+
+    mock_hass = AsyncMock()
+    mock_hass.async_add_executor_job.side_effect = lambda func, *args, **kwargs: func(*args, **kwargs)
+
+    mock_get.return_value = AsyncMock()
+    mock_get.return_value.text = "<html><body>Seller Page Price: 123.45</body></html>"
+    mock_safe_request.return_value.user_agent = Mock(return_value=None)
+    mock_get.return_value.raise_for_status = Mock(return_value=None)
+
     sample_html = _read_fixture_html("buywisely_product_details_success.html")
     mock_response = AsyncMock()
     mock_response.has = True
@@ -35,10 +44,9 @@ async def test_get_product_details_success(mock_fetch_seller_price, mock_safe_re
     engine = BuyWiselyEngine(
         item_url="https://www.buywisely.com.au/product/test-product",
         request_cls=mock_safe_request,
+        hass=mock_hass,
     )
-    print("[DIAG] HTML passed to parser:", sample_html)
     result = await engine.load()
-    print("[DIAG] result:", result)
     assert result is not None, "Expected result, got None"
     assert (
         getattr(result, "name", None) == "Test Product Title"

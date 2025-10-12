@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Optional
 
 from custom_components.price_tracker.utilities.parser import parse_float
 
@@ -13,6 +14,7 @@ class ItemPriceData:
         currency: str = "",
         original_price: float | None = None,
         payback_price: float = 0.0,
+        seller_product_url: Optional[str] = None,
     ):
         # Always parse price fields as float, but preserve currency as-is (do not strip symbols)
         self.price = parse_float(price)
@@ -27,6 +29,7 @@ class ItemPriceData:
             (self.discount_amount / orig_val * 100) if orig_val else 0.0
         )
         self.payback_price = parse_float(payback_price)
+        self.seller_product_url = seller_product_url
 
     @property
     def dict(self):

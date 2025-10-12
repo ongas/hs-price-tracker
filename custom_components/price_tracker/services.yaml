@@ -4,8 +4,9 @@ update_entity:
   fields:
     entity_id:
       name: Entity ID
-  description: The entity_id of the price tracker sensor to update. Specify 'ALL' (case-insensitive) to update all price_buywisely sensors.
+      description: The entity_id of the price tracker sensor to update. Specify 'ALL' (case-insensitive) to update all price_buywisely sensors.
       required: true
-      # selector:
-      #   entity:
-      #     domain: sensor
+    force:
+      name: Force Update
+      description: If true, bypasses the refresh interval and forces an immediate update. Default is false.
+      required: false

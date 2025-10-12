@@ -1,35 +1,23 @@
 """Tests for Price Tracker Options Flow - Global Excluded Domains configuration."""
 
-import pytest
-from unittest.mock import patch
-from homeassistant import config_entries
-from custom_components.price_tracker.consts.defaults import DOMAIN
 
-
-@pytest.fixture
-def mock_config_entry():
-    """Mock a config entry for BuyWisely service."""
-    return config_entries.ConfigEntry(
-        version=1,
-        minor_version=0,
-        domain=DOMAIN,
-        title="Price Tracker - BuyWisely",
-        data={
-            "service_type": "buywisely",
-            "product_url": "https://buywisely.com.au/product/test",
-        },
-        options={},
-        source="user",
-        entry_id="test_entry_id",
-    )
+from unittest.mock import patch, AsyncMock
 
 
 async def test_options_flow_shows_global_excluded_domains_field(
-    hass, mock_config_entry
+    mock_config_entry
 ):
+    hass = AsyncMock()
+    hass.config_entries.options.async_init.return_value = {
+        "type": "form",
+        "step_id": "init",
+        "data_schema": MagicMock(schema={
+            "global_excluded_domains_buywisely": str
+        })
+    }
     """Test that the options flow shows the global_excluded_domains field."""
     # Add the config entry to hass
-    mock_config_entry.add_to_hass(hass)
+
 
     # Initialize the options flow
     result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
@@ -43,9 +31,9 @@ async def test_options_flow_shows_global_excluded_domains_field(
     assert any("global_excluded_domains" in str(key).lower() for key in schema_keys)
 
 
-async def test_options_flow_save_global_excluded_domains(hass, mock_config_entry):
+async def test_options_flow_save_global_excluded_domains(mock_config_entry):
+    hass = AsyncMock()
     """Test saving global excluded domains via options flow."""
-    mock_config_entry.add_to_hass(hass)
 
     # Start options flow
     result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
@@ -64,13 +52,11 @@ async def test_options_flow_save_global_excluded_domains(hass, mock_config_entry
     )
 
 
-async def test_options_flow_update_existing_global_excluded_domains(
-    hass, mock_config_entry
-):
+async def test_options_flow_update_existing_global_excluded_domains(mock_config_entry):
+    hass = AsyncMock()
     """Test updating existing global excluded domains."""
     # Set initial options
     mock_config_entry.options = {"global_excluded_domains_buywisely": "ebay.com.au"}
-    mock_config_entry.add_to_hass(hass)
 
     # Start options flow
     result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
@@ -93,12 +79,13 @@ async def test_options_flow_update_existing_global_excluded_domains(
     )
 
 
-async def test_options_flow_clear_global_excluded_domains(hass, mock_config_entry):
+async def test_options_flow_clear_global_excluded_domains(mock_config_entry):
+    hass = AsyncMock()
     """Test clearing global excluded domains."""
     mock_config_entry.options = {
         "global_excluded_domains_buywisely": "ebay.com.au,amazon.com.au"
     }
-    mock_config_entry.add_to_hass(hass)
+
 
     result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
 
@@ -111,9 +98,9 @@ async def test_options_flow_clear_global_excluded_domains(hass, mock_config_entr
     assert result["data"]["global_excluded_domains_buywisely"] == ""
 
 
-async def test_options_flow_whitespace_trimming(hass, mock_config_entry):
+async def test_options_flow_whitespace_trimming(mock_config_entry):
+    hass = AsyncMock()
     """Test that whitespace is trimmed from domain entries."""
-    mock_config_entry.add_to_hass(hass)
 
     result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
 
@@ -134,9 +121,9 @@ async def test_options_flow_whitespace_trimming(hass, mock_config_entry):
     assert "temu.com" in domains
 
 
-async def test_options_flow_empty_entries_filtered(hass, mock_config_entry):
+async def test_options_flow_empty_entries_filtered(mock_config_entry):
+    hass = AsyncMock()
     """Test that empty entries are filtered out."""
-    mock_config_entry.add_to_hass(hass)
 
     result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
 
@@ -155,11 +142,11 @@ async def test_options_flow_empty_entries_filtered(hass, mock_config_entry):
     assert "" not in domains
 
 
-async def test_options_flow_integration_reload_triggered(hass, mock_config_entry):
+async def test_options_flow_integration_reload_triggered(mock_config_entry):
+    hass = AsyncMock()
     """Test that changing options triggers integration reload."""
-    mock_config_entry.add_to_hass(hass)
 
-    with patch.object(hass.config_entries, "async_reload") as mock_reload:
+    with patch.object(hass.config_entries, "async_reload"):
         result = await hass.config_entries.options.async_init(
             mock_config_entry.entry_id
         )

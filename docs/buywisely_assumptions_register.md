@@ -78,7 +78,7 @@ This document explicitly captures all assumptions, implied behaviors, and undocu
 | A-HA-004 | Entities are automatically updated on refresh interval (no manual update button in HA UI) | Polling-based updates | Users may want manual refresh | HA service call support |
 | A-HA-005 | One sensor per product (not separate sensors for price, URL, name) | All data in one sensor | Alternative: separate sensors per attribute | Design decision |
 | A-HA-006 | Price history tracking is HA's responsibility (via recorder), not integration's | No built-in history storage | Users need HA recorder configured | Documentation |
-| A-HA-007 | Currency is always AUD (Australian Dollar) for BuyWisely | Hardcoded currency assumption | Fails if BuyWisely adds multi-currency support | Currency detection needed |
+| A-HA-007 | Currency is dynamically determined based on offer data and seller domain, not always AUD. | Correct currency is displayed, enabling potential multi-currency support. | Incorrect currency display if detection logic fails or new domains are not mapped. | Dynamic currency detection and mapping. |
 
 ---
 
@@ -114,8 +114,8 @@ This document explicitly captures all assumptions, implied behaviors, and undocu
 
 | ID | Assumption | Impact | Risk if Wrong | Verification Method |
 |----|-----------|--------|---------------|---------------------|
-| A-BL-001 | Lowest total price (base_price + shipping) is the best deal | Sorting and selection logic | Users may prefer free shipping, fastest delivery, trusted sellers | Feature requests |
-| A-BL-002 | All currencies are AUD (no currency conversion needed) | Hardcoded $ symbol | Fails if multi-currency products added | Currency detection |
+| A-BL-001 | BuyWisely suggests the lowest total price (base_price + shipping), which then requires validation against the seller's page. | The system selects the lowest *verified* price after comparing BuyWisely's data with the actual seller's listing. | We might use an unverified or incorrect price if validation fails or is not performed. | Active validation against seller page; discrepancy logging. |
+| A-BL-002 | Currencies are dynamically determined; conversion may be needed if the detected currency differs from the desired display currency. | Accurate currency display and potential for multi-currency support. | Incorrect currency display or conversion if detection/conversion logic fails. | Dynamic currency detection and conversion. |
 | A-BL-003 | "Current offers" means max `created_at` timestamp, not "in stock" status | Filtering logic | Out-of-stock offers may appear if timestamps not updated | Timestamp accuracy |
 | A-BL-004 | Affiliate offers (shopback/cashrewards) should be excluded by default | Automatic filtering | Users may want affiliate offers for cashback | Feature requests |
 | A-BL-005 | First valid offer (after validation) is "good enough" | Stop at first valid | Doesn't validate all top 10 for absolute best | Optimization decision |

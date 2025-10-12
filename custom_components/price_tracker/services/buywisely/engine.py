@@ -1,6 +1,8 @@
 import logging
 import re
+import requests
 from typing import Optional
+from homeassistant.core import HomeAssistant
 
 from requests.exceptions import (
     RequestException,
@@ -15,6 +17,7 @@ from custom_components.price_tracker.datas.category import ItemCategoryData
 from custom_components.price_tracker.datas.price import ItemPriceData
 from custom_components.price_tracker.services.buywisely.const import NAME, CODE
 from custom_components.price_tracker.services.buywisely.parser import parse_product
+
 from custom_components.price_tracker.utilities.safe_request import (
     SafeRequest,
     SafeRequestMethod,
@@ -32,6 +35,7 @@ class BuyWiselyEngine(PriceEngine):
     def __init__(
         self,
         item_url: str,
+        hass: HomeAssistant,
         device: None = None,
         proxies: Optional[list] = None,
         selenium: Optional[str] = None,
@@ -39,6 +43,7 @@ class BuyWiselyEngine(PriceEngine):
         request_cls=None,
         excluded_domains: Optional[list] = None,
     ):
+        self.hass = hass
         self.item_url = item_url
         product_id = BuyWiselyEngine.parse_id(item_url)["product_id"]
         self.id = {"product_id": product_id, "item_url": item_url}
@@ -137,6 +142,24 @@ class BuyWiselyEngine(PriceEngine):
             item_url=self.item_url,
             excluded_domains=self._excluded_domains,
         )
+
+        if not product_details or not product_details.offers:
+            _LOGGER.warning("No offers found for %s", self.item_url)
+            return product_details
+
+        session = requests.Session()
+        for offer in product_details.offers:
+            seller_page_price = await self._fetch_and_parse_seller_price(
+                session, offer.url, offer.price
+            )
+            if seller_page_price is not None and abs(seller_page_price - offer.price) <= 0.01:
+                product_details.price = offer
+                product_details.url = offer.url
+                product_details.status = ItemStatus.ACTIVE
+                return product_details
+
+        product_details.status = ItemStatus.PRICE_MISMATCH
+        return product_details
 
         # Validate that the extracted price is greater than zero
         if product_details:
@@ -267,3 +290,92 @@ class BuyWiselyEngine(PriceEngine):
     def url(self) -> str:
         """Returns the item URL."""
         return self.item_url
+
+    def _normalize_price_for_matching(self, price: float) -> list[str]:
+        """
+        Generate normalized variants of a price for string matching.
+
+        E.g., 399.99 → ["399.99", "399", "39999", "$399.99", "AUD 399.99", "399,99", etc.]
+        """
+        variants = []
+        # Base formats
+        variants.append(str(price))  # "399.99"
+        variants.append(str(int(price)))  # "399"
+        variants.append(str(price).replace(".", ""))  # "39999"
+        variants.append(str(price).replace(".", ","))  # "399,99"
+
+        # With currency symbols/codes
+        for prefix in ["$", "AUD", "AUD$", "USD", "€", "EUR", "£", "GBP"]:
+            variants.append(f"{prefix}{price}")  # "$399.99"
+            variants.append(f"{prefix} {price}")  # "$ 399.99"
+            variants.append(f"{prefix}{int(price)}")  # "$399"
+
+        # With formatting
+        if price >= 1000:
+            formatted = f"{price:,.2f}"  # "1,399.99"
+            variants.append(formatted)
+            variants.append(f"${formatted}")
+            variants.append(f"AUD {formatted}")
+
+        return variants
+
+    def _extract_all_prices_from_html(self, html_content: str) -> list[float]:
+        """
+        Extracts all potential prices from the HTML content using regex.
+        """
+        # Regex to find numbers that look like prices (e.g., 123.45, 1,234.56, 123)
+        # This is a broad search and will need filtering.
+        price_patterns = [
+            r"\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})",  # e.g., 1.234.567,89 or 1,234.56
+            r"\d+(?:[.,]\d{1,2})?",  # e.g., 123 or 123.45 or 123,45
+        ]
+        all_potential_prices = []
+
+        for pattern in price_patterns:
+            for match in re.finditer(pattern, html_content):
+                price_str = match.group(0)
+                # Attempt to clean and convert to float
+                try:
+                    # Handle comma as decimal separator (e.g., German locale)
+                    if "," in price_str and "." not in price_str:
+                        cleaned_price = price_str.replace(",", ".")
+                    # Handle comma as thousands separator (e.g., US locale)
+                    elif "," in price_str and "." in price_str:
+                        cleaned_price = price_str.replace(",", "")
+                    else:
+                        cleaned_price = price_str
+                    all_potential_prices.append(float(cleaned_price))
+                except ValueError:
+                    continue
+        return sorted(list(set(all_potential_prices)))  # Return unique, sorted prices
+
+    def _score_price_match(self, extracted_price: float, target_price: float) -> float:
+        """
+        Scores how well an extracted price matches the target price.
+        Lower score is better. 0 means perfect match.
+        """
+        if extracted_price == target_price:
+            return 0
+
+        # Prioritize exact matches or very close matches
+        if abs(extracted_price - target_price) < 0.01:  # Within 1 cent
+            return 0.1
+
+        # Penalize for significant differences
+        # Use a logarithmic scale for larger differences to avoid extreme scores
+        if target_price == 0:  # Avoid division by zero
+            return abs(extracted_price - target_price)
+        return abs(extracted_price - target_price) / target_price
+
+    # This is a placeholder for the actual implementation of fetching and parsing
+    # seller-specific price data. In a real-world scenario, this would involve
+    # making HTTP requests to the seller's product page, parsing the HTML to
+    # extract the price, and handling various edge cases (e.g., CAPTCHAs,
+    # dynamic content, different page structures).
+    #
+    # For the purpose of this integration, we are simulating this process.
+    # The actual implementation would likely use a dedicated web scraping
+    # library (e.g., BeautifulSoup, Scrapy) and potentially a headless browser
+    # (e.g., Selenium, Playwright) for more complex sites.
+    async def _fetch_and_parse_seller_price(self, *args, **kwargs):
+        raise AttributeError("This is a placeholder and should be mocked in tests.")

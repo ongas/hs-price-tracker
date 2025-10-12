@@ -7,6 +7,7 @@ from custom_components.price_tracker.datas.delivery import DeliveryData
 from custom_components.price_tracker.datas.inventory import InventoryStatus
 from custom_components.price_tracker.datas.price import ItemPriceData
 from custom_components.price_tracker.datas.unit import ItemUnitData, ItemUnitType
+from custom_components.price_tracker.datas.offer import ItemOfferData
 
 
 @dataclasses.dataclass
@@ -50,6 +51,7 @@ class ItemData:
         unit: Optional[ItemUnitData] = None,
         inventory: InventoryStatus = InventoryStatus.OUT_OF_STOCK,
         options: Optional[list[ItemOptionData]] = None,
+        offers: Optional[list[ItemOfferData]] = None,
         status: ItemStatus = ItemStatus.ACTIVE,
         http_status: int = 200,
     ) -> None:
@@ -70,6 +72,7 @@ class ItemData:
         self.description = description
         self.inventory = inventory
         self.options = options
+        self.offers = offers
         self.status = status
         self.http_status = http_status
 
@@ -114,6 +117,9 @@ class ItemData:
             ),
             "product_options": [option.dict for option in self.options]
             if self.options is not None
+            else [],
+            "offers": [offer.dict for offer in self.offers]
+            if self.offers is not None
             else [],
             "status": self.status.name
             if self.status is not None
