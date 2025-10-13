@@ -40,3 +40,6 @@ ha_dev_logs.txt
 test_output.log
 status_update.md
 .gemini/*
+
+# OpenCode configuration
+opencode.json
