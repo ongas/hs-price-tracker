@@ -121,9 +121,7 @@ async def async_setup_entry(
             "[DIAG][sensor.py] Passing excluded_domains to engine: %r", excluded_domains
         )
 
-        engine = create_service_engine(
-            hass,
-            service_type,
+        engine = create_service_engine(service_type)(
             item_url=item_url,
             proxies=proxy,
             device=device,

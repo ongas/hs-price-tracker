@@ -317,11 +317,7 @@ def extract_and_parse_all_hydration_data(html: str) -> list:
                 if parsed_data:
                     product_data = find_product_with_offers_recursive(parsed_data)
                     if product_data:
-                        # _LOGGER.info("[DIAG][hydration_parser] Found product data with offers in push block.")
-                        # if 'offers' in product_data:
-                        #     _LOGGER.info(f"[DIAG][hydration_parser] Raw offers list: {demjson3.encode(product_data['offers'], compactly=False, indent=2)}")
-                        # else:
-                        #     _LOGGER.info("[DIAG][hydration_parser] No 'offers' key found in product data.")
+                        _LOGGER.debug("[DIAG][hydration_parser] Found product_data: %s", product_data)
                         # Normalize the 'title' key to 'name' to match the expected output format.
                         if "title" in product_data:
                             product_data["name"] = product_data.pop("title")
@@ -334,8 +330,4 @@ def extract_and_parse_all_hydration_data(html: str) -> list:
                 )
                 break  # Move to the next script tag
 
-    if extracted_data:
-        return extracted_data
-
-    # _LOGGER.debug("[DIAG][hydration_parser] No product data found in any push blocks.")
-    return []
+    return extracted_data

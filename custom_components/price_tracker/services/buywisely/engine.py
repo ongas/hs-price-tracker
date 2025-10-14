@@ -17,6 +17,7 @@ from custom_components.price_tracker.datas.category import ItemCategoryData
 from custom_components.price_tracker.datas.price import ItemPriceData
 from custom_components.price_tracker.services.buywisely.const import NAME, CODE
 from custom_components.price_tracker.services.buywisely.parser import parse_product
+from .data_transformer import _fetch_and_parse_seller_price
 
 from custom_components.price_tracker.utilities.safe_request import (
     SafeRequest,
@@ -367,15 +368,10 @@ class BuyWiselyEngine(PriceEngine):
             return abs(extracted_price - target_price)
         return abs(extracted_price - target_price) / target_price
 
-    # This is a placeholder for the actual implementation of fetching and parsing
-    # seller-specific price data. In a real-world scenario, this would involve
-    # making HTTP requests to the seller's product page, parsing the HTML to
-    # extract the price, and handling various edge cases (e.g., CAPTCHAs,
-    # dynamic content, different page structures).
-    #
-    # For the purpose of this integration, we are simulating this process.
-    # The actual implementation would likely use a dedicated web scraping
-    # library (e.g., BeautifulSoup, Scrapy) and potentially a headless browser
-    # (e.g., Selenium, Playwright) for more complex sites.
-    async def _fetch_and_parse_seller_price(self, *args, **kwargs):
-        raise AttributeError("This is a placeholder and should be mocked in tests.")
+    async def _fetch_and_parse_seller_price(
+        self, url: str, expected_price: float
+    ) -> Optional[float]:
+        """
+        Fetches and parses the seller's page to validate the price using the data_transformer's logic.
+        """
+        return await _fetch_and_parse_seller_price(url, expected_price)

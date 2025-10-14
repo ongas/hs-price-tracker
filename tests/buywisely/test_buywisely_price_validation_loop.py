@@ -1,19 +1,17 @@
 import json
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 from bs4 import BeautifulSoup
 from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
 from custom_components.price_tracker.datas.item import ItemStatus
 
 
 @pytest.mark.asyncio
-@patch(
-    "custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price"
-)
-@patch("custom_components.price_tracker.utilities.safe_request.SafeRequest")
 async def test_price_validation_loop_selects_matching_offer(
-    mock_safe_request, mock_fetch_seller_price
+    hass, mocker
 ):
+    mock_safe_request = mocker.patch("custom_components.price_tracker.utilities.safe_request.SafeRequest")
+    mock_fetch_seller_price = mocker.patch("custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price")
     # Simulate three offers, only the second matches seller page price
     offers = [
         {
@@ -66,7 +64,8 @@ async def test_price_validation_loop_selects_matching_offer(
     mock_fetch_seller_price.side_effect = fetch_seller_price_side_effect
 
     engine = BuyWiselyEngine(
-        item_url="https://www.buywisely.com.au/product/product",
+        hass,
+        "https://www.buywisely.com.au/product/product",
         request_cls=mock_safe_request,
     )
     result = await engine.load()
@@ -80,13 +79,11 @@ async def test_price_validation_loop_selects_matching_offer(
 
 
 @pytest.mark.asyncio
-@patch(
-    "custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price"
-)
-@patch("custom_components.price_tracker.utilities.safe_request.SafeRequest")
 async def test_price_validation_loop_handles_no_matching_offer(
-    mock_safe_request, mock_fetch_seller_price
+    hass, mocker
 ):
+    mock_safe_request = mocker.patch("custom_components.price_tracker.utilities.safe_request.SafeRequest")
+    mock_fetch_seller_price = mocker.patch("custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price")
     # All seller pages have mismatched prices
     offers = [
         {
@@ -130,7 +127,8 @@ async def test_price_validation_loop_handles_no_matching_offer(
     mock_fetch_seller_price.side_effect = fetch_seller_price_side_effect
 
     engine = BuyWiselyEngine(
-        item_url="https://www.buywisely.com.au/product/product",
+        hass,
+        "https://www.buywisely.com.au/product/product",
         request_cls=mock_safe_request,
     )
     result = await engine.load()

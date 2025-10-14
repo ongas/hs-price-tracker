@@ -1,9 +1,9 @@
 """Tests for basic product data extraction from BuyWiselyEngine."""
 
 import os
-from unittest.mock import AsyncMock, patch
-import pytest
+from unittest.mock import AsyncMock, patch, Mock
 import logging
+import pytest
 
 from custom_components.price_tracker.datas.item import ItemStatus
 from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
@@ -18,19 +18,27 @@ def _read_fixture_html(filename: str) -> str:
         return f.read()
 
 
+_SAFE_REQUEST_PATH = (
+    "custom_components.price_tracker.utilities."
+    "safe_request.SafeRequest"
+)
+_FETCH_SELLER_PRICE_PATH = (
+    "custom_components.price_tracker.services."
+    "buywisely.data_transformer."
+    "_fetch_and_parse_seller_price"
+)
+
 @pytest.mark.asyncio
-@patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
-@patch("requests.Session.get")
-async def test_get_product_details_success(mock_get, mock_safe_request):
+@patch(_SAFE_REQUEST_PATH)
+@patch(_FETCH_SELLER_PRICE_PATH)
+async def test_get_product_details_success(mock_fetch_seller_price, mock_safe_request):
     """Test successful retrieval of product details from a BuyWisely page."""
 
     mock_hass = AsyncMock()
     mock_hass.async_add_executor_job.side_effect = lambda func, *args, **kwargs: func(*args, **kwargs)
 
-    mock_get.return_value = AsyncMock()
-    mock_get.return_value.text = "<html><body>Seller Page Price: 123.45</body></html>"
+    mock_fetch_seller_price.return_value = 123.45 # Directly return the expected price
     mock_safe_request.return_value.user_agent = Mock(return_value=None)
-    mock_get.return_value.raise_for_status = Mock(return_value=None)
 
     sample_html = _read_fixture_html("buywisely_product_details_success.html")
     mock_response = AsyncMock()

@@ -3,6 +3,7 @@
 import os
 from unittest.mock import AsyncMock, patch
 import pytest
+from homeassistant.core import HomeAssistant
 
 from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
 
@@ -16,12 +17,7 @@ def _read_fixture_html(filename: str) -> str:
 
 @pytest.mark.asyncio
 @patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
-@patch(
-    "custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price"
-)
-async def test_price_must_be_greater_than_zero(
-    mock_fetch_seller_price, mock_safe_request
-):
+async def test_price_must_be_greater_than_zero(mock_safe_request, hass: HomeAssistant):
     """Test that loading a product with a zero or missing price raises a ValueError."""
     # Test case 1: Valid product with non-zero price
     sample_html_valid_price = _read_fixture_html(
@@ -35,8 +31,8 @@ async def test_price_must_be_greater_than_zero(
     mock_safe_request.return_value = AsyncMock()
     mock_safe_request.return_value.user_agent.return_value = None
     mock_safe_request.return_value.request.return_value = mock_response_valid
-    mock_fetch_seller_price.return_value = 10.00  # Simulate matching price
     engine_valid = BuyWiselyEngine(
+        hass=hass,
         item_url="https://www.buywisely.com.au/product/valid-product",
         request_cls=mock_safe_request,
     )
@@ -60,8 +56,8 @@ async def test_price_must_be_greater_than_zero(
     mock_safe_request.return_value = AsyncMock()
     mock_safe_request.return_value.user_agent.return_value = None
     mock_safe_request.return_value.request.return_value = mock_response_zero
-    mock_fetch_seller_price.return_value = 0.00  # Simulate matching price
     engine_zero = BuyWiselyEngine(
+        hass=hass,
         item_url="https://www.buywisely.com.au/product/zero-price-product",
         request_cls=mock_safe_request,
     )
@@ -82,8 +78,8 @@ async def test_price_must_be_greater_than_zero(
     mock_safe_request.return_value = AsyncMock()
     mock_safe_request.return_value.user_agent.return_value = None
     mock_safe_request.return_value.request.return_value = mock_response_missing
-    mock_fetch_seller_price.return_value = None  # Simulate missing price
     engine_missing = BuyWiselyEngine(
+        hass=hass,
         item_url="https://www.buywisely.com.au/product/missing-price-product",
         request_cls=mock_safe_request,
     )

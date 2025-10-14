@@ -2,22 +2,25 @@
 
 from unittest.mock import AsyncMock, patch
 import pytest
+from homeassistant.core import HomeAssistant
 
 from custom_components.price_tracker.datas.item import ItemStatus
 from custom_components.price_tracker.services.buywisely.engine import BuyWiselyEngine
 
 
+
+
+async def mock_fetch_price_func(url, expected_price):
+    return expected_price
+
 @pytest.mark.asyncio
 @patch("custom_components.price_tracker.services.buywisely.engine.SafeRequest")
 @patch(
-    "custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price"
+    "custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price",
+    new=mock_fetch_price_func
 )
-async def test_get_product_details_success_minimal(
-    mock_fetch_seller_price, mock_safe_request
-):
+async def test_get_product_details_success_minimal(mock_safe_request, hass):
     """Test successful retrieval of product details from a BuyWisely page with complex HTML data."""
-    mock_fetch_seller_price.return_value = 123.45  # Simulate matching price
-
     # Read sample HTML from fixture file
     with open(
         "tests/buywisely/fixtures/minimal_product.html", "r", encoding="utf-8"
@@ -33,6 +36,7 @@ async def test_get_product_details_success_minimal(
     mock_safe_request.return_value.user_agent.return_value = None
     mock_safe_request.return_value.request.return_value = mock_response
     engine = BuyWiselyEngine(
+        hass=hass,
         item_url="https://www.buywisely.com.au/product/test-product",
         request_cls=mock_safe_request,
     )

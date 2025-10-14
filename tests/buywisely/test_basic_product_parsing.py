@@ -2,6 +2,16 @@ from custom_components.price_tracker.services.buywisely.parser import parse_prod
 from custom_components.price_tracker.datas.item import ItemStatus
 
 
+from unittest.mock import patch
+import logging
+
+async def mock_fetch_price_func(url, expected_price):
+    return expected_price
+
+@patch(
+    "custom_components.price_tracker.services.buywisely.data_transformer._fetch_and_parse_seller_price",
+    new=mock_fetch_price_func
+)
 async def test_parse_product_basic():
     html = (
         '<html><body><script id="__NEXT_DATA__" type="application/json">'
@@ -9,6 +19,7 @@ async def test_parse_product_basic():
         "</script></body></html>"
     )
     result = await parse_product(html)
+    logging.warning(f"PARSED RESULT: {result}")
     assert result["name"] == "Direct Parse Test", f"Name mismatch: {result.get('name')}"
     assert (
         result["price"]["price"] == 50.0
