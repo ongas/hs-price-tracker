@@ -6,33 +6,18 @@ import os
 CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), "call_ha_api_config.yaml")
 
 
-def load_config(config_file):
-    try:
-        with open(config_file, "r") as f:
-            config = yaml.safe_load(f)
-        return config
-    except FileNotFoundError:
-        print(f"Error: Configuration file not found at {config_file}")
-        exit(1)
-    except yaml.YAMLError as e:
-        print(f"Error parsing configuration file: {e}")
-        exit(1)
+def load_config(config_file_path):
+    with open(config_file_path, "r") as f:
+        return yaml.safe_load(f)
 
 
-def get_api_token(secrets_file):
+def get_api_token(secrets_file_path):
     try:
-        with open(secrets_file, "r") as f:
+        with open(secrets_file_path, "r") as f:
             secrets = yaml.safe_load(f)
-        token = secrets.get("homeassistant_api_token")
-        if not token:
-            print(f"Error: 'homeassistant_api_token' not found in {secrets_file}")
-            return None
-        return token
+            return secrets.get("ha_api_token")
     except FileNotFoundError:
-        print(f"Error: secrets.yaml not found at {secrets_file}")
-        return None
-    except yaml.YAMLError as e:
-        print(f"Error parsing secrets.yaml: {e}")
+        print(f"Error: Secrets file not found at {secrets_file_path}")
         return None
 
 
@@ -47,21 +32,16 @@ def run_curl_command(token, ha_instance, entity_id):
         "Content-Type: application/json",
         f"http://{ha_instance}/api/states/{entity_id}",
     ]
+
     try:
-        result = subprocess.run(
-            curl_command, capture_output=True, text=True, check=True
-        )
+        result = subprocess.run(curl_command, capture_output=True, text=True, check=True)
         print("Curl Command Output:")
         print(result.stdout)
-        if result.stderr:
-            print("Curl Command Error (stderr):")
-            print(result.stderr)
     except subprocess.CalledProcessError as e:
         print(f"Error executing curl command: {e}")
-        print(f"Stdout: {e.stdout}")
         print(f"Stderr: {e.stderr}")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+    except FileNotFoundError:
+        print("Error: 'curl' command not found. Please ensure curl is installed and in your PATH.")
 
 
 if __name__ == "__main__":

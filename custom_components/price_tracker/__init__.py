@@ -19,7 +19,6 @@ async def handle_update_entity(call: ServiceCall):
     if hass is None:
         _LOGGER.error("%s: No hass context available!", "handle_update_entity")
         return None
-    _LOGGER.debug("handle_update_entity called with call.data: %s", call.data)
     entity_ids = call.data.get("entity_id")
     force_update = call.data.get("force", False)
     entity_registry = er.async_get(hass)
@@ -132,10 +131,6 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up price tracker from a config entry."""
-    _LOGGER.info("Setting up entry: %s", entry)
-    _LOGGER.info("entry.data: %s", entry.data)
-    _LOGGER.info("entry.options: %s", entry.options)
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN].setdefault("global_config", {})

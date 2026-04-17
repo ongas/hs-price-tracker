@@ -260,7 +260,6 @@ async def _fetch_and_parse_seller_price(
         # Step 3: Match extracted prices against variants
         matched_prices = []
         for extracted in all_prices:
-            extracted_str = str(extracted["price"])
             # Check if extracted price matches any variant (with tolerance)
             if any(
                 variant in extracted["text"]
@@ -328,6 +327,7 @@ async def _fetch_and_parse_seller_price(
 async def transform_raw_product_data(
     raw_data: dict, product_id: str, item_url: str
 ) -> ItemData:
+    _LOGGER.debug(f"[DIAG][data_transformer] transform_raw_product_data called for product_id='{product_id}', item_url='{item_url}'")
     """
     Transforms raw product data into an ItemData object, including seller page price validation.
     """
@@ -403,17 +403,21 @@ async def transform_raw_product_data(
                 status_value = ItemStatus.ACTIVE
                 product_link = seller_product_url
                 matched = True
+                _LOGGER.debug(f"[DIAG][data_transformer] Offer matched. matched={matched}, status_value={status_value}")
                 break
             elif seller_page_price is None:
                 _LOGGER.error(
                     f"Could not extract price from seller page for product_id={product_id}. Skipping offer."
                 )
+                _LOGGER.debug(f"[DIAG][data_transformer] Seller page price is None. matched={matched}")
                 continue
             else:
                 _LOGGER.error(
                     f"Price mismatch for product_id={product_id}. BuyWisely price: {offer_price}, Seller page price: {seller_page_price}. Skipping offer."
                 )
+                _LOGGER.debug(f"[DIAG][data_transformer] Price mismatch. matched={matched}")
                 continue
+        _LOGGER.debug(f"[DIAG][data_transformer] After offer loop. matched={matched}")
         if not matched:
             status_value = ItemStatus.PRICE_MISMATCH
             lowest_price_value = None
@@ -422,6 +426,7 @@ async def transform_raw_product_data(
             _LOGGER.error(
                 f"No valid offer found for product_id={product_id}. Setting price to None and status to PRICE_MISMATCH."
             )
+            _LOGGER.debug(f"[DIAG][data_transformer] No offer matched. status_value={status_value}")
 
     from custom_components.price_tracker.utilities.parser import parse_float
 
@@ -486,6 +491,7 @@ async def transform_raw_product_data(
     image_value = raw_data.get("image") or ""
     # Set status to INACTIVE if price is None or 0.0, or if not in stock
     # This logic is now partially superseded by seller page validation, but still relevant for initial extraction
+    _LOGGER.debug(f"[DIAG][data_transformer] Before final INACTIVE check: status_value={status_value}, availability='{raw_data.get('availability')}', price_value={price_value}")
     if status_value == ItemStatus.ACTIVE and (
         raw_data.get("availability") != "In Stock" or price_value in (None, 0.0)
     ):

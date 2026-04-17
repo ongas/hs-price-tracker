@@ -25,6 +25,7 @@ scripts/call_ha_api_output.txt
 .vscode/
 .idea/
 .DS_Store
+.claude/
 
 # Caches
 .ruff_cache/

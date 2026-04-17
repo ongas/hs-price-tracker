@@ -220,3 +220,98 @@ async def test_service_call_invalid_entity(hass: HomeAssistant, mock_config_entr
     # Assert that no error was raised and the service call completed (even if it did nothing)
     # The warning log will indicate that the entity was not found.
     assert not hass.services.has_service(entity_id, "update")
+
+@pytest.mark.asyncio
+async def test_service_call_invalid_entity(hass: HomeAssistant, mock_config_entry):
+    """Test calling the update_entity service with an invalid entity_id."""
+    entity_id = "sensor.non_existent_sensor"
+
+    try:
+        await async_setup_entry(hass, mock_config_entry)
+    except IntegrationNotFound:
+        pass
+
+    # Call the service with an invalid entity_id
+    await hass.services.async_call(
+        DOMAIN, "update_entity", {"entity_id": entity_id}, blocking=True
+    )
+
+    # Assert that no error was raised and the service call completed (even if it did nothing)
+    # The warning log will indicate that the entity was not found.
+    assert not hass.services.has_service(entity_id, "update")
+
+@pytest.mark.asyncio
+async def test_service_call_invalid_entity(hass: HomeAssistant, mock_config_entry):
+    """Test calling the update_entity service with an invalid entity_id."""
+    entity_id = "sensor.non_existent_sensor"
+
+    try:
+        await async_setup_entry(hass, mock_config_entry)
+    except IntegrationNotFound:
+        pass
+
+    # Call the service with an invalid entity_id
+    await hass.services.async_call(
+        DOMAIN, "update_entity", {"entity_id": entity_id}, blocking=True
+    )
+
+    # Assert that no error was raised and the service call completed (even if it did nothing)
+    # The warning log will indicate that the entity was not found.
+    assert not hass.services.has_service(entity_id, "update")
+
+@pytest.mark.asyncio
+async def test_service_call_invalid_entity(hass: HomeAssistant, mock_config_entry):
+    """Test calling the update_entity service with an invalid entity_id."""
+    entity_id = "sensor.non_existent_sensor"
+
+    try:
+        await async_setup_entry(hass, mock_config_entry)
+    except IntegrationNotFound:
+        pass
+
+    # Call the service with an invalid entity_id
+    await hass.services.async_call(
+        DOMAIN, "update_entity", {"entity_id": entity_id}, blocking=True
+    )
+
+    # Assert that no error was raised and the service call completed (even if it did nothing)
+    # The warning log will indicate that the entity was not found.
+    assert not hass.services.has_service(entity_id, "update")
+
+@pytest.mark.asyncio
+async def test_service_call_invalid_entity(hass: HomeAssistant, mock_config_entry):
+    """Test calling the update_entity service with an invalid entity_id."""
+    entity_id = "sensor.non_existent_sensor"
+
+    try:
+        await async_setup_entry(hass, mock_config_entry)
+    except IntegrationNotFound:
+        pass
+
+    # Call the service with an invalid entity_id
+    await hass.services.async_call(
+        DOMAIN, "update_entity", {"entity_id": entity_id}, blocking=True
+    )
+
+    # Assert that no error was raised and the service call completed (even if it did nothing)
+    # The warning log will indicate that the entity was not found.
+    assert not hass.services.has_service(entity_id, "update")
+
+@pytest.mark.asyncio
+async def test_service_call_invalid_entity(hass: HomeAssistant, mock_config_entry):
+    """Test calling the update_entity service with an invalid entity_id."""
+    entity_id = "sensor.non_existent_sensor"
+
+    try:
+        await async_setup_entry(hass, mock_config_entry)
+    except IntegrationNotFound:
+        pass
+
+    # Call the service with an invalid entity_id
+    await hass.services.async_call(
+        DOMAIN, "update_entity", {"entity_id": entity_id}, blocking=True
+    )
+
+    # Assert that no error was raised and the service call completed (even if it did nothing)
+    # The warning log will indicate that the entity was not found.
+    assert not hass.services.has_service(entity_id, "update")

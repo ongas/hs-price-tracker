@@ -126,6 +126,12 @@ class PriceTrackerSensor(RestoreEntity):
 
             state = await self.async_get_last_state()
 
+            _LOGGER.debug(f"[DIAG][sensor.py] async_added_to_hass: state={state}")
+            if state:
+                _LOGGER.debug(f"[DIAG][sensor.py] async_added_to_hass: state.attributes={state.attributes}")
+            else:
+                _LOGGER.debug(f"[DIAG][sensor.py] async_added_to_hass: state is None (new sensor or no previous state)")
+
             if self._item_data is not None:
                 return
 
